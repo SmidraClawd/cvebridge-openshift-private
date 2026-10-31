@@ -11,6 +11,16 @@ Den här guiden använder ett befintligt OpenShift-kluster, en befintlig Matterm
 ny Mattermost, ACS eller identitetsleverantör. Företagsprofilen använder OpenShifts
 egen OAuth-server. Något live-test i OpenShift/OKD har ännu inte genomförts.
 
+## Bildexempel och läsordning
+
+Läs först [översikten med placering och skärmbilder](README.md), följ sedan
+installationsstegen i den här guiden. [Den fullständiga lokala bildguiden](LOKALT_LABB.md)
+visar även CVE-sökning, schemaändringar, felmeddelanden och körhistorik.
+
+Skärmbilderna visar det verifierade k3d-/Dex-labbet. De visar hur beställning
+och resultat fungerar, men är inte bilder av en genomförd OpenShift-installation.
+Labbets Dex-inloggning ska inte förväxlas med OpenShifts inloggningssida.
+
 ## Placering när Central finns på hubbklustret
 
 För upplägget med gemensam ACS Central och sensorer i labb och produktion:
@@ -57,6 +67,18 @@ Central och Mattermost, och Mattermosts anslutning till appens webhook.
    koppling till Central ger klusterinventeringen; eventuella luckor redovisas.
 8. **Appen kontrollerar åtkomst igen och skickar rapporten till Mattermost**,
    privat eller till godkänd privat kanal enligt beställningens delningsinställningar.
+
+### Bildexempel: beställning och färdig rapport
+
+**Beställningen:** den privata länken är bunden till personen som körde kommandot.
+
+![Privat beställningskort i Mattermost med inloggningslänk och omfattning](assets/reports/02-bestallning.jpg)
+
+**Resultatet:** efter verifierad inloggning och skanning visar boten åtgärd,
+skanningstäckning och den bifogade JSON-rapporten. I OpenShift-upplägget används
+labbklustrets inloggning i stället för den lokala Dex-leverantören.
+
+![Färdig rapport i det lokala labbet med åtgärd och fullständig bilaga](assets/reports/04-skanningsrapport.jpg)
 
 ## Vem frågar och vem avgör behörigheten?
 
@@ -302,6 +324,10 @@ appens reviewer-konto kontrollerar dess behörigheter med SubjectAccessReview.
 Ingen personlig webbinloggning behövs när schemat körs. Se
 [SCHEDULING.md](docs/SCHEDULING.md) för tider, begränsningar och körhistorik samt
 [README:s bildguide](LOKALT_LABB.md#automatiska-korningar) för utvecklarnas steg.
+
+Så här bekräftar boten ett sparat schema i den lokala demonstrationen:
+
+![Bekräftelse av dagar, tider, tidszon och godkända namespaces](assets/reports/08-schema-bekraftelse.jpg)
 
 ## Verifiera före företagsdrift
 
