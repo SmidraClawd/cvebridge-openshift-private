@@ -218,7 +218,7 @@ def prepare(data, base, output):
     fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
     with os.fdopen(fd,"wb") as stream, tarfile.open(fileobj=stream, mode="w:gz") as archive:
         archive.add(ROOT/"app/Dockerfile", arcname="Dockerfile")
-        for name in ["__init__.py", "server.py", "scheduling.py"]:
+        for name in ["__init__.py", "server.py", "scheduling.py", "dialogs.py"]:
             archive.add(ROOT/"app"/name, arcname="app/"+name)
     path.chmod(0o600)
 

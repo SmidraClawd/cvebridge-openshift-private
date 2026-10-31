@@ -70,16 +70,18 @@ kontrollerar åtkomsten och ger inga nya Kubernetes-behörigheter.
 En befintlig privat teamkanal går också bra. Plattformsteamet godkänner
 omfattning och delning, kontrollerar identiteter och åtkomst, lägger till boten
 och aktiverar möjligheten till schemaläggning för kanalen. Utvecklarna kör sedan
-`/cve schedule`, följer sin privata inloggningslänk och fyller i formuläret.
+`/cve schedule` och fyller i dialogrutan direkt i Mattermost. Ingen separat
+webbsida eller webbinloggning behövs för schemainställningarna.
 
 **Automatiska körningar:** kör `/cve schedule` i Team Security. Välj dagar,
-1–4 tider per dag, tidszon och namespaces. Spara för att aktivera. Samma kommando
+1–4 tider per dag, tidszon och namespaces. Välj **Spara inställningar** och
+klicka **Utför** för att aktivera. Samma kommando
 öppnar inställningarna igen så att teamet kan ändra eller pausa schemat, eller
 provköra det sparade schemat. Rapportjobbet kör sedan utan personlig inloggning.
 Datorn och tjänsterna behöver vara igång vid den valda tiden.
 
-**Vad väljer teamet?** Namespaces visas som kryssrutor. Första gången är alla
-tillåtna alternativ förkryssade; avmarkera dem som inte ska ingå. Minst ett
+**Vad väljer teamet?** Namespaces visas i en lista med flerval. Första gången är alla
+tillåtna alternativ valda; ta bort dem som inte ska ingå. Minst ett
 namespace måste väljas. Inom valda namespaces omfattas images som används av
 aktiva poddar i Sensors inventering, inklusive kända init-container-images.
 Hela containerregistret skannas inte, och val av enskilda appar eller images

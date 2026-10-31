@@ -153,6 +153,8 @@ def common_manifests(settings):
            "MATTERMOST_SCHEDULE_MANAGERS": json.dumps(settings.get("mattermost_schedule_managers", {})),
            "SCHEDULE_SERVICE_USER": "system:serviceaccount:"+settings["namespace"]+":acs-reporter",
            "SCHEDULE_DEFAULT_TIMEZONE": settings.get("schedule_default_timezone", "Europe/Stockholm"),
+           "MATTERMOST_DIALOG_URL": (settings.get("webhook_public_url") or
+               "http://cvebridge-webhook."+NS+".svc:8001").rstrip("/")+"/slash/cve/dialog",
            "DATABASE_MAX_AGE_HOURS": str(settings.get("database_max_age_hours", 24)),
            "CVE_ALERTS_ENABLED": str(settings.get("cve_alerts_enabled", True)).lower(),
            "CVE_ALERT_MIN_CVSS": str(settings.get("cve_alert_min_cvss", 9)),

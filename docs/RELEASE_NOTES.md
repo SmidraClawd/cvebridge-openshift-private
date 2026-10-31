@@ -16,7 +16,7 @@ har inte skapats.
 
 ## Verifierat lokalt
 
-- 90 enhetstester för bland annat autentisering, behörigheter, rapportering, scheman och engångslarm.
+- 102 enhetstester för bland annat autentisering, behörigheter, rapportering, scheman och engångslarm.
 - Verifierade kommandofel visas som svenska kort i Mattermost; felaktiga integrationstoken avvisas fortfarande.
 - 22 flödeskontroller mot den verkliga lokala installationen.
 - Manuell skanning av två containerbilder med leverans till Mattermost och JSON-bilaga.
@@ -29,3 +29,13 @@ Detta är ett lokalt demonstrationsprojekt, med en appreplik och utan löfte om
 produktionsberedskap. Bildernas skannerdata var markerad som gammal vid
 verifieringen. Fixversioner i skärmbilder är skannerns dåvarande underlag.
 Inga lösenord, API-token, kubeconfig-filer eller beständiga labbdata ingår.
+
+## Scheman direkt i Mattermost
+
+`/cve schedule` öppnar nu en dialogruta med dagar, tider, tidszon, namespaces,
+körningstyp och status. Användaren kan spara, pausa, provköra det sparade schemat
+eller få körhistorik som ett privat svar. Schemaflödet kräver ingen extern sida.
+Vanliga godkända teammedlemmar kan använda det; boten behöver ingen adminroll.
+
+Tolv nya tester täcker bland annat fel avsändare, annan kanal, ändrad identitet,
+revokerad åtkomst, utgångna formulär, replay, samtidiga teamändringar och validering.

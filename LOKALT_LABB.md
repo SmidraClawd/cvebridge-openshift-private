@@ -196,30 +196,34 @@ CVE-nummer; dess rapport omfattar fynden från valda namespaces.
 /cve schedule
 ```
 
-Öppna den privata länken **Logga in och konfigurera teamets schema** och logga
-in som dig själv. Första gången står det **Första konfigurationen — inget
-schema är aktiverat ännu**. Alla tillåtna namespaces och alla veckodagar är
-förkryssade. Inga automatiska körningar börjar innan du sparar.
+Kommandot öppnar **Teamets schema** som en dialogruta direkt i Mattermost.
+Du fyller i fälten här; ingen extern sida eller separat webbinloggning behövs
+för schemainställningarna. Dialogrutan visas bara för personen som körde kommandot.
 
-![Det verkliga formuläret före första sparningen, med standardvalen](assets/onboarding/08-forsta-schema.jpg)
+![Schemaformuläret direkt i Mattermost med dagar, tider och godkända namespaces](assets/native-schedule/01-schema-i-mattermost.jpg)
 
 **Steg B — välj vad och när.** Anpassa formuläret, till exempel så här:
 
 | Fält | Exempel | Betydelse |
 | --- | --- | --- |
-| Dagar | Måndag–fredag | Kör på dessa veckodagar. |
-| Tider | `08:00, 15:00` | Två starttider per vald dag; högst fyra och minst en timme mellan. |
+| Veckodagar | Måndag–fredag | Välj en eller flera dagar. |
+| Tider | `08:00, 15:00` | Högst fyra tider per dag och minst en timme mellan. |
 | Tidszon | `Europe/Stockholm` | Tiderna tolkas i den valda tidszonen. |
-| Vad ska göras? | Ny imageskanning och rapport | Begär nya skanningar och publicera resultatet. Alternativet med befintliga skanningar hämtar en rapport utan att skanna om. |
-| Namespaces | Bara `demo-team-a` ikryssat | Ta med detta namespace och avmarkera de andra. Minst ett måste väljas. |
-| Aktivera automatiska körningar | Ikryssad | Aktivera när formuläret sparas. |
+| Namespaces | `demo-team-a` | Välj bland godkända alternativ. Minst ett krävs. |
+| Vad ska göras? | Ny skanning och rapport | Alternativet med befintliga fynd hämtar en rapport utan att skanna om. |
+| Efter sparning | Aktiverat | Välj Pausat om schemat inte ska köras ännu. |
+| Åtgärd | Spara inställningar | Andra alternativ blir tillgängliga när ett schema finns. |
 
-![Första schemat anpassat till vardagar, två starttider och ett namespace](assets/onboarding/09-schema-val.jpg)
+**Steg C — välj Spara inställningar och klicka Utför.** Boten bekräftar dagar,
+tider, namespaces och nästa körning i kanalen. Nästa körning visas i UTC;
+exempelvis motsvarar 07:00 UTC klockan 08:00 i Stockholm under vintertid.
+Inga automatiska körningar aktiveras före första sparningen.
 
-**Steg C — klicka Spara schema.** ACS bekräftar inställningarna i kanalen med
-dagar, tider, tidszon, namespaces och nästa körning. Kontrollera att omfattningen
-är rätt. Nästa körning visas i UTC; exempelvis motsvarar 07:00 UTC klockan 08:00
-i Stockholm under vintertid.
+**Behöver man vara admin?** Nej. Godkända teammedlemmar kan använda formuläret,
+eller bara utsedda schemaansvariga om operatören har begränsat redigeringen.
+Mattermost-admin behövs normalt bara för den ursprungliga anslutningen och
+kommandoregistreringen. Ingen särskild formulärfunktion behöver aktiveras per kanal,
+men kanalen ska vara godkänd för schemaläggning. Boten behöver ingen adminroll.
 
 ![ACS bekräftar det sparade schemat i Mattermost](assets/reports/08-schema-bekraftelse.jpg)
 
@@ -237,26 +241,17 @@ tid. Den visar samma leveransflöde som schemat med klockan 08 och 15.
 
 ### 5. Ändra, provkör eller pausa
 
-Kör `/cve schedule` igen och följ den nya privata länken. Formuläret visar
-kanalens nuvarande inställningar och senaste körningar.
+Kör `/cve schedule` igen. Samma dialogruta visar det sparade schemat.
+Välj vad du vill göra under **Åtgärd** och klicka **Utför**:
 
-- **Ändra:** justera dagar, tider, tidszon, körningstyp eller tillåtna namespaces
-  och klicka **Spara schema**.
-- **Provkör:** klicka **Provkör senast sparade schema**. Det testar den redan
-  sparade konfigurationen; osparade formulärändringar ingår inte. Spara därför
-  först och öppna en ny länk om du vill testa ändrade inställningar.
-- **Pausa:** avmarkera **Aktivera automatiska körningar** och klicka
-  **Spara schema**. ACS bekräftar pausen i kanalen.
-- **Återuppta:** öppna samma kommando, kryssa i aktiveringen och spara igen.
+- **Spara inställningar:** ändra dagar, tider, tidszon, körningstyp, namespaces eller status.
+- **Provkör sparat schema:** kör det redan sparade schemat. Osparade ändringar används inte.
+- **Pausa sparat schema:** pausa automatiken utan att ändra det sparade urvalet.
+- **Visa körhistorik:** få de senaste körningarna som ett privat svar i Mattermost.
 
-![Formuläret för ett aktivt schema med knapp för att provköra sparade inställningar](assets/onboarding/13-andra-och-provkor.jpg)
+För att återuppta väljer du **Efter sparning: Aktiverat**, sedan **Spara inställningar**.
 
-![ACS bekräftar att de automatiska körningarna är pausade](assets/reports/09-schema-pausat.jpg)
-
-Under **Visa schema och körningar** kan ni följa leveranser och misslyckanden.
-Här syns både den tidsstyrda körningen och provkörningen som levererade:
-
-![Körhistoriken visar två levererade körningar och att schemat nu är pausat](assets/onboarding/18-korhistorik.jpg)
+![Val för att spara, pausa, provköra och läsa historik i samma Mattermost-formulär](assets/native-schedule/02-atgarder-i-formularet.jpg)
 
 Schemat tillhör kanalen. Verifierade teammedlemmar får ändra det om inte
 operatören har begränsat redigeringen till utsedda schemaansvariga. En kollega
@@ -308,7 +303,7 @@ kommer från den tidigare genomgången av samma lokala flöde.
 
 ## Verifierad projektstatus
 
-Det lokala labbet är verifierat med 90 enhetstester, verkliga manuella
+Det lokala labbet är verifierat med 102 enhetstester, verkliga manuella
 skanningar och rapportleveranser samt tidsstyrda körningar. Resultaten sparas
 lokalt under `.local/` och följer inte med i Git. Skärmbilden ovan visar en
 verklig rapport från den 31 oktober 2026.
@@ -459,6 +454,10 @@ kubectl --kubeconfig .local/kubeconfig -n stackrox logs deploy/scanner
 ```
 
 ## How identity and authorization work
+
+Schedule configuration uses Mattermost-authenticated native dialogs and live
+username-based Kubernetes checks; see [native dialog identity](docs/SCHEDULING.md#identity-and-roles-for-native-dialogs).
+The following browser login flow applies to manual scans and CVE lookups.
 
 1. Mattermost sends a command authenticated by its command token.
 2. The app fetches the caller's account from Mattermost's API and maps its stable

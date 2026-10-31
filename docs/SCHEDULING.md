@@ -1,8 +1,11 @@
 # Team-controlled automatic scans and reports
 
 Run `/cve schedule` (or `/acs schedule`) in an approved private team channel.
-Mattermost returns a private, ten-minute login link bound to the caller. The
-same command opens first-time setup or the existing team configuration.
+Mattermost opens **Teamets schema** inside the chat client. Scheduling needs no
+external website or personal OpenShift/SSO browser session. The popup is visible
+only to the person who invoked the command. It requires Mattermost 11 or newer
+for multiselect fields (the local lab runs 12.0.1). See the official
+[interactive-dialog documentation](https://docs.mattermost.com/developers/integrate/plugins/interactive-dialogs).
 
 The form lets the team choose:
 
@@ -16,7 +19,7 @@ The form lets the team choose:
   scans. A report alone does not claim that images were freshly rescanned.
 - Enabled or paused state. Nothing is enabled on the first form until Save.
 
-At first setup, all eligible namespace checkboxes are selected. Uncheck any
+At first setup, all eligible namespace options are selected. Remove any
 namespaces the team does not want in the schedule; at least one must remain.
 Selection is currently by namespace, without individual application or image
 checkboxes. A scan includes images used by active pods in the selected
@@ -25,7 +28,7 @@ images. It does not scan the entire registry or unused images.
 
 The active configuration is owned by the channel. Developers do not leave their
 SSO session or a personal API token running in the background. Run `/cve
-schedule` again to edit or pause, or select **Provkör senast sparade schema**
+schedule` again to edit or pause, or select **Provkör sparat schema**
 to test the saved settings. Test runs are limited to one per minute and one
 queued/running test per channel; unsaved form edits are not applied by Test.
 
@@ -62,9 +65,10 @@ slot. It does not replay a backlog when the laptop wakes. The computer and
 cluster must be running at the selected time.
 
 Configuration, revision history, due-slot claims and run outcomes persist on
-the existing SQLite PVC. Concurrent form edits use revision checks. State-changing
-browser forms require the authenticated command owner, the expected Origin and
-a secret-bound CSRF value. Requests are consumed after success. A restarted
+the existing SQLite PVC. Concurrent form edits use revision checks. Native dialogs use a random, ten-minute, single-use capability bound to the
+Mattermost actor, channel, account mapping, audience and schedule revision.
+The callback rechecks live permissions. It rejects altered identities, other
+channels, replays and stale forms. Requests are consumed after success. A restarted
 worker marks in-flight work interrupted, without automatically posting it again.
 Delivery and database commits cannot be one transaction: an interrupted network
 response may leave delivery uncertain. Check the channel before retrying.
@@ -105,6 +109,33 @@ to ignore them. The local check verifies the server's mention counter; email and
 mobile push delivery are not configured in this lab. A timeout after Mattermost
 accepts a post but before acknowledgment can still leave delivery uncertain;
 this is not an atomic exactly-once guarantee across the two services.
+
+## Identity and roles for native dialogs
+
+Ordinary approved channel members can create and edit schedules. An optional
+manager list restricts this to designated members. No admin role or server plugin
+is required for the user or bot. A Mattermost administrator registers the slash
+command once; the operator separately approves channel scopes and identities.
+
+The command token authenticates Mattermost's server-side request. The application
+resolves its stable user ID through the administrator-approved mapping (or a
+verified OIDC email) and checks Kubernetes SubjectAccessReview for that username.
+Only `system:authenticated` is supplied; IdP groups are never guessed from chat
+membership. Group-only grants therefore cannot authorize new namespaces through
+this native path. Existing approved team scope may be retained when changing
+frequency, within the current reporter and channel scope. Manual scan/lookup
+commands retain their separate SSO verification.
+
+`MATTERMOST_DIALOG_URL` is generated as the existing webhook base followed by
+`/slash/cve/dialog`. It uses the configured HTTPS webhook address, or the internal
+webhook Service if no external address is supplied. Mattermost must reach this
+endpoint just as it reaches the slash command. The existing `/slash/cve` Route
+prefix includes callbacks; no additional command registration is needed. Form
+capabilities are not included in request logs or public channel posts.
+
+The action selector supports saving, pausing, testing the saved schedule, and
+sending recent run history as an owner-only ephemeral message. This interface
+never grants namespace access, adds channel membership or changes service tokens.
 
 ## Operator approval and credentials
 

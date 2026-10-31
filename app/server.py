@@ -24,6 +24,7 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import parse_qs, quote, urlencode, urlsplit
 from urllib.request import Request, urlopen
 from app.scheduling import DAY_NAMES, ScheduleError, Scheduler, Schedules, validate_config
+from app.dialogs import NativeSchedules
 
 LOG = logging.getLogger("cvebridge")
 CVE = re.compile(r"CVE-\d{4}-\d{4,19}\Z")
@@ -282,11 +283,11 @@ def schedule_message(result):
 
 
 def help_message():
-    return card_message("Vad vill du göra?","StackRox skannar; ACS beställer och visar rapporten.\nLogga in via den privata länken. Be plattformsteamet ansluta teamets privata kanal.",
+    return card_message("Vad vill du göra?","StackRox skannar; ACS beställer och visar rapporten.\nSchema ställs in direkt i Mattermost. Skanning och CVE-sökning använder en privat inloggningslänk.",
         summary="**ACS · Snabbhjälp**",fields=[
             field("Skanna nu","`/cve scan [namespace]`\nNy skanning och rapport."),
             field("Sök en CVE","`/cve CVE-2021-44228 [namespace]`\nSök i befintliga fynd."),
-            field("Automatisera","`/cve schedule`\nStäll in, ändra eller pausa."),
+            field("Automatisera","`/cve schedule`\nÖppna formuläret här i Mattermost."),
             field("Databasstatus","`/cve status`\nSe när underlaget uppdaterades.")],footer="ACS · /acs fungerar också")
 
 
@@ -1013,7 +1014,30 @@ class Handler(BaseHTTPRequestHandler):
     runner = None
     schedules = None
     scheduler = None
+    native_schedules = None
     public_listener = False
+
+    def log_request(self, code="-", size="-"):
+        if self.path.startswith("/slash/cve/dialog/"):
+            LOG.info("dialog_http status=%s", code)
+        else:
+            super().log_request(code, size)
+
+    def native_schedule_post(self, key):
+        try:
+            length = int(self.headers.get("Content-Length", "0"))
+            if not 0 < length <= 32768:
+                raise Problem(413, "Formuläret saknas eller är för stort.")
+            payload = json.loads(self.rfile.read(length))
+            result = self.native_schedules.submit(key, payload)
+            return self.reply(200, result)
+        except (Problem, ScheduleError) as exc:
+            return self.reply(exc.status if exc.status in {401,403} else 200, {"error":exc.message})
+        except (ValueError, UnicodeDecodeError):
+            return self.reply(400, {"error":"Formuläret kunde inte läsas."})
+        except Exception:
+            LOG.exception("native_schedule_failed")
+            return self.reply(500, {"error":"Schemat kunde inte behandlas. Kör /cve schedule igen och kontrollera inställningarna."})
 
     def schedule_context(self, saved, user, groups):
         channel = saved["channel_id"]
@@ -1280,6 +1304,9 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         verified_command = False
         try:
+            dialog = re.fullmatch(r"/slash/cve/dialog/([A-Za-z0-9_-]{43})", urlsplit(self.path).path)
+            if self.public_listener and dialog:
+                return self.native_schedule_post(dialog.group(1))
             if not self.public_listener and re.fullmatch(r"/requests/[A-Za-z0-9_-]+/schedule", urlsplit(self.path).path):
                 return self.schedule_post()
             if not self.public_listener or urlsplit(self.path).path != "/slash/cve":
@@ -1312,6 +1339,9 @@ class Handler(BaseHTTPRequestHandler):
             shared = channel_id in self.services.channel_scopes
             if cve == "schedule" and channel_id not in self.services.schedule_scopes:
                 raise Problem(403, "Automatik är inte godkänd för denna kanal. Be plattformsteamet ansluta kanalen först.")
+            if cve == "schedule":
+                self.native_schedules.open(get("user_id"), channel_id, get("trigger_id"))
+                return self.reply(200, self.services.command_reply("**ACS · Teamets schema**\nFormuläret öppnas här i Mattermost. Kör /cve schedule igen för att ändra, pausa eller provköra."))
             request_id = self.store.create(email, cve, namespace, callback, channel_id, get("user_id"), shared=shared)
             link = self.services.public + "/requests/" + request_id
             policy = self.services.channel_policies.get(channel_id, "common")
@@ -1339,6 +1369,7 @@ def main():
     Handler.runner = ScanRunner(services, store)
     Handler.schedules = Schedules(store)
     Handler.scheduler = Scheduler(services, Handler.schedules, Handler.runner)
+    Handler.native_schedules = NativeSchedules(services, store, Handler.schedules, Handler.scheduler)
     public = type("WebhookHandler", (Handler,), {"public_listener": True})
     ui = ThreadingHTTPServer(("127.0.0.1", 8000), Handler)
     webhook = ThreadingHTTPServer(("0.0.0.0", 8001), public)

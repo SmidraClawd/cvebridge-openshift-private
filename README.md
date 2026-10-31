@@ -61,7 +61,13 @@ standardinställningen skapar först ett utgångsläge utan ping.
 ![Engångslarm med kanalmention och prioriterade fynd](assets/reports/03-engangslarm.jpg)
 
 **Teamschema:** teamet väljer dagar, tider, tidszon och godkända namespaces.
-Boten bekräftar inställningarna i kanalen.
+Boten bekräftar inställningarna i kanalen. `/cve schedule` öppnar nu en popup
+direkt i Mattermost, utan någon separat hemsida eller webbinloggning för schemat.
+En vanlig godkänd teammedlem kan använda den; ingen adminroll behövs.
+
+![Dagar, tider och namespaces direkt i Mattermost](assets/native-schedule/01-schema-i-mattermost.jpg)
+
+![Paus, provkörning och andra åtgärder i samma formulär](assets/native-schedule/02-atgarder-i-formularet.jpg)
 
 ![Boten bekräftar teamets tider och omfattning för automatiska körningar](assets/reports/08-schema-bekraftelse.jpg)
 

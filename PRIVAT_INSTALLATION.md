@@ -198,7 +198,7 @@ registrets vanliga pull-Secret i appens projekt. Ingen publicerad företagsimage
 levereras automatiskt av detta projekt.
 
 `prepare` skapar också `app-source.tar.gz` som byggkontext: endast Dockerfile och
-de tre Python-filerna i `app/` ingår. Den kan skickas till en godkänd binär
+de fyra Python-filerna i `app/` ingår. Den kan skickas till en godkänd binär
 OpenShift-build med Docker-strategi. Skicka inte hela projektkatalogen som binärt
 buildunderlag eftersom den kan innehålla privata filer i `.local`.
 
@@ -304,6 +304,29 @@ Se [kommandon](https://docs.mattermost.com/developers/integrate/slash-commands/c
 och [integrationsinställningar](https://docs.mattermost.com/administration-guide/configure/integrations-configuration-settings).
 
 ## Delning och scheman
+
+Utvecklarna kör `/cve schedule` i en godkänd privat kanal. En popup i Mattermost
+visar dagar, tider, tidszon, namespaces, körningstyp och status. Välj åtgärd och
+klicka **Utför** för att spara, pausa, provköra det sparade schemat eller få
+körhistorik som ett privat svar. Ingen separat hemsida behövs för schemat.
+
+![Det inbyggda schemaformuläret i den lokala demonstrationen](assets/native-schedule/01-schema-i-mattermost.jpg)
+
+Ingen adminroll behövs för användarna eller boten. Kommandot registreras en gång
+av Mattermost-admin, och operatören godkänner kanal, kontomappningar och scope.
+Native-formuläret använder Mattermosts verifierade kommandoavsändare och den
+administrativt godkända `MATTERMOST_KUBE_USER_MAP`. Kubernetes-behörigheterna
+kontrolleras för det exakta användarnamnet med `system:authenticated`. Grupper
+från OpenShift/IdP antas inte från chattkontot; gruppbaserade bidrag ensamma ger
+inte nya namespace-val genom det här flödet. Manuella skanningar och CVE-sökningar
+behåller sin separata OpenShift-inloggning.
+
+`MATTERMOST_DIALOG_URL` genereras automatiskt med `/slash/cve/dialog` under
+`webhook_public_url`, eller med den interna webhook-tjänsten om adressen är tom.
+Mattermost-servern måste kunna nå den adressen. Den befintliga webhook-Route som
+matchar `/slash/cve` täcker även formulärets återanrop. Inget nytt slashkommando
+eller Mattermost-plugin behöver installeras för dialogrutan.
+
 
 `common` kontrollerar varje aktuell mänsklig kanalmedlem med exakt användarnamn
 och `system:authenticated`. Det hämtar inte grupper för andra medlemmar som inte

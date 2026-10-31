@@ -69,7 +69,7 @@ class CompanyTests(unittest.TestCase):
         self.assertNotIn("bot-private-token",review)
         self.assertNotIn(self.data["credentials"]["OAUTH2_PROXY_CLIENT_SECRET"],review)
         with tarfile.open(output/"app-source.tar.gz") as archive:
-            self.assertEqual(set(archive.getnames()),{"Dockerfile","app/__init__.py","app/server.py","app/scheduling.py"})
+            self.assertEqual(set(archive.getnames()),{"Dockerfile","app/__init__.py","app/server.py","app/scheduling.py","app/dialogs.py"})
             self.assertNotIn(b"bot-private-token",b"".join(archive.extractfile(i).read() for i in archive.getmembers()))
 
     def test_online_bot_discovery_accepts_existing_openshift_bot_and_rejects_admin(self):
