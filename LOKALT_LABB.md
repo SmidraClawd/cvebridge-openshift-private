@@ -44,7 +44,7 @@ eller [ändra och pausa](#andra-eller-pausa).
 | Skanna ett namespace nu | `/cve scan demo-team-a` | Starta nya imageskanningar och få en rapport. |
 | Skanna alla namespaces som är tillåtna för min beställning | `/cve scan` | Samma manuella flöde, med bredare tillåten omfattning. |
 | Undersöka en specifik CVE | `/cve CVE-2021-44228 demo-team-a` | Sök den CVE:n i befintliga skanningsresultat. |
-| Ställa in, ändra eller pausa automatiska körningar | `/cve schedule` | Öppna teamets inställningar via en privat inloggningslänk. |
+| Ställa in, ändra eller pausa automatiska körningar | `/cve schedule` | Öppna teamets formulär direkt i Mattermost. |
 
 `/acs` fungerar som alias för `/cve`. En manuell beställning kräver inget
 automatiskt schema och ändrar inte ett befintligt schema.
