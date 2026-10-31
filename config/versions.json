@@ -1,0 +1,11 @@
+{
+  "k3s": "rancher/k3s:v1.35.9-k3s1",
+  "app": "cvebridge:local",
+  "proxy": "quay.io/oauth2-proxy/oauth2-proxy:v7.15.5",
+  "dex": "ghcr.io/dexidp/dex:v2.46.1",
+  "mattermost": "mattermost/mattermost-team-edition:12.0.1",
+  "postgres": "postgres:17.6-alpine",
+  "sample": "python:3.11.0-slim",
+  "java_sample": "ghcr.io/christophetd/log4shell-vulnerable-app@sha256:6f88430688108e512f7405ac3c73d47f5c370780b94182854ea2cddc6bd59929",
+  "stackrox_chart": "400.11.6"
+}

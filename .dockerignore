@@ -1,0 +1,7 @@
+.git
+.local
+.env
+tests
+docs
+__pycache__
+/PRIVAT_INSTALLATION.md

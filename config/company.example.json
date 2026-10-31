@@ -1,0 +1,38 @@
+{
+  "settings": {
+    "auth_provider": "openshift",
+    "namespace": "cvebridge",
+    "app_image": "REPLACE-WITH-PUSHED-APP-IMAGE",
+    "openshift_proxy_image": "REPLACE-WITH-CLUSTER-OAUTH-PROXY-IMAGE",
+    "public_url": "https://cvebridge.apps.example.org",
+    "webhook_public_url": "https://cvebridge.apps.example.org",
+    "mattermost_public_url": "https://chat.example.org",
+    "mattermost_internal_url": "https://chat.example.org",
+    "stackrox_url": "https://central.example.org",
+    "stackrox_cluster_id": "REPLACE-WITH-SECURED-CLUSTER-ID",
+    "mattermost_channel_scopes": {},
+    "mattermost_channel_policies": {},
+    "mattermost_schedule_scopes": {},
+    "mattermost_schedule_managers": {},
+    "schedule_default_timezone": "Europe/Stockholm",
+    "stackrox_scanner_component": "SCANNER_V4",
+    "stackrox_delegate_scan": false,
+    "database_max_age_hours": 24,
+    "cve_alerts_enabled": true,
+    "cve_alert_min_cvss": 9,
+    "cve_alert_first_report": false
+  },
+  "credentials": {
+    "MATTERMOST_TOKEN": "",
+    "MATTERMOST_BOT_ID": "",
+    "MATTERMOST_KUBE_USER_MAP": {},
+    "SLASH_TOKEN": "",
+    "SLASH_ACS_TOKEN": "",
+    "STACKROX_TOKEN": "",
+    "STACKROX_SCAN_TOKEN": "",
+    "STACKROX_STATUS_TOKEN": "",
+    "STACKROX_SCHEDULE_TOKEN": ""
+  },
+  "stackrox_ca_file": "",
+  "mattermost_ca_file": ""
+}

@@ -1,0 +1,13 @@
+{
+  "channel_id": "REPLACE-WITH-CHANNEL-ID",
+  "namespaces": [
+    "team-app-dev",
+    "team-app-test"
+  ],
+  "identities": {
+    "REPLACE-WITH-USER-ID": "developer@company.example"
+  },
+  "sharing_policy": "common",
+  "enable_schedule": false,
+  "schedule_managers": []
+}
