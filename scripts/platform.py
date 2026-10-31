@@ -504,7 +504,7 @@ def install_stackrox(creds):
               "exposure": {"nodePort": {"enabled": True, "port": 30443}},
               "db": {"resources": resources("512Mi", "1500Mi", "250m"),
                      "persistence": {"persistentVolumeClaim": {"createClaim": True, "size": "3Gi"}}}},
-              "scanner": {"replicas": 1, "autoscaling": {"disable": True}, "resources": resources("384Mi", "2Gi", "250m"),
+              "scanner": {"replicas": 1, "autoscaling": {"disable": True}, "resources": resources("768Mi", "4Gi", "250m"),
                           "dbResources": resources("512Mi", "3Gi", "100m")},
               "scannerV4": {"disable": True}}
     # Official Central DB defaults assume a larger cluster. Tune the same

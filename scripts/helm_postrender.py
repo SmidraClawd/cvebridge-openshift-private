@@ -2,8 +2,9 @@
 """Local-only StackRox chart overlay, using kubectl's bundled Kustomize.
 
 Persist the upstream vulnerability database and give its initial index build a
-larger memory budget. An interrupted first import is rebuilt from the genuine
-upstream dump, never mistaken for a complete vulnerability database.
+larger memory budget. Keep the scanner's disposable index in memory to avoid
+millions of small disk writes during startup. An interrupted first import is
+rebuilt from the genuine upstream dump, never mistaken for a complete database.
 """
 import json
 from pathlib import Path
@@ -34,13 +35,18 @@ def main():
                  "initContainers": [{"name": "init-db", "command": ["/bin/sh", "-c"], "args": [INIT]}],
                  "volumes": [{"name": "scanner-db-data", "emptyDir": None,
                               "persistentVolumeClaim": {"claimName": "cvebridge-scanner-db"}}]}}}}
+    cache_patch = {"apiVersion": "apps/v1", "kind": "Deployment", "metadata": {"name": "scanner"},
+                   "spec": {"template": {"spec": {"volumes": [{"name": "vuln-temp-db",
+                       "emptyDir": {"medium": "Memory", "sizeLimit": "3Gi"}}]}}}}
     with tempfile.TemporaryDirectory(prefix="cvebridge-render-") as directory:
         path = Path(directory)
         manifest = path/"all.yaml"
         manifest.write_text(sys.stdin.read())
         manifest.chmod(0o600)
         (path/"kustomization.yaml").write_text(json.dumps({"apiVersion": "kustomize.config.k8s.io/v1beta1", "kind": "Kustomization",
-                       "resources": ["all.yaml"], "patches": [{"target": {"group": "apps", "version": "v1", "kind": "Deployment", "name": "scanner-db"}, "patch": json.dumps(patch)}]}))
+                       "resources": ["all.yaml"], "patches": [
+                           {"target": {"group": "apps", "version": "v1", "kind": "Deployment", "name": "scanner-db"}, "patch": json.dumps(patch)},
+                           {"target": {"group": "apps", "version": "v1", "kind": "Deployment", "name": "scanner"}, "patch": json.dumps(cache_patch)}]}))
         subprocess.run(["kubectl", "kustomize", directory], stdout=sys.stdout, stderr=sys.stderr, check=True)
 
 

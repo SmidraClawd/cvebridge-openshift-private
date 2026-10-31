@@ -52,6 +52,10 @@ flowchart LR
 **Status:** den lokala k3d-demonstrationen och resursgenereringen är testade.
 Riktig OpenShift OAuth och installation i ditt labbkluster är ännu inte verifierade.
 
+I den medföljande k3d-demonstrationen ligger skannerns tillfälliga index i minne
+(högst 3 GiB; skannercontainerns minnesgräns är 4 GiB). Det undviker långsam
+uppstart med många små diskskrivningar. Anpassningen gäller bara k3d-labbet.
+
 ## Engångslarm och automatiska rapporter
 
 **Engångslarm:** i demonstrationen får kanalen en `@channel`-mention för fynd
