@@ -2,6 +2,7 @@
 .env
 .env.*
 !.env.example
+!.env.advanced.example
 /deploy/generated/
 /bin/
 /cvebridge

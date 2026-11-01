@@ -36,17 +36,18 @@ func testEnv() map[string]string {
 }
 
 type fixture struct {
-	App        *App
-	Server     *httptest.Server
-	mu         sync.Mutex
-	Dialog     M
-	Posts      []M
-	FailPost   bool
-	WrongScope bool
-	Stale      bool
-	Denied     bool
-	ScanCalls  int
-	SeenTokens []string
+	App         *App
+	Server      *httptest.Server
+	mu          sync.Mutex
+	Dialog      M
+	Posts       []M
+	FailPost    bool
+	WrongScope  bool
+	Stale       bool
+	Denied      bool
+	ScanCalls   int
+	SeenTokens  []string
+	BotResponse M
 }
 
 func newFixture(t *testing.T) *fixture {
@@ -70,7 +71,11 @@ func newFixture(t *testing.T) *fixture {
 			}
 			write(M{"status": M{"allowed": !f.Denied}})
 		case path == "/api/v4/users/me":
-			write(M{"id": botID, "is_bot": true, "roles": "system_user"})
+			if f.BotResponse != nil {
+				write(f.BotResponse)
+			} else {
+				write(M{"id": botID, "is_bot": true, "roles": "system_user"})
+			}
 		case path == "/api/v4/users/"+ownerID:
 			write(M{"id": ownerID, "email": "attacker@example.test"})
 		case path == "/api/v4/channels/"+channelID:
@@ -558,5 +563,126 @@ func TestInvalidCVSSDoesNotCreateCriticalAlert(t *testing.T) {
 	}
 	if len(stringsOf(r["alertCves"])) != 0 {
 		t.Fatal("invalid CVSS value generated a critical alert")
+	}
+}
+
+func shortEnv() map[string]string {
+	m := testEnv()
+	for _, k := range []string{"APP_IMAGE", "MATTERMOST_BOT_USER_ID", "STACKROX_URL", "MATTERMOST_CHANNEL_SCOPES", "MATTERMOST_SCHEDULE_SCOPES", "SCHEDULE_SERVICE_USER"} {
+		delete(m, k)
+	}
+	m["NAMESPACE"] = "security-bot"
+	m["MATTERMOST_CHANNEL_ID"] = channelID
+	m["SCAN_NAMESPACES"] = "team-a, team-b,team-a"
+	return m
+}
+
+func TestShortEnvProducesInternalRegistryDeployment(t *testing.T) {
+	m := shortEnv()
+	m["IMAGE_TAG"] = "go-abcd123"
+	var out bytes.Buffer
+	if e := Render(&out, m, "deployment"); e != nil {
+		t.Fatal(e)
+	}
+	var list M
+	if e := json.Unmarshal(out.Bytes(), &list); e != nil {
+		t.Fatal(e)
+	}
+	var config M
+	found := false
+	for _, v := range arr(list["items"]) {
+		r := obj(v)
+		switch str(r["kind"]) {
+		case "Deployment":
+			pod := obj(obj(obj(r["spec"])["template"])["spec"])
+			container := obj(arr(pod["containers"])[0])
+			if str(container["image"]) != OpenShiftRegistry+"/security-bot/cvebridge:go-abcd123" {
+				t.Fatal(container["image"])
+			}
+			if len(arr(pod["imagePullSecrets"])) != 0 {
+				t.Fatal("unexpected external registry credentials")
+			}
+			found = true
+		case "ConfigMap":
+			if str(obj(r["metadata"])["name"]) == "cvebridge-config" {
+				config = obj(r["data"])
+			}
+		}
+	}
+	if !found {
+		t.Fatal("missing deployment")
+	}
+	values := map[string]string{}
+	for k, v := range config {
+		values[k] = str(v)
+	}
+	c, e := NewConfig(values)
+	if e != nil {
+		t.Fatal(e)
+	}
+	if !same(c.Scopes[channelID], []string{"team-a", "team-b"}) || !same(c.ScheduleScopes[channelID], c.Scopes[channelID]) {
+		t.Fatal(c.Scopes, c.ScheduleScopes)
+	}
+	if c.Get("SCHEDULE_SERVICE_USER", "") != "system:serviceaccount:security-bot:cvebridge-reporter" {
+		t.Fatal("namespace was not propagated")
+	}
+	if _, ok := m["MATTERMOST_CHANNEL_SCOPES"]; ok {
+		t.Fatal("caller configuration mutated")
+	}
+}
+
+func TestShortEnvStillRequiresApprovedIdentitiesAndSeparateTokens(t *testing.T) {
+	for _, key := range []string{"MATTERMOST_KUBE_USER_MAP", "STACKROX_SCAN_TOKEN", "STACKROX_STATUS_TOKEN", "STACKROX_SCHEDULE_TOKEN"} {
+		m := shortEnv()
+		delete(m, key)
+		if e := Render(&bytes.Buffer{}, m, "deployment"); e == nil {
+			t.Errorf("missing %s was silently inferred", key)
+		}
+	}
+	for _, ns := range []string{"*", "team-a,../secret", ""} {
+		m := shortEnv()
+		m["SCAN_NAMESPACES"] = ns
+		if _, e := NewConfig(m); e == nil {
+			t.Errorf("invalid namespace set accepted: %s", ns)
+		}
+	}
+}
+
+func TestAdvancedScopesRemainExplicit(t *testing.T) {
+	m := shortEnv()
+	m["MATTERMOST_CHANNEL_SCOPES"] = encode(map[string][]string{channelID: {"team-a"}})
+	m["MATTERMOST_SCHEDULE_SCOPES"] = "{}"
+	c, e := NewConfig(m)
+	if e != nil {
+		t.Fatal(e)
+	}
+	if len(c.ScheduleScopes) != 0 || !same(c.Scopes[channelID], []string{"team-a"}) {
+		t.Fatal("explicit policy was overwritten")
+	}
+	m["APP_IMAGE"] = OpenShiftRegistry + "/other-project/cvebridge:v1"
+	if e := Render(&bytes.Buffer{}, m, "deployment"); e == nil {
+		t.Fatal("internal image from another namespace accepted")
+	}
+}
+
+func TestAutomaticBotIdentityRejectsHumanAdminAndMismatch(t *testing.T) {
+	f := newFixture(t)
+	delete(f.App.S.C.Env, "MATTERMOST_BOT_USER_ID")
+	if id, e := f.App.S.Bot(context.Background()); e != nil || id != botID {
+		t.Fatal(id, e)
+	}
+	if _, e := f.App.S.ScheduledAudience(context.Background(), channelID, []string{"team-a"}); e != nil {
+		t.Fatal(e)
+	}
+	for _, response := range []M{{"id": botID, "is_bot": false, "roles": "system_user"}, {"id": botID, "is_bot": true, "roles": "system_admin"}, {"id": "bad", "is_bot": true, "roles": "system_user"}} {
+		f.BotResponse = response
+		if _, e := f.App.S.Bot(context.Background()); e == nil {
+			t.Fatal("invalid bot identity accepted")
+		}
+	}
+	f.BotResponse = nil
+	f.App.S.C.Env["MATTERMOST_BOT_USER_ID"] = ownerID
+	if _, e := f.App.S.Bot(context.Background()); e == nil {
+		t.Fatal("configured bot ID mismatch accepted")
 	}
 }

@@ -21,8 +21,10 @@ docker build -t cvebridge:go .
 docker run --rm cvebridge:go version
 ```
 
-Runtime och konfigurationsgenerator är skrivna i Go. `.env.example` visar
-inställningarna: Mattermost, ACS, godkända identiteter, namespaces och scheman.
+Runtime och konfigurationsgenerator är skrivna i Go. `.env.example` innehåller
+12 företagsvärden att fylla i; installationsnamespace är förvalt till `cvebridge`.
+Imageadress, tagg, bot-ID och upprepade schemamappar räknas ut automatiskt.
+Valfria undantag finns i `.env.advanced.example`.
 Riktiga företagsvärden ligger i en privat `.env` och skickas till imagen vid
 körning genom Kubernetes-konfiguration. Imagebygget kopierar endast Go-källkod
 och modulernas låsfiler.
@@ -64,7 +66,8 @@ inte bevis på en genomförd företagsinstallation.
 ## Åtkomst och drift
 
 - Ett Mattermost-botkonto utan administratörsroll och en godkänd **privat** kanal.
-- Stabila Mattermost-användar-ID:n kopplas uttryckligen till exakta klusterkonton
+- Botens ID verifieras med dess token via Mattermost `/users/me`; kontot ska vara
+  en bot utan administratörsroll. Stabila Mattermost-användar-ID:n kopplas uttryckligen till exakta klusterkonton
   i `MATTERMOST_KUBE_USER_MAP`. Redigerbara profilnamn och e-postadresser används inte.
 - Kubernetes SubjectAccessReview kontrollerar `list deployments` före arbetet,
   under skanningen och före leverans. Endast `system:authenticated` antas för

@@ -173,6 +173,11 @@ func ConfigFromEnv() (Config, error) {
 	return NewConfig(m)
 }
 func NewConfig(m map[string]string) (Config, error) {
+	var err error
+	m, err = configurationDefaults(m)
+	if err != nil {
+		return Config{}, err
+	}
 	c := Config{Env: m}
 	for _, k := range []string{"CVE_ALERTS_ENABLED", "CVE_ALERT_FIRST_REPORT", "STACKROX_DELEGATE_SCAN"} {
 		if v, ok := m[k]; ok && v != "true" && v != "false" {
@@ -251,4 +256,79 @@ func NewConfig(m map[string]string) (Config, error) {
 		return c, fmt.Errorf("invalid CVE_ALERT_MIN_CVSS")
 	}
 	return c, nil
+}
+
+const OpenShiftRegistry = "image-registry.openshift-image-registry.svc:5000"
+
+// configurationDefaults expands the short installation form without inventing
+// identities, grants or credentials. Explicit advanced settings take priority.
+func configurationDefaults(input map[string]string) (map[string]string, error) {
+	m := make(map[string]string, len(input)+12)
+	for k, v := range input {
+		m[k] = v
+	}
+	for k, v := range map[string]string{
+		"NAMESPACE": "cvebridge", "STACKROX_URL": "https://central.stackrox.svc:443",
+		"STACKROX_SCANNER_COMPONENT": "SCANNER_V4", "SCHEDULE_DEFAULT_TIMEZONE": "Europe/Stockholm",
+		"DATABASE_MAX_AGE_HOURS": "24", "CVE_ALERTS_ENABLED": "true", "CVE_ALERT_MIN_CVSS": "9", "CVE_ALERT_FIRST_REPORT": "false",
+	} {
+		if _, ok := m[k]; !ok {
+			m[k] = v
+		}
+	}
+	if _, ok := m["SCHEDULE_SERVICE_USER"]; !ok {
+		m["SCHEDULE_SERVICE_USER"] = "system:serviceaccount:" + m["NAMESPACE"] + ":cvebridge-reporter"
+	}
+	if ch := m["MATTERMOST_CHANNEL_ID"]; ch != "" {
+		if !ID.MatchString(ch) {
+			return nil, fmt.Errorf("MATTERMOST_CHANNEL_ID must be a stable 26-character Mattermost channel ID")
+		}
+		if _, ok := m["MATTERMOST_CHANNEL_SCOPES"]; !ok {
+			names := []string{}
+			for _, value := range strings.Split(m["SCAN_NAMESPACES"], ",") {
+				n := strings.TrimSpace(value)
+				if !NS.MatchString(n) {
+					return nil, fmt.Errorf("SCAN_NAMESPACES must list approved namespace names, separated by commas")
+				}
+				names = append(names, n)
+			}
+			if len(names) > 100 {
+				return nil, fmt.Errorf("too many SCAN_NAMESPACES")
+			}
+			m["MATTERMOST_CHANNEL_SCOPES"] = encode(map[string][]string{ch: unique(names)})
+		}
+		if _, ok := m["MATTERMOST_SCHEDULE_SCOPES"]; !ok {
+			var scopes map[string][]string
+			if e := json.Unmarshal([]byte(m["MATTERMOST_CHANNEL_SCOPES"]), &scopes); e != nil {
+				return nil, fmt.Errorf("invalid JSON in MATTERMOST_CHANNEL_SCOPES")
+			}
+			if len(scopes[ch]) == 0 {
+				return nil, fmt.Errorf("MATTERMOST_CHANNEL_ID must have approved namespaces")
+			}
+			m["MATTERMOST_SCHEDULE_SCOPES"] = encode(map[string][]string{ch: scopes[ch]})
+		}
+	}
+	return m, nil
+}
+
+func deploymentImage(c Config) (string, error) {
+	image := c.Get("APP_IMAGE", "")
+	if image == "" {
+		tag := c.Get("IMAGE_TAG", "latest")
+		if !regexp.MustCompile(`^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$`).MatchString(tag) {
+			return "", fmt.Errorf("invalid IMAGE_TAG")
+		}
+		image = OpenShiftRegistry + "/" + c.Get("NAMESPACE", "cvebridge") + "/cvebridge:" + tag
+	}
+	if !Image.MatchString(image) || placeholder(image) || (!strings.Contains(image, "@sha256:") && !strings.Contains(image[strings.LastIndex(image, "/")+1:], ":")) {
+		return "", fmt.Errorf("APP_IMAGE must include a valid version tag or digest")
+	}
+	if strings.HasPrefix(image, OpenShiftRegistry+"/") {
+		path := strings.TrimPrefix(image, OpenShiftRegistry+"/")
+		parts := strings.Split(path, "/")
+		if len(parts) != 2 || parts[0] != c.Get("NAMESPACE", "cvebridge") {
+			return "", fmt.Errorf("internal registry image must use NAMESPACE/image:tag")
+		}
+	}
+	return image, nil
 }

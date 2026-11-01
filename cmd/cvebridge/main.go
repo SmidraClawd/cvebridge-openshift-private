@@ -69,6 +69,7 @@ func render(args []string) error {
 	f := flag.NewFlagSet("render", flag.ContinueOnError)
 	env := f.String("env-file", ".env", "configuration file")
 	part := f.String("part", "deployment", "deployment or bootstrap")
+	image := f.String("image", "", "deployment image supplied by the build helper")
 	if e := f.Parse(args); e != nil {
 		return e
 	}
@@ -80,6 +81,9 @@ func render(args []string) error {
 	values, e := bridge.ReadEnv(file)
 	if e != nil {
 		return e
+	}
+	if *image != "" {
+		values["APP_IMAGE"] = *image
 	}
 	return bridge.Render(os.Stdout, values, *part)
 }

@@ -6,7 +6,9 @@ Inga inloggningssidor eller browser-identitetshuvuden används.
 
 ## Uppdatera
 
-Sätt en ny version i `APP_IMAGE`, bygg, pusha och rendera igen. Applicera sedan
+Efter en koduppdatering räknas image-taggen ut från Git-revisionen, eller från
+projektfilerna om Git saknas. Du kan också ange `IMAGE_TAG` uttryckligen i `.env`.
+Bygg, pusha och rendera igen. Applicera sedan
 `deployment.yaml`. Ändringar i tokens eller ConfigMap kräver en omstart eftersom
 miljövariabler läses vid processstart:
 
@@ -39,7 +41,8 @@ Ta en databasbackup, stoppa den gamla processen och bevara PVC:n. Go läser samm
 SQLite-tabeller för scheman, körningar och CVE-bevakning. Granska och fyll i de
 nya miljövariablerna i `.env.example`; gamla installationsfiler är inte direkt utbytbara.
 `MATTERMOST_TOKEN`, `MATTERMOST_BOT_ID` och `SLASH_TOKEN` heter nu
-`MATTERMOST_BOT_TOKEN`, `MATTERMOST_BOT_USER_ID` och `MATTERMOST_COMMAND_TOKEN`.
+`MATTERMOST_BOT_TOKEN`, valfritt `MATTERMOST_BOT_USER_ID` och `MATTERMOST_COMMAND_TOKEN`.
+Bot-ID behöver normalt inte anges; den autentiserade botprofilen verifieras automatiskt.
 Eventuellt `/acs` har en separat `MATTERMOST_ACS_COMMAND_TOKEN`.
 
 Alla människor behöver en explicit `MATTERMOST_KUBE_USER_MAP` till sitt exakta

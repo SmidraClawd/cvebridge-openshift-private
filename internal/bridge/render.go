@@ -44,22 +44,22 @@ func Render(w io.Writer, values map[string]string, part string) error {
 	if !NS.MatchString(ns) || ns == "default" || ns == "kube-system" || strings.HasPrefix(ns, "openshift-") {
 		return fmt.Errorf("choose a dedicated NAMESPACE")
 	}
-	image := c.Get("APP_IMAGE", "")
-	if !Image.MatchString(image) || placeholder(image) || (!strings.Contains(image, "@sha256:") && !strings.Contains(image[strings.LastIndex(image, "/")+1:], ":")) {
-		return fmt.Errorf("APP_IMAGE must include your registry and version tag or digest")
+	image, e := deploymentImage(c)
+	if e != nil {
+		return e
 	}
 	webhook := c.Get("WEBHOOK_PUBLIC_URL", "")
 	u, e := url.Parse(webhook)
 	if e != nil || u.Scheme != "https" || u.Hostname() == "" || u.Port() != "" || u.Path != "" || u.User != nil || u.RawQuery != "" || u.Fragment != "" || placeholder(webhook) {
 		return fmt.Errorf("WEBHOOK_PUBLIC_URL must be an HTTPS origin for the OpenShift route")
 	}
-	for _, k := range []string{"MATTERMOST_BOT_TOKEN", "MATTERMOST_BOT_USER_ID", "MATTERMOST_COMMAND_TOKEN", "STACKROX_TOKEN", "STACKROX_SCAN_TOKEN", "STACKROX_STATUS_TOKEN"} {
+	for _, k := range []string{"MATTERMOST_BOT_TOKEN", "MATTERMOST_COMMAND_TOKEN", "STACKROX_TOKEN", "STACKROX_SCAN_TOKEN", "STACKROX_STATUS_TOKEN"} {
 		if c.Get(k, "") == "" || placeholder(c.Get(k, "")) {
 			return fmt.Errorf("fill %s in .env", k)
 		}
 	}
-	if !ID.MatchString(c.Get("MATTERMOST_BOT_USER_ID", "")) || len(c.Scopes) == 0 || len(c.Users) == 0 {
-		return fmt.Errorf("configure bot ID, channel scopes and approved user mappings")
+	if id := c.Get("MATTERMOST_BOT_USER_ID", ""); (id != "" && !ID.MatchString(id)) || len(c.Scopes) == 0 || len(c.Users) == 0 {
+		return fmt.Errorf("configure approved channel scope and user mappings; optional bot ID must be valid")
 	}
 	if len(c.ScheduleScopes) > 0 && c.Get("STACKROX_SCHEDULE_TOKEN", "") == "" {
 		return fmt.Errorf("STACKROX_SCHEDULE_TOKEN is required for scheduling")
@@ -80,9 +80,9 @@ func Render(w io.Writer, values map[string]string, part string) error {
 	} else {
 		env := map[string]string{}
 		secrets := map[string]string{}
-		keys := []string{"MATTERMOST_INTERNAL_URL", "STACKROX_URL", "STACKROX_CLUSTER_ID", "MATTERMOST_BOT_USER_ID", "MATTERMOST_CHANNEL_SCOPES", "MATTERMOST_CHANNEL_POLICIES", "MATTERMOST_SCHEDULE_SCOPES", "MATTERMOST_SCHEDULE_MANAGERS", "MATTERMOST_KUBE_USER_MAP", "SCHEDULE_SERVICE_USER", "SCHEDULE_DEFAULT_TIMEZONE", "STACKROX_SCANNER_COMPONENT", "STACKROX_DELEGATE_SCAN", "DATABASE_MAX_AGE_HOURS", "CVE_ALERTS_ENABLED", "CVE_ALERT_MIN_CVSS", "CVE_ALERT_FIRST_REPORT"}
+		keys := []string{"NAMESPACE", "MATTERMOST_INTERNAL_URL", "STACKROX_URL", "STACKROX_CLUSTER_ID", "MATTERMOST_BOT_USER_ID", "MATTERMOST_CHANNEL_SCOPES", "MATTERMOST_CHANNEL_POLICIES", "MATTERMOST_SCHEDULE_SCOPES", "MATTERMOST_SCHEDULE_MANAGERS", "MATTERMOST_KUBE_USER_MAP", "SCHEDULE_SERVICE_USER", "SCHEDULE_DEFAULT_TIMEZONE", "STACKROX_SCANNER_COMPONENT", "STACKROX_DELEGATE_SCAN", "DATABASE_MAX_AGE_HOURS", "CVE_ALERTS_ENABLED", "CVE_ALERT_MIN_CVSS", "CVE_ALERT_FIRST_REPORT"}
 		for _, k := range keys {
-			if v, ok := values[k]; ok {
+			if v, ok := c.Env[k]; ok {
 				env[k] = v
 			}
 		}
@@ -133,7 +133,11 @@ func Render(w io.Writer, values map[string]string, part string) error {
 		}
 		items = append(items, resource("PersistentVolumeClaim", "cvebridge-state", ns, M{"spec": pvcSpec}))
 		labels := M{"app.kubernetes.io/name": "cvebridge"}
-		container := M{"name": "bot", "image": image, "imagePullPolicy": "IfNotPresent", "ports": []any{M{"name": "webhook", "containerPort": 8001}}, "envFrom": []any{M{"configMapRef": M{"name": "cvebridge-config"}}, M{"secretRef": M{"name": "cvebridge-integration"}}}, "volumeMounts": mounts, "securityContext": M{"allowPrivilegeEscalation": false, "readOnlyRootFilesystem": true, "capabilities": M{"drop": []string{"ALL"}}}, "resources": M{"requests": M{"cpu": "100m", "memory": "128Mi"}, "limits": M{"cpu": "1", "memory": "512Mi"}}}
+		pullPolicy := "IfNotPresent"
+		if strings.HasSuffix(image, ":latest") {
+			pullPolicy = "Always"
+		}
+		container := M{"name": "bot", "image": image, "imagePullPolicy": pullPolicy, "ports": []any{M{"name": "webhook", "containerPort": 8001}}, "envFrom": []any{M{"configMapRef": M{"name": "cvebridge-config"}}, M{"secretRef": M{"name": "cvebridge-integration"}}}, "volumeMounts": mounts, "securityContext": M{"allowPrivilegeEscalation": false, "readOnlyRootFilesystem": true, "capabilities": M{"drop": []string{"ALL"}}}, "resources": M{"requests": M{"cpu": "100m", "memory": "128Mi"}, "limits": M{"cpu": "1", "memory": "512Mi"}}}
 		for _, probe := range []string{"readinessProbe", "livenessProbe", "startupProbe"} {
 			container[probe] = M{"httpGet": M{"path": "/healthz", "port": "webhook"}, "periodSeconds": 10, "failureThreshold": 6}
 		}

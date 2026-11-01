@@ -134,7 +134,8 @@ func (s *Services) Bot(ctx context.Context) (string, error) {
 		return "", e
 	}
 	id := str(r["id"])
-	if !ID.MatchString(id) || id != s.C.Get("MATTERMOST_BOT_USER_ID", "") || !boolean(r["is_bot"]) || has(strings.Fields(str(r["roles"])), "system_admin") {
+	expected := s.C.Get("MATTERMOST_BOT_USER_ID", "")
+	if !ID.MatchString(id) || (expected != "" && id != expected) || !boolean(r["is_bot"]) || has(strings.Fields(str(r["roles"])), "system_admin") {
 		return "", problem(503, "Använd en verifierad bot utan administratörsroll.")
 	}
 	return id, nil
@@ -291,7 +292,11 @@ func (s *Services) ScheduledAudience(ctx context.Context, ch string, ns []string
 			allowed = append(allowed, n)
 		}
 	}
-	a, e := s.Audience(ctx, ch, s.C.Get("MATTERMOST_BOT_USER_ID", ""), allowed)
+	bot, e := s.Bot(ctx)
+	if e != nil {
+		return Audience{}, e
+	}
+	a, e := s.Audience(ctx, ch, bot, allowed)
 	if e != nil {
 		return a, e
 	}

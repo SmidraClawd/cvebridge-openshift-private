@@ -8,22 +8,23 @@ adresser eller interna skärmbilder i det publika repot eller i LinkedIn-texten.
 ## Ditt flöde
 
 ```sh
+oc login https://api.DITT-LABB:6443
+oc project cvebridge
 ./cvebridge.sh init
-# Fyll i .env med företagets adresser, tokens, användare och namespaces.
-# Logga in i din registry enligt företagets rutin.
+# Fyll i de 12 företagsvärdena i .env.
 ./cvebridge.sh build
 ./cvebridge.sh push
 ./cvebridge.sh render
 
-oc login https://api.DITT-LABB:6443
-# Plattformsteamet granskar och applicerar bootstrap.yaml en gång.
+# Plattformsteamet granskar och applicerar bootstrap en gång.
 oc apply -f deploy/generated/bootstrap.yaml
-oc project DITT_NAMESPACE
 oc apply -f deploy/generated/deployment.yaml
 oc rollout status deployment/cvebridge
 ```
 
-Samma `APP_IMAGE` används genom hela flödet. Inga företagsvärden byggs in i imagen.
+Deployment använder automatiskt
+`image-registry.openshift-image-registry.svc:5000/NAMESPACE/cvebridge:TAGG`.
+Pushen använder den externa routen som skriptet hämtar från klustret. Inga företagsvärden byggs in i imagen.
 Tokens tillförs via Kubernetes Secret. `.env` och genererade filer är git-ignorerade.
 `deployment.yaml` innehåller hemligheter och ska behållas privat, även när du delar
 vanlig projektkod. `bootstrap.yaml` kräver mer behörighet än vanlig namespace-admin;
