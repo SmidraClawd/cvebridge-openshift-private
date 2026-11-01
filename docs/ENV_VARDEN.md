@@ -12,7 +12,7 @@ Serviceadresserna är exempel: kontrollera service, namespace och port i ert klu
 | `MATTERMOST_COMMAND_TOKEN` | Integrations → Slash Commands → skapa `cve` med POST → kopiera Token. Request URL står nedan. |
 | `MATTERMOST_CHANNEL_ID` | Be Mattermost-ansvarig hämta kanal-ID med `mmctl channel search --team devsecops team-security`. Byt team- och kanalnamn. |
 | `MATTERMOST_KUBE_USER_MAP` | Nyckel = personens User ID i Mattermosts System Console → User Management → Users. Värde = samma persons exakta `oc whoami`. Lägg till alla människor i kanalen. |
-| `STACKROX_URL` | ACS Central, normalt `https://central.stackrox.svc:443`. |
+| `STACKROX_URL` | Nåbar ACS Central-adress. `https://central.stackrox.svc:443` gäller när Central finns i samma kluster. |
 | `STACKROX_CLUSTER_ID` | Be ACS-ansvarig hämta rätt klusters `id` från `GET /v1/clusters`. |
 | De fyra `STACKROX_*TOKEN` | ACS: Platform Configuration → Integrations → Authentication Tokens → API Token → Generate Token. En separat token per rad. Roller nedan. |
 
@@ -31,6 +31,18 @@ MATTERMOST_KUBE_USER_MAP='{"CHANGE_ME_USER_ID":"CHANGE_ME_OPENSHIFT_USER"}'
 
 ACS-ansvarig kontrollerar roller och scope-stöd i er version. Mappningen ger inte
 människorna nya OpenShift-behörigheter. Spara tokens lokalt i `.env`.
+
+## Hitta den Central som labbets Sensor redan använder
+
+Om Sensor ligger i namespace `stackrox` kan du läsa den konfigurerade adressen:
+
+```sh
+oc -n stackrox get deploy sensor -o jsonpath='{.spec.template.spec.containers[*].env[?(@.name=="ROX_CENTRAL_ENDPOINT")].value}{"\n"}'
+```
+
+Använd motsvarande HTTPS-adress för Centrals API i `STACKROX_URL`, efter kontroll
+med ACS-ansvarig. Boten behöver egna API-tokens och nätverksåtkomst även om Sensor
+redan är ansluten. `STACKROX_CLUSTER_ID` ska vara labbklustrets ID i samma Central.
 
 ## Interna adresser räknas ut
 

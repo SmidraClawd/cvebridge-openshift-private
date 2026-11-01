@@ -2,9 +2,12 @@
 
 Kontrollerat 2026-11-01:
 
-- 29 Go-testfunktioner godkända med race detector, inklusive API-testservrar,
+- 32 Go-testfunktioner godkända med race detector, inklusive API-testservrar,
   behörighetskontroller, callback-ägarskap, återanvändningsskydd, revisionskonflikter,
   DST-tider, sparad state, larmbekräftelser och manifestgenerering.
+- Standardmanifest med intern Service har verifierats med den byggda imagen och
+  det riktiga byggskriptet i två namespaces: intern callback, intern imageadress
+  och ingen Route. Ett uttryckligt HTTPS-undantag har också verifierats.
 - Korta `.env` expanderas till godkända kanal-/schemamappar och intern
   registry-adress. Push-kommandot testas med simulerade `oc`- och containerkommandon:
   routen hittas automatiskt, namespace kontrolleras före push och inloggning
@@ -19,8 +22,8 @@ Kontrollerat 2026-11-01:
   togs bort; botens identitet verifieras via dess autentiserade Mattermost-profil.
 - Den manuella skanningen omfattade en image; schemakörningen två images och
   189 råa fyndrader, med noll misslyckade images.
-- Slutimagen startar med read-only rotfilsystem under UID 98765 och därefter
-  UID 98766 mot samma beständiga SQLite-volume. Byggskriptets riktiga render-kommando
+- En tidigare Go-image verifierades med read-only rotfilsystem under UID 98765
+  och därefter UID 98766 mot samma beständiga SQLite-volume. Byggskriptets riktiga render-kommando
   skapar privata manifest med filrättigheter 0600 och rätt image.
 - Kubernetes-objekten i den genererade installationen accepterades av labbets
   API med server-side dry-run. OpenShift Route kunde inte testas av detta

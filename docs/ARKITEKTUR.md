@@ -10,8 +10,13 @@ Scope och kanalmedlemmar kontrolleras på nytt under körningen och före public
 Mänskliga användares grupper gissas inte. Schemalagda körningar har separat
 rapporteridentitet och ACS-token.
 
-Sensor levererar inventeringen av aktiva poddar. Runtime-digests binder begärda
-skanningar till rätt image; nyliga scan-tidsstämplar verifieras. CVE-sökning och
+Sensorn rapporterar klusterdata till ACS Central. Boten hämtar inventeringen av
+aktiva poddar via Centrals API och använder labbets Kubernetes-API för
+behörighetskontroll. Central kan finnas i samma kluster eller i ett annat;
+`STACKROX_URL` ska vara en adress som boten kan nå. Lokala `.svc`-adresser
+fungerar inom respektive klusters tjänstenät.
+
+Runtime-digests binder begärda skanningar till rätt image; nyliga scan-tidsstämplar verifieras. CVE-sökning och
 rapportläge läser befintliga scans. Inaktiva deployment-images ingår inte.
 Rapporter begränsas till 100 images, 2 000 poddar, 20 000 rader och 8 MiB bilaga.
 
@@ -26,4 +31,5 @@ Första kompletta rapporten skapar normalt ett utgångsläge utan kanalping.
 
 Containerimagen innehåller en statisk Go-binär, CA-certifikat och tidszoner.
 Företagets tokens och adresser byggs inte in. En vanlig Kubernetes Deployment
-används; någon operator eller CRD ingår inte.
+används med en intern Service som standard. Se [åtkomstmodellen](ACCESS.md) för
+identiteter, delning och behörighetsgränser.

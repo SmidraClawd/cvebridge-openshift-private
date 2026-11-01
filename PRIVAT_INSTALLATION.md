@@ -8,7 +8,7 @@ adresser eller interna skärmbilder i det publika repot eller i LinkedIn-texten.
 ## Ditt flöde
 
 ```sh
-oc login https://api.DITT-LABB:6443
+oc login
 oc project cvebridge
 ./cvebridge.sh init
 # Fyll i CHANGE_ME och kontrollera serviceadresserna i .env.
@@ -30,8 +30,7 @@ Tokens tillförs via Kubernetes Secret. `.env` och genererade filer är git-igno
 vanlig projektkod. `bootstrap.yaml` kräver mer behörighet än vanlig namespace-admin;
 SubjectAccessReview måste godkännas på klusternivå en gång.
 
-Den fullständiga fältguiden, nätverkskraven, Mattermost-kommandot, reporterrollen,
-registry-secret och felsökning finns i [START_HAR.md](START_HAR.md).
+Kommandon, engångsbehörigheter och nätverkskrav finns i [START_HAR.md](START_HAR.md).
 [Driftguiden](docs/DRIFT.md) beskriver uppgradering, state och migration från Python.
 [Fältguiden för .env](docs/ENV_VARDEN.md) visar ifyllda exempel och var du får tag
 på adresser, ID:n och varje separat token.

@@ -26,9 +26,14 @@ Mattermost och ACS. [Fälthjälpen](docs/ENV_VARDEN.md) visar var värdena hämt
 Serviceadresserna följer formen `service.namespace.svc:port`:
 
 - Mattermost: `http://mattermost.mattermost.svc:8065` (anpassa till er Service).
-- ACS Central: `https://central.stackrox.svc:443` (anpassa vid behov).
+- ACS Central: `STACKROX_URL`. `https://central.stackrox.svc:443` gäller i samma kluster.
 - Bot: `http://cvebridge-webhook.NAMESPACE.svc:8001` (räknas ut automatiskt).
 - Image: `image-registry.openshift-image-registry.svc:5000/NAMESPACE/cvebridge:TAGG`.
+
+Sensorn skickar labbets klusterdata till ACS Central. Boten anropar Central för
+skanningar och fynd; labbets Kubernetes-API används för behörighetskontroll.
+Central kan stå i ett annat kluster. [Fälthjälpen](docs/ENV_VARDEN.md) visar hur
+du läser ut adressen som den befintliga sensorn använder.
 
 Standardinstallationen skapar en intern Service och ingen OpenShift Route.
 Mattermost-servern måste nå klustrets interna DNS och botens Service. Om den
