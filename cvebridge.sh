@@ -91,5 +91,9 @@ case "$action" in
       else rm -f "$temporary"; exit 1; fi
     done
     printf '%s\n' 'Skapade deploy/generated/bootstrap.yaml och deployment.yaml. Filerna är privata och ska inte committas.'
+    webhook=$(field WEBHOOK_URL)
+    if [ -z "$webhook" ]; then webhook=$(field WEBHOOK_PUBLIC_URL); fi
+    webhook=${webhook:-http://cvebridge-webhook.$namespace.svc:8001}
+    printf 'Mattermost Request URL: %s/slash/cve\n' "$webhook"
     ;;
 esac

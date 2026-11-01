@@ -83,6 +83,12 @@ func TestRegistryOverrideDoesNotRequireRouteReadPermission(t *testing.T) {
 		t.Fatal(status, output, calls)
 	}
 }
+func TestInternalRegistryPushNeedsNoExternalRoute(t *testing.T) {
+	status, output, calls := workflow(t, "NAMESPACE=security\nIMAGE_TAG=v1\nREGISTRY_PUSH_HOST=image-registry.openshift-image-registry.svc:5000\n", "MISSING_ROUTE=1")
+	if status != "ok" || strings.Contains(calls, "oc get route") || !strings.Contains(calls, "engine push image-registry.openshift-image-registry.svc:5000/security/cvebridge:v1") {
+		t.Fatal(status, output, calls)
+	}
+}
 func TestUnsafeAndCrossNamespaceImagesCannotBePushed(t *testing.T) {
 	for _, body := range []string{"NAMESPACE=$(id)\nIMAGE_TAG=v1\n", "NAMESPACE=security\nAPP_IMAGE=$(id)\n", "NAMESPACE=security\nAPP_IMAGE=image-registry.openshift-image-registry.svc:5000/other/cvebridge:v1\n"} {
 		status, _, calls := workflow(t, body)

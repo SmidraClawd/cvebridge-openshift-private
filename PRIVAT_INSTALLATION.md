@@ -11,7 +11,7 @@ adresser eller interna skärmbilder i det publika repot eller i LinkedIn-texten.
 oc login https://api.DITT-LABB:6443
 oc project cvebridge
 ./cvebridge.sh init
-# Fyll i de 12 företagsvärdena i .env.
+# Fyll i CHANGE_ME och kontrollera serviceadresserna i .env.
 ./cvebridge.sh build
 ./cvebridge.sh push
 ./cvebridge.sh render
@@ -37,6 +37,9 @@ registry-secret och felsökning finns i [START_HAR.md](START_HAR.md).
 på adresser, ID:n och varje separat token.
 
 ## Kontrollera i Mattermost
+
+Boten nås via `http://cvebridge-webhook.NAMESPACE.svc:8001`. Ingen extern Route
+skapas i standardinstallationen; Mattermost måste kunna nå denna Service.
 
 Bjud in en icke-administrativ bot till den godkända privata kanalen och registrera
 `/cve` enligt guiden. Vanliga teammedlemmar kan sedan köra `scan`, söka en CVE och

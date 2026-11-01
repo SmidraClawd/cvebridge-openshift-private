@@ -48,10 +48,19 @@ func Render(w io.Writer, values map[string]string, part string) error {
 	if e != nil {
 		return e
 	}
-	webhook := c.Get("WEBHOOK_PUBLIC_URL", "")
+	webhook := c.Get("WEBHOOK_URL", "")
 	u, e := url.Parse(webhook)
-	if e != nil || u.Scheme != "https" || u.Hostname() == "" || u.Port() != "" || u.Path != "" || u.User != nil || u.RawQuery != "" || u.Fragment != "" || placeholder(webhook) {
-		return fmt.Errorf("WEBHOOK_PUBLIC_URL must be an HTTPS origin for the OpenShift route")
+	if e != nil || u.Hostname() == "" || u.Path != "" || u.User != nil || u.RawQuery != "" || u.Fragment != "" || u.ForceQuery || placeholder(webhook) {
+		return fmt.Errorf("WEBHOOK_URL must be the internal service URL or an HTTPS route origin")
+	}
+	serviceHost := "cvebridge-webhook." + ns + ".svc"
+	internal := u.Hostname() == serviceHost || u.Hostname() == serviceHost+".cluster.local"
+	if internal {
+		if u.Scheme != "http" || u.Port() != "8001" {
+			return fmt.Errorf("internal WEBHOOK_URL must use http and service port 8001")
+		}
+	} else if u.Scheme != "https" || u.Port() != "" || strings.HasSuffix(u.Hostname(), ".svc") || strings.HasSuffix(u.Hostname(), ".svc.cluster.local") {
+		return fmt.Errorf("external WEBHOOK_URL must be an HTTPS origin without a port")
 	}
 	for _, k := range []string{"MATTERMOST_BOT_TOKEN", "MATTERMOST_COMMAND_TOKEN", "STACKROX_TOKEN", "STACKROX_SCAN_TOKEN", "STACKROX_STATUS_TOKEN"} {
 		if c.Get(k, "") == "" || placeholder(c.Get(k, "")) {
@@ -151,9 +160,11 @@ func Render(w io.Writer, values map[string]string, part string) error {
 		deployment := resource("Deployment", "cvebridge", ns, M{"spec": M{"replicas": 1, "strategy": M{"type": "Recreate"}, "selector": M{"matchLabels": labels}, "template": M{"metadata": M{"labels": labels}, "spec": pod}}})
 		deployment["apiVersion"] = "apps/v1"
 		items = append(items, deployment, resource("Service", "cvebridge-webhook", ns, M{"spec": M{"selector": labels, "ports": []any{M{"name": "webhook", "port": 8001, "targetPort": "webhook"}}}}))
-		route := resource("Route", "cvebridge-webhook", ns, M{"spec": M{"host": u.Hostname(), "path": "/slash/cve", "to": M{"kind": "Service", "name": "cvebridge-webhook"}, "port": M{"targetPort": "webhook"}, "tls": M{"termination": "edge", "insecureEdgeTerminationPolicy": "Redirect"}}})
-		route["apiVersion"] = "route.openshift.io/v1"
-		items = append(items, route)
+		if !internal {
+			route := resource("Route", "cvebridge-webhook", ns, M{"spec": M{"host": u.Hostname(), "path": "/slash/cve", "to": M{"kind": "Service", "name": "cvebridge-webhook"}, "port": M{"targetPort": "webhook"}, "tls": M{"termination": "edge", "insecureEdgeTerminationPolicy": "Redirect"}}})
+			route["apiVersion"] = "route.openshift.io/v1"
+			items = append(items, route)
+		}
 	}
 	// Stable ordering of object contents is provided by encoding/json.
 	enc := json.NewEncoder(w)

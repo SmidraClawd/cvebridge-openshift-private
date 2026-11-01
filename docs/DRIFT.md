@@ -22,6 +22,19 @@ En replika och Recreate-strategin skyddar SQLite-ägarskapet. Kör inte parallel
 botinstallationer mot samma databas eller samma kanal/schema. Fler repliker kräver
 annan jobbsamordning och är inte en konfigurationsändring.
 
+## Intern anslutning
+
+Standardinstallationen använder botens interna Service på port 8001 och skapar
+ingen OpenShift Route. Mattermost behöver kunna nå klustrets DNS och Service.
+`MATTERMOST_DIALOG_URL` genereras från samma interna basadress som slash-kommandot.
+Vid byte från en tidigare extern route: uppdatera slash-kommandots Request URL,
+starta om boten och öppna ett nytt schemaformulär. När intern anslutning är
+verifierad kan den gamla app-routen tas bort med `oc delete route cvebridge-webhook`.
+`oc apply` tar inte automatiskt bort resurser som utelämnas i nya manifest.
+
+Ett uttryckligt `WEBHOOK_URL=https://...` i den avancerade konfigurationen behåller
+stödet för en extern HTTPS-route. Äldre `WEBHOOK_PUBLIC_URL` fungerar fortfarande.
+
 ## Beständig state
 
 `/data/requests.sqlite3` innehåller scheman, revisionshistorik, körningar,

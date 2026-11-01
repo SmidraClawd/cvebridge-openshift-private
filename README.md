@@ -25,7 +25,8 @@ docker run --rm cvebridge:go version
 ```
 
 Runtime och konfigurationsgenerator är skrivna i Go. `.env.example` innehåller
-12 företagsvärden att fylla i; installationsnamespace är förvalt till `cvebridge`.
+korta grupper för OpenShift, Mattermost och ACS. Installationsnamespace är förvalt
+till `cvebridge`. Serviceadresser används inom klustret och botens adress räknas ut.
 Imageadress, tagg, bot-ID och upprepade schemamappar räknas ut automatiskt.
 Valfria undantag finns i `.env.advanced.example`.
 Riktiga företagsvärden ligger i en privat `.env` och skickas till imagen vid
@@ -94,7 +95,7 @@ Mattermost och RBAC fungerar; kontrollera en verklig skanning efter installation
 ## Varför Deployment och inte operator?
 
 En Deployment räcker för en botinstallation med image, konfiguration, Secret,
-Service, Route och PVC. En operator blir relevant när ni vill hantera många
+Service och PVC. En extern HTTPS-route är ett valfritt undantag. En operator blir relevant när ni vill hantera många
 installationer med en egen resurs, till exempel `CVEBridge`, och automatisera
 uppgraderingar och återställning. Ingen operator eller CRD ingår i den här versionen.
 

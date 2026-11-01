@@ -3,7 +3,7 @@
 ## 1. Logga in och välj installationsnamespace
 
 ```sh
-oc login https://api.DITT-KLUSTER:6443
+oc login
 oc whoami
 oc project cvebridge
 ```
@@ -20,51 +20,29 @@ ACS Central, Scanner och Sensor ska redan fungera för det valda klustret.
 ./cvebridge.sh init
 ```
 
-Öppna `.env`. Den har **12 företagsvärden att fylla i** och ett förvalt namespace:
+Öppna `.env` och byt `CHANGE_ME`. Mallen har korta grupper för OpenShift,
+Mattermost och ACS. [Fälthjälpen](docs/ENV_VARDEN.md) visar var värdena hämtas.
 
-Se [fyllexempel och var varje värde hämtas](docs/ENV_VARDEN.md).
-Mallen har också korta exempel och hämtningsanvisningar direkt vid varje rad.
+Serviceadresserna följer formen `service.namespace.svc:port`:
 
-| Fält | Vad du fyller i |
-| --- | --- |
-| `WEBHOOK_PUBLIC_URL` | Botens planerade HTTPS-route, utan sökväg eller avslutande `/`. |
-| `MATTERMOST_INTERNAL_URL` | Adressen boten använder för att nå Mattermost. |
-| `MATTERMOST_BOT_TOKEN` | Token för ett vanligt botkonto utan adminroll. |
-| `MATTERMOST_COMMAND_TOKEN` | Token för slash-kommandot `/cve`. |
-| `MATTERMOST_CHANNEL_ID` | Den godkända privata kanalens stabila ID, 26 tecken. |
-| `SCAN_NAMESPACES` | Namespace-namn separerade med komma, till exempel `team-a,team-b`. |
-| `MATTERMOST_KUBE_USER_MAP` | Stabila Mattermost-ID:n → exakta OpenShift-konton för människorna i kanalen. |
-| `STACKROX_CLUSTER_ID` | ACS-klustrets exakta ID, inte visningsnamnet. |
-| `STACKROX_TOKEN` | Token för läsning av inventering och fynd. |
-| `STACKROX_SCAN_TOKEN` | Token för manuellt beställda skanningar. |
-| `STACKROX_STATUS_TOKEN` | Token som får läsa CVE-databasens status. |
-| `STACKROX_SCHEDULE_TOKEN` | Token med endast godkänd omfattning för automatiska körningar. |
+- Mattermost: `http://mattermost.mattermost.svc:8065` (anpassa till er Service).
+- ACS Central: `https://central.stackrox.svc:443` (anpassa vid behov).
+- Bot: `http://cvebridge-webhook.NAMESPACE.svc:8001` (räknas ut automatiskt).
+- Image: `image-registry.openshift-image-registry.svc:5000/NAMESPACE/cvebridge:TAGG`.
 
-De separata ACS-token behåller respektive funktions behörighetsgräns. Användarmappen
-ger inga nya Kubernetes-behörigheter; användarna behöver redan godkänd, direkt
-användarbaserad rätt att lista deployments i sina namespaces. Grupper gissas inte.
+Standardinstallationen skapar en intern Service och ingen OpenShift Route.
+Mattermost-servern måste nå klustrets interna DNS och botens Service. Om den
+blockerar interna integrationer behöver admin godkänna botens servicevärd i
+`AllowedUntrustedInternalConnections`. Inga breda undantag behövs.
 
-Du behöver inte ange imageadress, push-route, bot-ID eller samma kanal/namespaces
-flera gånger. Standardvärden är:
+De fyra ACS-token behåller separata behörigheter. Alla människor i kanalen behöver
+sin riktiga kontomappning och redan godkänd rätt att lista deployments i valda
+namespaces. Scheman använder samma kanal och namespace-lista. Bot-ID, image-tagg,
+formuläradress och reporteridentitet räknas ut automatiskt.
 
-- Deployment-image: `image-registry.openshift-image-registry.svc:5000/NAMESPACE/cvebridge:go-GITREVISION`.
-  Utan Git räknas en stabil tagg ut från projektfilerna.
-- Push-adress: hämtas med `oc get route default-route -n openshift-image-registry`.
-- Central: `https://central.stackrox.svc:443`, scanner `SCANNER_V4`.
-- Schema använder samma godkända kanal och namespaces. Det startar först när ni sparar schemat.
-- Delningspolicy `common`, tidszon `Europe/Stockholm`, CVE-larmgräns 9 och första rapport utan ping.
-- Rapporteridentitet: `system:serviceaccount:NAMESPACE:cvebridge-reporter`.
-- PVC 1 GiB på klustrets standardlagring.
-
-Om något avviker: kopiera bara de berörda raderna från `.env.advanced.example`
-till `.env`. Till exempel `STACKROX_URL`, `STACKROX_SCANNER_COMPONENT`,
-`STORAGE_CLASS`, `IMAGE_TAG`, en snävare `MATTERMOST_SCHEDULE_SCOPES` eller särskilda
-`MATTERMOST_SCHEDULE_MANAGERS`. Tidigare fullständig JSON-konfiguration fungerar också.
-
-Vid privat CA: lägg **publik** PEM i projektets git-ignorerade `certs/` och lägg till
-`STACKROX_CA_FILE=certs/central-ca.pem` eller `MATTERMOST_CA_FILE=certs/mattermost-ca.pem`.
-Render-kommandot ser projektmappen; en absolut värdsökväg utanför den är inte monterad.
-Värden läses som data, aldrig som shellkod. Företagsvärden byggs inte in i imagen.
+Valfria inställningar finns i `.env.advanced.example`. Vid privat CA: lägg publik
+PEM i `certs/` och ange exempelvis `STACKROX_CA_FILE=certs/central-ca.pem`.
+Företagsvärden byggs inte in i imagen.
 
 ## 3. Mattermost ställs in en gång
 
@@ -74,14 +52,14 @@ Registrera en Custom Slash Command i teamets integrationsinställningar:
 | Fält | Värde |
 | --- | --- |
 | Command Trigger Word | `cve` |
-| Request URL | `WEBHOOK_PUBLIC_URL` plus `/slash/cve` |
+| Request URL | `http://cvebridge-webhook.NAMESPACE.svc:8001/slash/cve` (byt NAMESPACE) |
 | Request Method | `POST` |
 | Autocomplete | Exempel: `scan [namespace]`, `schedule`, `status` |
 
 Kopiera kommandots token till `.env`. Ett valfritt `/acs` behöver ett separat
 registrerat kommando och `MATTERMOST_ACS_COMMAND_TOKEN` från den avancerade mallen.
 Vanliga teammedlemmar behöver ingen adminroll för kommandon eller formulär.
-Mattermost-servern måste nå botens HTTPS-route inklusive dialog-callbacks.
+Mattermost-servern måste nå botens interna Service inklusive dialog-callbacks.
 Boten måste nå Mattermost, Central och Kubernetes API. Tillåt dessa anslutningar
 enligt företagets nätverks- och Mattermost-inställningar.
 
@@ -104,12 +82,15 @@ Om du inte får läsa registry-routen, eller använder en anpassad route, ange d
 adress plattformsteamet ger dig i `REGISTRY_PUSH_HOST` i `.env`. Saknas route eller
 behörighet stoppar pushen; skriptet aktiverar inte klusterinställningar automatiskt.
 TLS-certifikatet för registry-routen måste vara betrott av Docker/Podman.
+Om byggmiljön når registryts interna DNS kan du i stället ange
+`REGISTRY_PUSH_HOST=image-registry.openshift-image-registry.svc:5000`.
+Deployment behåller alltid den interna imageadressen i standardflödet.
 
 `render` skapar privata filer med rätt image:
 
 - `deploy/generated/bootstrap.yaml`: engångsbehörigheter.
 - `deploy/generated/deployment.yaml`: ServiceAccounts, Secret, ConfigMap, PVC,
-  Deployment, Service och OpenShift Route.
+  Deployment och intern Service.
 
 Filerna är Kubernetes List i JSON-format, vilket är giltig YAML för `oc apply`.
 `.env` och genererade filer är git-ignorerade. `deployment.yaml` innehåller tokens.
@@ -133,7 +114,7 @@ Applicera sedan din installation:
 oc project cvebridge
 oc apply -f deploy/generated/deployment.yaml
 oc rollout status deployment/cvebridge
-oc get pods,pvc,svc,route
+oc get pods,pvc,svc
 oc logs deployment/cvebridge -c bot --tail=50
 ```
 
@@ -157,7 +138,7 @@ uttryckligen, annars används Git-revision eller projektfilernas innehåll.
 Skanning ska ge rätt namespace, en Åtgärd-rad och JSON-bilaga. Öppna schemaformuläret,
 välj dagar, tider och namespaces och spara. Välj sedan Provkör sparat schema och
 kontrollera körhistoriken. Testa även att ett otillåtet konto eller namespace nekas.
-Ingen separat webbplats behövs. Vid kommandofel: kontrollera route/TLS, Mattermosts
+Ingen separat webbplats behövs. Vid kommandofel: kontrollera serviceadress/port, Mattermosts
 serveråtkomst, slash-token och botloggen. `/healthz` är bara ett processtest.
 
 [Red Hats registry-dokumentation](https://docs.redhat.com/en/documentation/openshift_container_platform/4.20/html/registry/accessing-the-registry)

@@ -428,6 +428,66 @@ func TestRenderRejectsUnfilledOrUnsafeInputs(t *testing.T) {
 		}
 	}
 }
+
+func TestInternalServicesNeedNoPublicRoute(t *testing.T) {
+	for _, namespace := range []string{"cvebridge", "security-tools"} {
+		env := testEnv()
+		delete(env, "WEBHOOK_PUBLIC_URL")
+		delete(env, "MATTERMOST_DIALOG_URL")
+		delete(env, "APP_IMAGE")
+		env["NAMESPACE"] = namespace
+		env["MATTERMOST_INTERNAL_URL"] = "http://mattermost.mattermost.svc:8065"
+		env["STACKROX_URL"] = "https://central.stackrox.svc:443"
+		env["SCHEDULE_SERVICE_USER"] = "system:serviceaccount:" + namespace + ":cvebridge-reporter"
+		var out bytes.Buffer
+		if err := Render(&out, env, "deployment"); err != nil {
+			t.Fatal(err)
+		}
+		var list M
+		if err := json.Unmarshal(out.Bytes(), &list); err != nil {
+			t.Fatal(err)
+		}
+		foundService, foundCallback, foundImage := false, false, false
+		for _, item := range arr(list["items"]) {
+			r := obj(item)
+			switch str(r["kind"]) {
+			case "Route":
+				t.Fatal("internal install created an external route")
+			case "Service":
+				foundService = str(obj(r["metadata"])["name"]) == "cvebridge-webhook" && str(obj(r["metadata"])["namespace"]) == namespace
+			case "ConfigMap":
+				data := obj(r["data"])
+				foundCallback = str(data["MATTERMOST_DIALOG_URL"]) == "http://cvebridge-webhook."+namespace+".svc:8001/slash/cve/dialog"
+			case "Deployment":
+				pod := obj(obj(obj(r["spec"])["template"])["spec"])
+				foundImage = str(obj(arr(pod["containers"])[0])["image"]) == OpenShiftRegistry+"/"+namespace+"/cvebridge:latest"
+			}
+		}
+		if !foundService || !foundCallback || !foundImage {
+			t.Fatal("internal service, callback or registry reference missing", namespace)
+		}
+	}
+}
+
+func TestWebhookAddressRejectsWrongServiceAndConflictingSettings(t *testing.T) {
+	for _, address := range []string{
+		"http://cvebridge-webhook.other.svc:8001", "http://cvebridge-webhook.cvebridge.svc:8065",
+		"https://cvebridge-webhook.cvebridge.svc:8001", "http://cvebridge-webhook.cvebridge.svc:8001/path",
+		"http://cvebridge-webhook.cvebridge.svc:8001?", "http://bad.test",
+	} {
+		env := testEnv()
+		delete(env, "WEBHOOK_PUBLIC_URL")
+		env["WEBHOOK_URL"] = address
+		if err := Render(&bytes.Buffer{}, env, "deployment"); err == nil {
+			t.Errorf("accepted unreachable or invalid callback %s", address)
+		}
+	}
+	env := testEnv()
+	env["WEBHOOK_URL"] = "http://cvebridge-webhook.cvebridge.svc:8001"
+	if err := Render(&bytes.Buffer{}, env, "deployment"); err == nil {
+		t.Fatal("conflicting old and new webhook addresses accepted")
+	}
+}
 func TestReportBoundsAndMentions(t *testing.T) {
 	r := M{"kind": "scan", "rows": []any{M{"cve": "CVE-2026-12345", "component": "@channel <script>", "cvss": 9.8}}, "database": M{"state": "unknown"}}
 	text := encode(ResultMessage(r))

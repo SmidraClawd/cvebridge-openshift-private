@@ -276,6 +276,15 @@ func configurationDefaults(input map[string]string) (map[string]string, error) {
 			m[k] = v
 		}
 	}
+	if webhook, ok := m["WEBHOOK_URL"]; ok {
+		if legacy, exists := m["WEBHOOK_PUBLIC_URL"]; exists && legacy != webhook {
+			return nil, fmt.Errorf("use one webhook address: WEBHOOK_URL and WEBHOOK_PUBLIC_URL disagree")
+		}
+	} else if legacy, ok := m["WEBHOOK_PUBLIC_URL"]; ok {
+		m["WEBHOOK_URL"] = legacy
+	} else {
+		m["WEBHOOK_URL"] = "http://cvebridge-webhook." + m["NAMESPACE"] + ".svc:8001"
+	}
 	if _, ok := m["SCHEDULE_SERVICE_USER"]; !ok {
 		m["SCHEDULE_SERVICE_USER"] = "system:serviceaccount:" + m["NAMESPACE"] + ":cvebridge-reporter"
 	}
