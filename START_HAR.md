@@ -56,6 +56,12 @@ adress enligt era regler. Vanliga teammedlemmar behöver ingen adminroll för at
 - Sökväg till företagets publika CA-PEM om Central eller Mattermost använder privat CA.
 - `IMAGE_PULL_SECRET` om klustret behöver en registry-secret, och vid behov `STORAGE_CLASS`.
 
+Lägg eventuella CA-PEM-filer i projektets `certs/` och ange relativa sökvägar,
+till exempel `STACKROX_CA_FILE=certs/central-ca.pem`. Mappen är git-ignorerad.
+Render-kommandot körs i imagen och ser projektmappen; en absolut värdsökväg
+utanför projektet är inte monterad där. CA-filerna ska innehålla publika
+certifikat, inga privata nycklar.
+
 JSON-mapparna ska ha samma kanal-ID där samma kanal avses. Lägg till alla mänskliga
 medlemmar i användarmappen. Exempel:
 
