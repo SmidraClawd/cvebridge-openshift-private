@@ -33,6 +33,8 @@ SubjectAccessReview måste godkännas på klusternivå en gång.
 Den fullständiga fältguiden, nätverkskraven, Mattermost-kommandot, reporterrollen,
 registry-secret och felsökning finns i [START_HAR.md](START_HAR.md).
 [Driftguiden](docs/DRIFT.md) beskriver uppgradering, state och migration från Python.
+[Fältguiden för .env](docs/ENV_VARDEN.md) visar ifyllda exempel och var du får tag
+på adresser, ID:n och varje separat token.
 
 ## Kontrollera i Mattermost
 

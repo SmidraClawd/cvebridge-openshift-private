@@ -22,6 +22,9 @@ ACS Central, Scanner och Sensor ska redan fungera för det valda klustret.
 
 Öppna `.env`. Den har **12 företagsvärden att fylla i** och ett förvalt namespace:
 
+Se [fyllexempel och var varje värde hämtas](docs/ENV_VARDEN.md).
+Mallen har också korta exempel och hämtningsanvisningar direkt vid varje rad.
+
 | Fält | Vad du fyller i |
 | --- | --- |
 | `WEBHOOK_PUBLIC_URL` | Botens planerade HTTPS-route, utan sökväg eller avslutande `/`. |

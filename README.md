@@ -12,6 +12,9 @@ Följ [den privata installationsguiden](PRIVAT_INSTALLATION.md) och
 och applicera filerna i ditt avsedda labbnamespace. Skärmbilderna finns under
 `assets/`, inklusive Mattermost-formuläret och rapportkorten.
 
+[Exempel på .env och var du hämtar varje värde](docs/ENV_VARDEN.md) visar konkreta
+adresser, ID:n, kontomappning och stegen för att skapa Mattermost- och ACS-tokens.
+
 ## Bygg projektet
 
 ```sh
