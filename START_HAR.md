@@ -1,136 +1,152 @@
-# Testa CVE Bridge på datorn
+# Från .env till en bot i ditt OpenShift-namespace
 
-Den fullständiga [utvecklarguiden med riktiga skärmbilder](LOKALT_LABB.md#manuell-skanning)
-visar manuell skanning, specifik CVE-sökning och automatiska körningar steg för steg.
+## 1. Förbered anslutningarna
 
-Öppna **http://localhost:18065** och logga in i Mattermost som `alice`.
-Det unika lösenordet finns under `alice` i `.local/credentials.json`.
+ACS Central, Scanner och Sensor ska redan fungera för det valda klustret.
+Mattermost-servern ska kunna nå botens HTTPS-route. Boten ska kunna nå Mattermost,
+Central och Kubernetes API. Tillåt nödvändig trafik i företagets befintliga brandvägg
+eller NetworkPolicy. Servern som kör Mattermost måste kunna skicka dialog-callbacks
+också; en sida som bara går att öppna från din laptop räcker inte.
 
-**Alice och Bob är utvecklare. ACS är boten**, med ett eget botkonto och en
-sköldikon. Kör `/acs help` för instruktioner. `/cve` fungerar också som alias.
+Skapa ett vanligt Mattermost-botkonto, aktivera botkonton och personliga bot-tokens
+enligt era regler, och bjud in boten till teamets **privata kanal**. Använd inte en
+systemadministratörs token. Hämta botens ID, kanalens ID och teammedlemmarnas stabila
+användar-ID:n via Mattermost/API eller integrationsansvarig.
 
-1. Öppna teamet **DevSecOps Lab** och den privata kanalen **Team Security**.
-2. Testa de tre kommandona:
+Registrera en **Custom Slash Command** i teamets integrationsinställningar:
 
-   ```text
-   /cve status
-   /cve scan
-   /cve CVE-2022-40897
-   ```
+| Fält | Värde |
+| --- | --- |
+| Command Trigger Word | `cve` |
+| Request URL | `https://DIN-BOT-ROUTE/slash/cve` |
+| Request Method | `POST` |
+| Autocomplete | Aktiverat, exempel: `scan [namespace]`, `schedule`, `status` |
 
-3. Klicka på den privata länken efter varje kommando.
-4. Logga in som `alice@demo.local`, med samma lösenord som Alice i Mattermost.
-5. `status` visar databasens verkliga uppdateringsdatum. `scan` startar nya
-   imageskanningar i bakgrunden och visar en sida som uppdateras automatiskt.
-   CVE-kommandot söker befintliga fynd för just den CVE:n.
-6. ACS publicerar resultatet i kanalen. Vid skanning bifogas en JSON-rapport
-   med samtliga rapporterade fynd, läsbar av kanalmedlemmarna.
+Kopiera kommandots token till `MATTERMOST_COMMAND_TOKEN` i `.env`. Request URL ska
+vara samma HTTPS-origin som `WEBHOOK_PUBLIC_URL` plus `/slash/cve`. När boten har
+startat öppnar `/cve schedule` ett formulär direkt i Mattermost. Ingen extra
+aktivering per kanal behövs utöver godkänd kanal i konfigurationen och botmedlemskap.
+Ett eventuellt `/acs` registreras separat med egen token i
+`MATTERMOST_ACS_COMMAND_TOKEN` och samma Request URL.
 
-Alice väljer `demo-team-a` och `demo-shared`; Bob väljer `demo-team-b` och
-`demo-shared`. Kanalen är uttryckligen godkänd för att dela beställarens fynd
-med alla medlemmar. Ingen av dem kan beställa skanning av den andras namespace.
-Inloggningslänken är privat och bunden till beställaren.
+Mattermost-administratören kan behöva tillåta slash-kommandon och serveranslutning
+till en intern botadress. Begränsa eventuell intern adresslista till botens faktiska
+adress enligt era regler. Vanliga teammedlemmar behöver ingen adminroll för att köra.
 
-ACS visar ett kort med fynd, risknivå, namespace, skanningsunderlag och vilka
-paketversioner som åtgärdar fyndet. Gruppsvarets faktiska avsändare är ACS.
+## 2. Fyll i en enda .env
 
-Logga in som `bob` i ett annat webbläsarfönster och öppna **Team Security** för
-att se samma publicerade resultat. Bob behöver inte öppna Alices inloggningslänk.
-Använd gärna ett privat webbläsarfönster när du byter person, så att gamla
-inloggningssessioner inte blandas ihop.
+```sh
+./cvebridge.sh init
+```
 
-**Privata sökningar:** I **Town Square** skickas resultatet bara till den som
-kör kommandot. Alice har åtkomst till `demo-team-a` och `demo-shared`; Bob till
-`demo-team-b` och `demo-shared`.
+Öppna `.env` och ersätt mallvärdena. Fyll framför allt i:
 
-För att testa en nekad förfrågan som Alice i Town Square:
+- `NAMESPACE`: botens installationsnamespace.
+- `APP_IMAGE`: hela registry/repo:version, till exempel `registry.foretag.se/team/cvebridge:1.0.0`
+ .
+- `WEBHOOK_PUBLIC_URL`: botens planerade HTTPS-route, utan sökväg eller avslutande `/`.
+- Mattermost-adress, bot-ID, bot-token och slash-token.
+- Kanal-ID → godkända namespaces samt användar-ID → exakta OpenShift-användarnamn.
+- Godkända schemanamespaces, ansvariga personer och `SCHEDULE_SERVICE_USER` som
+  `system:serviceaccount:DITT_NAMESPACE:cvebridge-reporter`.
+- Central-adress och det **exakta ACS-kluster-ID:t**, inte visningsnamnet.
+- Läs-, scan-, status- och schematoken med de ACS-rättigheter funktionen behöver.
+  Ge schematoken endast godkänd omfattning. Boten kan inte skapa eller utöka dessa rättigheter.
+- Scannerkomponenten `SCANNER_V4` eller `SCANNER` som ni faktiskt använder.
+- Sökväg till företagets publika CA-PEM om Central eller Mattermost använder privat CA.
+- `IMAGE_PULL_SECRET` om klustret behöver en registry-secret, och vid behov `STORAGE_CLASS`.
+
+JSON-mapparna ska ha samma kanal-ID där samma kanal avses. Lägg till alla mänskliga
+medlemmar i användarmappen. Exempel:
+
+```dotenv
+MATTERMOST_CHANNEL_SCOPES='{"KANALENS_26_TECKEN_LANGA_ID":["team-a"]}'
+MATTERMOST_KUBE_USER_MAP='{"ANVANDARENS_26_TECKEN_ID":"exakt-klusteranvandare"}'
+```
+
+Ovan är förklarande platshållare; riktiga Mattermost-ID:n har exakt 26 gemener/siffror.
+Värden läses som data; `$(...)`, backticks och `$VAR` körs/expanderas aldrig.
+Behåll `.env` privat. Tokens ska inte läggas i Dockerfile, Git, README eller LinkedIn.
+
+## 3. Bygg och pusha din image
+
+```sh
+docker login DIN_REGISTRY
+./cvebridge.sh build
+./cvebridge.sh push
+./cvebridge.sh render
+```
+
+För Podman: `export CONTAINER_ENGINE=podman` och `podman login DIN_REGISTRY`.
+Imagen innehåller Go-boten. Samma image kan användas i olika miljöer med olika `.env`.
+Rendering kontrollerar inställningarna och skapar två filer med privata filrättigheter:
+
+- `deploy/generated/bootstrap.yaml`: namespace och kluster-/namespace-behörigheter.
+- `deploy/generated/deployment.yaml`: ServiceAccounts, Secret, ConfigMap, PVC,
+  Deployment med din image, Service och OpenShift Route.
+
+Filerna är Kubernetes List i JSON-format, vilket är giltig YAML och kan läsas av `oc apply`.
+CA-filer läses från datorn vid rendering. Du behöver Go endast om du bygger/testar
+binären direkt; huvudflödet använder containerverktyget.
+
+## 4. Logga in och låt plattformsteamet godkänna bootstrap en gång
+
+```sh
+oc login https://api.DITT-KLUSTER:6443
+oc whoami
+oc config current-context
+```
+
+Kontrollera att det är ditt avsedda labb. En behörig plattformsadministratör granskar
+och applicerar `bootstrap.yaml` en gång. Den innehåller:
+
+- Ett dedikerat installationsnamespace.
+- ClusterRole/Binding som låter appkontot skapa **SubjectAccessReview**.
+  Det ger ingen generell läsbehörighet till workloads.
+- Reporter-Role/Binding i uttryckligen godkända schemanamespaces, endast `list deployments`.
+  Dessa mål-namespaces ska redan finnas, om de inte är installationsnamespacet.
+
+```sh
+oc apply -f deploy/generated/bootstrap.yaml
+```
+
+En vanlig namespace-admin kan inte själv skapa klusterbehörigheterna. Om namespace
+redan finns enligt företagets standard kan plattformsteamet skapa det med sina
+vanliga etiketter/kvoter och granska bort Namespace-objektet ur bootstrap-filen.
+Botens användarmapp ger inga Kubernetes-behörigheter. Mappade människor behöver
+redan ha godkänd, direkt användarbaserad rätt att lista deployments i sina namespaces.
+Gruppbaserade rättigheter antas inte av boten.
+
+## 5. Applicera din Deployment
+
+```sh
+oc project DITT_NAMESPACE
+# Vid privat registry: skapa registry-secret enligt företagets rutin först.
+oc apply -f deploy/generated/deployment.yaml
+oc rollout status deployment/cvebridge
+oc get pods,pvc,svc,route
+oc logs deployment/cvebridge -c bot --tail=50
+```
+
+Boten ska nu vara igång. `Pending` PVC behöver lagringskontroll.
+`ImagePullBackOff` betyder att registry-adress, image eller pull-secret behöver kontrolleras.
+En otillgänglig webhook-route ger ofta kommandofel innan boten ens ser förfrågan.
+
+## 6. Kontrollera från Mattermost
 
 ```text
-/acs CVE-2022-40897 demo-team-b
+/cve help
+/cve status
+/cve scan team-a
+/cve schedule
 ```
 
-Du ska få nekad åtkomst efter inloggning. Ett annat användarnamn i ett formulär
-eller en kopierad länk från Bob ska inte ge åtkomst till hans resultat.
+Kontrollera att scan ger en ny rapport med rätt namespace, **Åtgärd** och JSON-bilaga.
+I schemadialogen: välj vardagar, `08:00`, `Europe/Stockholm`, rätt namespace,
+**Ny skanning och rapport**, **Aktiverat**, **Spara inställningar**, sedan **Utför**.
+Öppna igen och välj **Provkör sparat schema**. Läs sedan körhistoriken.
+Testa även att ett konto utan godkänd mapping eller namespace-behörighet nekas.
 
-I **Team Security** får Alice dela fynd från `demo-team-a`, eftersom kanalen
-använder den godkända delningspolicyn `requester`. `/cve scan demo-team-b`
-ska däremot nekas för Alice. Boten kontrollerar beställarens behörigheter och
-kanalmedlemmarna igen innan publicering.
-
-Ett delat inlägg ligger kvar i kanalhistoriken. Den som senare bjuds in till
-kanalen kan läsa historiken. I en företagsmiljö måste kanalmedlemskapet därför
-styras enligt samma åtkomstpolicy som de namespaces vars fynd delas. Den lokala
-Team Edition-demon har ingen automatisk AD/LDAP-synkronisering.
-
-**När ett team vill ha ACS:** skapa deras privata kanal och koppla den till
-teamets godkända namespaces. Samma bot kan betjäna flera kanaler. Se
-[teamanslutning](docs/TEAM_ONBOARDING.md) och `scripts/onboard.py`; verktyget
-kontrollerar åtkomsten och ger inga nya Kubernetes-behörigheter.
-
-En befintlig privat teamkanal går också bra. Plattformsteamet godkänner
-omfattning och delning, kontrollerar identiteter och åtkomst, lägger till boten
-och aktiverar möjligheten till schemaläggning för kanalen. Utvecklarna kör sedan
-`/cve schedule` och fyller i dialogrutan direkt i Mattermost. Ingen separat
-webbsida eller webbinloggning behövs för schemainställningarna.
-
-**Automatiska körningar:** kör `/cve schedule` i Team Security. Välj dagar,
-1–4 tider per dag, tidszon och namespaces. Välj **Spara inställningar** och
-klicka **Utför** för att aktivera. Samma kommando
-öppnar inställningarna igen så att teamet kan ändra eller pausa schemat, eller
-provköra det sparade schemat. Rapportjobbet kör sedan utan personlig inloggning.
-Datorn och tjänsterna behöver vara igång vid den valda tiden.
-
-**Vad väljer teamet?** Namespaces visas i en lista med flerval. Första gången är alla
-tillåtna alternativ valda; ta bort dem som inte ska ingå. Minst ett
-namespace måste väljas. Inom valda namespaces omfattas images som används av
-aktiva poddar i Sensors inventering, inklusive kända init-container-images.
-Hela containerregistret skannas inte, och val av enskilda appar eller images
-inom ett namespace finns ännu inte i formuläret. Teamet väljer också mellan
-en ny skanning med rapport och en rapport från befintliga skanningsresultat.
-Inga automatiska körningar aktiveras före första sparningen.
-
-Java-testappen finns i `demo-team-a/java-sample` och innehåller ett verifierbart
-Log4j-fynd, CVE-2021-44228. Testa `/cve scan demo-team-a` eller
-`/cve CVE-2021-44228 demo-team-a`. Den körs isolerat och exponerar ingen tjänst.
-Se [schemaläggning och Java-test](docs/SCHEDULING.md).
-
-StackRox gör skanningarna. `/cve scan` begär nya skanningar av images i Sensors
-inventering av aktiva poddar, inklusive identifierade OS- och språkpaket.
-Java/JAR stöds när scannern kan identifiera paketen; det är ingen garanti för
-alla beroenden eller källkod. Saknade/misslyckade skanningar visas uttryckligen.
-`/cve CVE-…` söker i befintliga skanningsresultat.
-
-Databasstatus visar Centrals rapporterade uppdateringstid. Äldre än 24 timmar
-markeras som gammalt; en otillgänglig uppdateringstid markeras som okänd.
-En ny imageskanning innebär inte automatiskt att CVE-databasen är ny.
-
-Du kan också söka direkt på **http://localhost:18080**. Då krävs fortfarande
-inloggning och Kubernetes-behörigheter.
-
-**StackRox:** https://localhost:18443, användare `admin`, lösenord under `stackrox`
-i lösenordsfilen. Webbläsaren kan varna för det lokala certifikatet.
-
-**Mattermost-administration:** användare `labadmin`, lösenord under `admin` i
-lösenordsfilen. Administratörskontot används inte för appens normala CVE-frågor.
-
-Starta och stoppa endast det här projektets lokala miljö:
-
-```bash
-python3 scripts/platform.py stop
-python3 scripts/platform.py start
-python3 scripts/platform.py status
-```
-
-Kontrollera det riktiga flödet igen:
-
-```bash
-python3 scripts/verify.py
-```
-
-Resultatet sparas i `.local/verification.json`. Om installationen avbryts kan du
-köra `python3 scripts/platform.py up` igen. Om ingen verifieringsrapport finns
-har hela flödet ännu inte godkänts; kontrollera `.local/install.log`.
-
-Allt körs på datorn. Internet behövs för nedladdning av containerbilder och
-uppdatering av sårbarhetsdatabasen. Dela inte `.local/`, lösenord, API-token eller
-kubeconfig när projektet senare publiceras på GitHub.
+Ingen separat webbplats behövs. Om du ser `failed to fetch`/kommandofel: kontrollera
+Mattermost-serverns åtkomst till request URL och callback-adressen, route/TLS,
+slash-token och botlogg. En lyckad `/healthz` är bara ett processtest.

@@ -1,7 +1,7 @@
-.git
-.local
-.env
-tests
-docs
-__pycache__
-/PRIVAT_INSTALLATION.md
+*
+!go.mod
+!go.sum
+!cmd/
+!cmd/**
+!internal/
+!internal/**

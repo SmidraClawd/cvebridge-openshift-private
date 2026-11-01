@@ -1,0 +1,16 @@
+Jag har byggt CVEBridge: en Go-bot som kopplar ACS/StackRox till Mattermost.
+
+Teamet kan beställa en ny imageskanning, söka en CVE och ställa in rapportdagar
+och tider direkt i Mattermost. Rapporterna visar prioriterade fynd, en tydlig
+åtgärd och en JSON-bilaga med detaljer. Boten kontrollerar namespace-behörigheter
+mot Kubernetes och sparar CVE-bevakning för att minska upprepade larm.
+
+Installationen utgår från en privat .env: bygg och pusha din egen containerimage
+och applicera Deployment, Secret, Service, Route och PVC i OpenShift.
+
+Källkod: https://github.com/SmidraClawd/cvebridge
+
+Det här är ett projekt för labb och utvärdering. Installation i en företagsmiljö
+behöver verifieras med företagets behörigheter, integrationer och driftkrav.
+
+#Golang #OpenShift #Kubernetes #DevSecOps #Mattermost #StackRox
