@@ -255,6 +255,15 @@ func NewConfig(m map[string]string) (Config, error) {
 	if n := c.Float("CVE_ALERT_MIN_CVSS", 9); n < 0 || n > 10 {
 		return c, fmt.Errorf("invalid CVE_ALERT_MIN_CVSS")
 	}
+	if ch := c.Get("DATABASE_MONITOR_CHANNEL_ID", ""); ch != "" {
+		if !ID.MatchString(ch) {
+			return c, fmt.Errorf("DATABASE_MONITOR_CHANNEL_ID must be a stable 26-character Mattermost channel ID")
+		}
+		component := c.Get("STACKROX_SCANNER_COMPONENT", "")
+		if component != "SCANNER" && component != "SCANNER_V4" {
+			return c, fmt.Errorf("database monitoring requires STACKROX_SCANNER_COMPONENT=SCANNER or SCANNER_V4")
+		}
+	}
 	return c, nil
 }
 

@@ -91,6 +91,9 @@ Byt skanningsnamespace. Kontrollera rapporten, Åtgärd-raderna och schemaformul
 Vid fel: `oc logs deployment/cvebridge -n DITT_NAMESPACE -c bot --tail=50`.
 `/healthz` kontrollerar processen; en riktig skanning verifierar anslutningarna.
 
+[Driftbevakning](DRIFTBEVAKNING.md) kan ge driftteamet daglig databasstatus och
+varning när CVE-databasen blir för gammal eller inte kan kontrolleras.
+
 ## Uppdatera senare
 
 Bygg igen och kör `./cvebridge.sh push`, sedan `oc apply -f deploy/app/`.

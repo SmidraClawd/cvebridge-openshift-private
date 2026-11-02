@@ -137,14 +137,19 @@ func (s *Services) Inventory(ctx context.Context, namespaces []string, scheduled
 	return inv, nil
 }
 func (s *Services) DatabaseStatus(ctx context.Context) M {
+	return s.databaseStatusAt(ctx, time.Now())
+}
+func (s *Services) databaseStatusAt(ctx context.Context, now time.Time) M {
 	component := s.C.Get("STACKROX_SCANNER_COMPONENT", "SCANNER")
 	max := s.C.Float("DATABASE_MAX_AGE_HOURS", 24)
-	r := M{"kind": "status", "state": "unknown", "lastUpdated": nil, "ageHours": nil, "checkedAt": time.Now().UTC().Format(time.RFC3339), "maxAgeHours": max, "component": component}
+	r := M{"kind": "status", "state": "unknown", "lastUpdated": nil, "ageHours": nil, "checkedAt": now.UTC().Format(time.RFC3339), "maxAgeHours": max, "component": component}
 	if component != "SCANNER" && component != "SCANNER_V4" {
+		r["reason"] = "Vald Scanner-komponent stöds inte."
 		return r
 	}
 	reply, e := s.RoxRequest(ctx, "/v1/integrationhealth/vulndefinitions?component="+url.QueryEscape(component), "status", nil, false)
 	if e != nil {
+		r["reason"] = message(e)
 		return r
 	}
 	stamp := str(reply["lastUpdatedTimestamp"])
@@ -153,11 +158,16 @@ func (s *Services) DatabaseStatus(ctx context.Context) M {
 	}
 	point, e := time.Parse(time.RFC3339Nano, stamp)
 	if e != nil || max <= 0 {
+		r["reason"] = "ACS returnerade ingen giltig uppdateringstid för vald Scanner."
 		return r
 	}
-	age := time.Since(point).Hours()
+	age := now.Sub(point).Hours()
 	if age < -0.1 {
+		r["reason"] = "Uppdateringstiden ligger i framtiden. Kontrollera klockorna."
 		return r
+	}
+	if age < 0 {
+		age = 0
 	}
 	r["lastUpdated"] = stamp
 	r["ageHours"] = float64(int(age*100)) / 100

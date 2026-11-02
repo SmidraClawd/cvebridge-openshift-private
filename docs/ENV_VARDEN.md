@@ -46,6 +46,10 @@ Separata `STACKROX_SCAN_TOKEN`, `STACKROX_STATUS_TOKEN` och
 De behövs inte i grundfilen. Övriga valfria inställningar finns i
 [env-options.example](env-options.example).
 
+Vill driftteamet bevaka CVE-databasens ålder? Lägg till
+`DATABASE_MONITOR_CHANNEL_ID` med en privat driftkanals ID enligt
+[driftbevakningen](DRIFTBEVAKNING.md). Det är valfritt och kräver ingen ny token.
+
 ## Användarmappningen med ett exempel
 
 Om Anna har Mattermost-ID `h8k3m2p9r7t6v5x4z1a0b2c3d4` och `oc whoami` visar

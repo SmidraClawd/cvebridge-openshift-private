@@ -43,5 +43,9 @@ Byt `DITT_NAMESPACE` mot samma projekt som i `.env`.
 
 [Fyll i .env](docs/ENV_VARDEN.md) · [Installation och Mattermost](docs/INSTALLATION.md) · [Skärmbilder](docs/BILDER.md)
 
+**Valfri driftbevakning:** få daglig databasstatus i Mattermost, varning vid
+äldre än 24 timmar eller okänd status och besked när läget är bra igen.
+Aktiveras med [ett extra fält i .env](docs/DRIFTBEVAKNING.md).
+
 `cmd/` och `internal/` är Go-koden som Docker bygger. Du behöver inte ändra dem.
 Företagsvärden finns i lokal `.env` och genererade filer, som är git-ignorerade.

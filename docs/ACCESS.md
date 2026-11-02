@@ -20,6 +20,11 @@ teammedlemmar nya klusterbehörigheter.
   ACS-token kan anges uttryckligen. Kanalmedlemskap och identiteter kontrolleras även då.
 - Formulärsvar är bundna till ägare och kanal, går ut och kan inte återanvändas.
 
+Valfri [driftbevakning](DRIFTBEVAKNING.md) delar endast övergripande databasstatus
+med en uttryckligen konfigurerad privat driftkanal. Den kontrollerar botidentitet,
+aktiv privat kanal och botmedlemskap. Den hämtar inga namespace-fynd och använder
+därför inte användarmappning eller Kubernetes-behörigheter för driftleveransen.
+
 Den gemensamma ACS-tokenen behöver de godkända rättigheterna för alla dessa
 uppgifter. Separata token för skanning, status och scheman kan användas när
 installationen kräver det. Scope och plattformsbehörigheter godkänns per installation.

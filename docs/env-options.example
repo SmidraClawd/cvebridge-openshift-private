@@ -52,6 +52,9 @@
 # MATTERMOST_SCHEDULE_SCOPES='{}'
 # SCHEDULE_SERVICE_USER=system:serviceaccount:cvebridge:cvebridge-reporter
 # SCHEDULE_DEFAULT_TIMEZONE=Europe/Stockholm
+# Valfri driftbevakning: bjud in boten till en privat driftkanal och ange dess ID.
+# Ett fält aktiverar timkontroll, daglig status, fellarm och återställningsbesked.
+# DATABASE_MONITOR_CHANNEL_ID=CHANGE_ME_DRIFT_CHANNEL_ID
 # DATABASE_MAX_AGE_HOURS=24
 # CVE_ALERTS_ENABLED=true
 # CVE_ALERT_MIN_CVSS=9

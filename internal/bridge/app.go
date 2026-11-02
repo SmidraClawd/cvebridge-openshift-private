@@ -14,12 +14,14 @@ import (
 )
 
 type App struct {
-	S      *Services
-	Store  *Store
-	worker sync.Mutex
-	wake   chan struct{}
-	ctx    context.Context
-	tasks  sync.WaitGroup
+	S           *Services
+	Store       *Store
+	worker      sync.Mutex
+	wake        chan struct{}
+	ctx         context.Context
+	tasks       sync.WaitGroup
+	monitor     sync.Mutex
+	monitorNext time.Time
 }
 
 func NewApp(ctx context.Context, s *Services, store *Store) *App {
@@ -48,6 +50,7 @@ func (a *App) Loop() {
 }
 func (a *App) Wait() { a.tasks.Wait() }
 func (a *App) tick() {
+	a.startDatabaseMonitor(time.Now())
 	if e := a.Store.ClaimDue(timestamp()); e != nil {
 		log.Print("scheduler state unavailable")
 		return

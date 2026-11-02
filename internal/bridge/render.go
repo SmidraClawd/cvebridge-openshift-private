@@ -102,6 +102,9 @@ func Render(w io.Writer, values map[string]string, part string) error {
 				env[k] = v
 			}
 		}
+		if ch := c.Get("DATABASE_MONITOR_CHANNEL_ID", ""); ch != "" {
+			env["DATABASE_MONITOR_CHANNEL_ID"] = ch
+		}
 		for _, k := range []string{"MATTERMOST_BOT_TOKEN", "MATTERMOST_COMMAND_TOKEN", "MATTERMOST_ACS_COMMAND_TOKEN", "STACKROX_TOKEN", "STACKROX_SCAN_TOKEN", "STACKROX_STATUS_TOKEN", "STACKROX_SCHEDULE_TOKEN"} {
 			secrets[k] = c.Get(k, "")
 		}

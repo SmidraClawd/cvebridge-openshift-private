@@ -63,6 +63,8 @@ func HelpMessage() M {
 }
 func ResultMessage(r M) M {
 	switch str(r["kind"]) {
+	case "database_monitor":
+		return databaseMonitorMessage(r)
 	case "status":
 		state := str(r["state"])
 		title, color := "Databasens aktualitet är okänd", "#718096"
