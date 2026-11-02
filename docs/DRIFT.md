@@ -42,6 +42,10 @@ kortlivade formulär och tidigare bekräftade CVE:er. Tokens finns i Kubernetes
 Secret, inte i databasen. Säkerhetskopiera PVC:n enligt er rutin, helst med boten
 stoppad. Radera inte PVC:n vid vanliga uppgraderingar.
 
+För lagring på SMB/NFS: se [nätverksguiden](NATVERKSLAGRING.md). Att byta
+`STATE_NETWORK_URL` flyttar inte en befintlig databas. Lagringsbyte kräver stopp,
+backup och hjälp med PV/PVC-bindningen; det ingår inte i en vanlig imageuppdatering.
+
 Pågående schemakörningar markeras som avbrutna vid omstart. Körningar som missas
 med mer än fem minuter spelas inte upp i efterhand. Manuell körning sparas inte
 som ett schemalagt jobb; vid omstart kan beställaren behöva göra om den.

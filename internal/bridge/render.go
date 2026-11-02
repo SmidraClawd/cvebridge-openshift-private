@@ -44,6 +44,10 @@ func Render(w io.Writer, values map[string]string, part string) error {
 	if !NS.MatchString(ns) || ns == "default" || ns == "kube-system" || strings.HasPrefix(ns, "openshift-") {
 		return fmt.Errorf("choose a dedicated NAMESPACE")
 	}
+	storage, e := renderStateStorage(c)
+	if e != nil {
+		return e
+	}
 	image, e := deploymentImage(c)
 	if e != nil {
 		return e
@@ -85,6 +89,9 @@ func Render(w io.Writer, values map[string]string, part string) error {
 		}
 		for _, target := range unique(approved) {
 			items = append(items, rbac("Role", "cvebridge-reporter-"+ns, target, M{"rules": []any{M{"apiGroups": []string{"apps"}, "resources": []string{"deployments"}, "verbs": []string{"list"}}}}), rbac("RoleBinding", "cvebridge-reporter-"+ns, target, M{"roleRef": M{"apiGroup": "rbac.authorization.k8s.io", "kind": "Role", "name": "cvebridge-reporter-" + ns}, "subjects": []any{M{"kind": "ServiceAccount", "name": "cvebridge-reporter", "namespace": ns}}}))
+		}
+		if storage.PV != nil {
+			items = append(items, storage.PV)
 		}
 	} else {
 		env := map[string]string{}
@@ -136,11 +143,10 @@ func Render(w io.Writer, values map[string]string, part string) error {
 			mounts = append(mounts, M{"name": "ca", "mountPath": "/ca", "readOnly": true})
 		}
 		items = append(items, resource("ServiceAccount", "cvebridge", ns, M{}), resource("ServiceAccount", "cvebridge-reporter", ns, M{"automountServiceAccountToken": false}), resource("Secret", "cvebridge-integration", ns, M{"type": "Opaque", "stringData": secrets}), resource("ConfigMap", "cvebridge-config", ns, M{"data": env}))
-		pvcSpec := M{"accessModes": []string{"ReadWriteOnce"}, "resources": M{"requests": M{"storage": c.Get("STATE_STORAGE_SIZE", "1Gi")}}}
-		if v := c.Get("STORAGE_CLASS", ""); v != "" {
-			pvcSpec["storageClassName"] = v
+		if storage.Secret != nil {
+			items = append(items, storage.Secret)
 		}
-		items = append(items, resource("PersistentVolumeClaim", "cvebridge-state", ns, M{"spec": pvcSpec}))
+		items = append(items, storage.PVC)
 		labels := M{"app.kubernetes.io/name": "cvebridge"}
 		pullPolicy := "IfNotPresent"
 		if strings.HasSuffix(image, ":latest") {

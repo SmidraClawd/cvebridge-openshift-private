@@ -34,6 +34,8 @@ Kommandon, engångsbehörigheter och nätverkskrav finns i [START_HAR.md](START_
 [Driftguiden](docs/DRIFT.md) beskriver uppgradering, state och migration från Python.
 [Fältguiden för .env](docs/ENV_VARDEN.md) visar ifyllda exempel och var du får tag
 på adresser, ID:n och varje separat token.
+[Nätverkslagring](docs/NATVERKSLAGRING.md) visar hur en servermapp kopplas via PV/PVC
+till databasen med `STATE_NETWORK_URL`.
 
 ## Kontrollera i Mattermost
 

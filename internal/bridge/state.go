@@ -151,6 +151,8 @@ func OpenStore(path string) (*Store, error) {
 	s := &Store{DB: db}
 	for _, q := range []string{
 		`PRAGMA busy_timeout=5000`,
+		`PRAGMA journal_mode=DELETE`,
+		`PRAGMA synchronous=FULL`,
 		`CREATE TABLE IF NOT EXISTS schedules (channel_id TEXT PRIMARY KEY,revision INTEGER,config TEXT,enabled INTEGER,next_due REAL,updated_by TEXT,updated_at REAL)`,
 		`CREATE TABLE IF NOT EXISTS schedule_runs (id TEXT PRIMARY KEY,channel_id TEXT,revision INTEGER,due REAL,config TEXT,state TEXT,progress TEXT,result TEXT,error TEXT,created REAL,finished REAL,UNIQUE(channel_id,revision,due))`,
 		`CREATE TABLE IF NOT EXISTS schedule_audit (channel_id TEXT,revision INTEGER,actor TEXT,config TEXT,enabled INTEGER,changed REAL)`,

@@ -95,5 +95,9 @@ case "$action" in
     if [ -z "$webhook" ]; then webhook=$(field WEBHOOK_PUBLIC_URL); fi
     webhook=${webhook:-http://cvebridge-webhook.$namespace.svc:8001}
     printf 'Mattermost Request URL: %s/slash/cve\n' "$webhook"
+    network_storage=$(field STATE_NETWORK_URL)
+    if [ -n "$network_storage" ]; then
+      printf '%s\n' 'Nätverkslagring: bootstrap innehåller PV, deployment innehåller PVC och eventuell lagrings-Secret. Plattformsteamet behöver granska anslutningen.'
+    fi
     ;;
 esac

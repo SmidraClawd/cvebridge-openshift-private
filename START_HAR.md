@@ -23,6 +23,11 @@ ACS Central, Scanner och Sensor ska redan fungera för det valda klustret.
 Öppna `.env` och byt `CHANGE_ME`. Mallen har korta grupper för OpenShift,
 Mattermost och ACS. [Fälthjälpen](docs/ENV_VARDEN.md) visar var värdena hämtas.
 
+Ange er delade mapp i `STATE_NETWORK_URL` om databasen ska ligga på en
+nätverksserver. Då skapas PV/PVC för just den mappen. För SMB behöver plattformen
+en SMB-drivrutin och lagringskontot eller en befintlig Secret enligt
+[lagringsguiden](docs/NATVERKSLAGRING.md). Tomt fält använder standard-StorageClass.
+
 Serviceadresserna följer formen `service.namespace.svc:port`:
 
 - Mattermost: `http://mattermost.mattermost.svc:8065` (anpassa till er Service).
@@ -93,7 +98,7 @@ Deployment behåller alltid den interna imageadressen i standardflödet.
 
 `render` skapar privata filer med rätt image:
 
-- `deploy/generated/bootstrap.yaml`: engångsbehörigheter.
+- `deploy/generated/bootstrap.yaml`: engångsbehörigheter och eventuell nätverks-PV.
 - `deploy/generated/deployment.yaml`: ServiceAccounts, Secret, ConfigMap, PVC,
   Deployment och intern Service.
 
@@ -112,6 +117,8 @@ Den ger appkontot rätt att skapa SubjectAccessReview på klusternivå och ger
 reporteridentiteten `list deployments` i de uttryckligen godkända
 schemanamespacen. De mål-namespacen ska redan finnas. En namespace-admin kan inte
 själv skapa klusterbehörigheten. Inga nya behörigheter ges till de mänskliga kontona.
+Vid nätverkslagring skapar bootstrap även den klustergemensamma PV:n. Plattformsteamet
+behöver granska serveråtkomst, montering och databasens fillåsning.
 
 Applicera sedan din installation:
 
