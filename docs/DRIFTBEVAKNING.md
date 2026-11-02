@@ -5,8 +5,10 @@ Kontrollen beställer ingen imageskanning och ändrar inga ACS-inställningar.
 
 ## Aktivera med ett fält
 
-Skapa eller välj en **privat driftkanal** i Mattermost och bjud in boten.
-Lägg kanalens ID i din lokala `.env`:
+1. Öppna en **privat driftkanal** i Mattermost.
+2. Klicka **Visa info / View Info** via informationsikonen (i).
+3. Kopiera **ID** längst ner i panelen. Det är 26 tecken.
+4. Bjud in boten till kanalen och lägg ID:t i din lokala `.env`:
 
 ```dotenv
 DATABASE_MONITOR_CHANNEL_ID=CHANGE_ME_DRIFT_CHANNEL_ID
