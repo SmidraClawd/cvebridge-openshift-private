@@ -74,7 +74,7 @@ func Render(w io.Writer, values map[string]string, part string) error {
 	if id := c.Get("MATTERMOST_BOT_USER_ID", ""); (id != "" && !ID.MatchString(id)) || len(c.Scopes) == 0 || len(c.Users) == 0 {
 		return fmt.Errorf("configure approved channel scope and user mappings; optional bot ID must be valid")
 	}
-	if len(c.ScheduleScopes) > 0 && c.Get("STACKROX_SCHEDULE_TOKEN", "") == "" {
+	if len(c.ScheduleScopes) > 0 && (c.Get("STACKROX_SCHEDULE_TOKEN", "") == "" || placeholder(c.Get("STACKROX_SCHEDULE_TOKEN", ""))) {
 		return fmt.Errorf("STACKROX_SCHEDULE_TOKEN is required for scheduling")
 	}
 	if len(c.ScheduleScopes) > 0 && c.Get("SCHEDULE_SERVICE_USER", "") != "system:serviceaccount:"+ns+":cvebridge-reporter" {
@@ -103,7 +103,7 @@ func Render(w io.Writer, values map[string]string, part string) error {
 			}
 		}
 		for _, k := range []string{"MATTERMOST_BOT_TOKEN", "MATTERMOST_COMMAND_TOKEN", "MATTERMOST_ACS_COMMAND_TOKEN", "STACKROX_TOKEN", "STACKROX_SCAN_TOKEN", "STACKROX_STATUS_TOKEN", "STACKROX_SCHEDULE_TOKEN"} {
-			secrets[k] = values[k]
+			secrets[k] = c.Get(k, "")
 		}
 		env["MATTERMOST_DIALOG_URL"] = webhook + "/slash/cve/dialog"
 		env["STATE_FILE"] = "/data/requests.sqlite3"

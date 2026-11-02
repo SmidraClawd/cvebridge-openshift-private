@@ -1,86 +1,48 @@
-# Drift och uppgradering
+# Drift och uppdatering
 
-Runtime och installationsgenerator är skrivna i Go. En process lyssnar på 8001:
-`/healthz`, `/slash/cve`, `/slash/acs` och tidsbegränsade dialog-callbacks.
-Inga inloggningssidor eller browser-identitetshuvuden används.
-
-## Uppdatera
-
-Efter en koduppdatering räknas image-taggen ut från Git-revisionen, eller från
-projektfilerna om Git saknas. Du kan också ange `IMAGE_TAG` uttryckligen i `.env`.
-Bygg, pusha och rendera igen. Applicera sedan
-`deployment.yaml`. Ändringar i tokens eller ConfigMap kräver en omstart eftersom
-miljövariabler läses vid processstart:
+## Ny image
 
 ```sh
-oc apply -f deploy/generated/deployment.yaml
-oc rollout restart deployment/cvebridge
-oc rollout status deployment/cvebridge
+docker build -t cvebridge:local .
+./cvebridge.sh push
+oc apply -f deploy/app/
 ```
 
-En replika och Recreate-strategin skyddar SQLite-ägarskapet. Kör inte parallella
-botinstallationer mot samma databas eller samma kanal/schema. Fler repliker kräver
-annan jobbsamordning och är inte en konfigurationsändring.
+Skriptet använder det byggda image-ID:t för en automatisk tagg. Deployment hämtar
+imagen från labbets interna registry. Bootstrap appliceras av plattformen vid
+första installationen och när de godkända namespace-behörigheterna ändras.
 
-## Intern anslutning
+## Bara nya inställningar
 
-Standardinstallationen använder botens interna Service på port 8001 och skapar
-ingen OpenShift Route. Mattermost behöver kunna nå klustrets DNS och Service.
-`MATTERMOST_DIALOG_URL` genereras från samma interna basadress som slash-kommandot.
-Vid byte från en tidigare extern route: uppdatera slash-kommandots Request URL,
-starta om boten och öppna ett nytt schemaformulär. När intern anslutning är
-verifierad kan den gamla app-routen tas bort med `oc delete route cvebridge-webhook`.
-`oc apply` tar inte automatiskt bort resurser som utelämnas i nya manifest.
+Ändra lokal `.env`, kör `./cvebridge.sh render` och applicera `deploy/app/`.
+Starta sedan om boten eftersom miljövariabler läses vid processstart:
 
-Ett uttryckligt `WEBHOOK_URL=https://...` i den avancerade konfigurationen behåller
-stödet för en extern HTTPS-route. Äldre `WEBHOOK_PUBLIC_URL` fungerar fortfarande.
+```sh
+oc rollout restart deployment/cvebridge -n DITT_NAMESPACE
+oc rollout status deployment/cvebridge -n DITT_NAMESPACE
+```
 
-## Beständig state
+## Beständig databas
 
-`/data/requests.sqlite3` innehåller scheman, revisionshistorik, körningar,
-kortlivade formulär och tidigare bekräftade CVE:er. Tokens finns i Kubernetes
-Secret, inte i databasen. Säkerhetskopiera PVC:n enligt er rutin, helst med boten
-stoppad. Radera inte PVC:n vid vanliga uppgraderingar.
+Boten använder `/data/requests.sqlite3` på er färdiga PVC. Den sparar scheman,
+körningar, kortlivade formulär och tidigare bekräftade CVE:er. Säkerhetskopiera
+lagringen enligt er rutin, helst när boten är stoppad. Behåll PVC:n vid vanliga
+uppdateringar. Byte av PVC-namn flyttar inte databasen.
 
-Med `STATE_EXISTING_PVC` använder boten en färdig PVC utan att hantera dess PV,
-StorageClass eller lagringskonto. Se [lagringsguiden](NATVERKSLAGRING.md). Att
-byta PVC-namn flyttar inte en befintlig databas. Lagringsbyte kräver stopp,
-backup och kontrollerad dataflytt; det ingår inte i en vanlig imageuppdatering.
+En replika och Recreate används. Kör inte flera botar mot samma SQLite-fil.
+Pågående schemakörningar markeras som avbrutna vid omstart; missade tider spelas
+inte upp som en backlogg. En krasch mellan Mattermost-bekräftelse och databasens
+commit kan ge dubbelleverans. Exakt-en-gång-leverans garanteras inte.
 
-Pågående schemakörningar markeras som avbrutna vid omstart. Körningar som missas
-med mer än fem minuter spelas inte upp i efterhand. Manuell körning sparas inte
-som ett schemalagt jobb; vid omstart kan beställaren behöva göra om den.
-En krasch i den korta luckan mellan Mattermost-bekräftelse och SQLite-commit kan
-ge dubbelleverans eller upprepad ping. Ingen exakt-en-gång-garanti lämnas.
+## Felsökning
 
-## Migrera från Python-versionen
+```sh
+oc get pods,pvc,svc -n DITT_NAMESPACE
+oc logs deployment/cvebridge -n DITT_NAMESPACE -c bot --tail=50
+```
 
-Ta en databasbackup, stoppa den gamla processen och bevara PVC:n. Go läser samma
-SQLite-tabeller för scheman, körningar och CVE-bevakning. Granska och fyll i de
-nya miljövariablerna i `.env.example`; gamla installationsfiler är inte direkt utbytbara.
-`MATTERMOST_TOKEN`, `MATTERMOST_BOT_ID` och `SLASH_TOKEN` heter nu
-`MATTERMOST_BOT_TOKEN`, valfritt `MATTERMOST_BOT_USER_ID` och `MATTERMOST_COMMAND_TOKEN`.
-Bot-ID behöver normalt inte anges; den autentiserade botprofilen verifieras automatiskt.
-Eventuellt `/acs` har en separat `MATTERMOST_ACS_COMMAND_TOKEN`.
+Kontrollera image-pull, PVC, nätverk, certifikat och tokens efter behov.
+`/healthz` är ett processtest; verifiera anslutningarna med `/cve status` och en
+riktig skanning. Tomma fynd är inget friskintyg om skannern redovisar luckor.
 
-Alla människor behöver en explicit `MATTERMOST_KUBE_USER_MAP` till sitt exakta
-klusterkonto. OIDC-email som implicit identitet och privata webbrapporter har tagits
-bort. Manuell skanning och CVE-sökning körs i godkända privata teamkanaler och
-resultatet delas i kanalen enligt policyn. CVE-sökning använder nu aktiva poddars
-images, precis som skanning; historiska, inaktiva deployment-images ingår inte.
-
-Gamla browserlänkar fungerar inte. Öppna schemadialogerna igen efter uppgradering;
-en redan öppen dialog kan ha en äldre identitetssnapshot. Proxy/Dex behövs inte
-för Go-boten. Avveckla dem separat efter granskning om andra tjänster använder dem.
-Behåll ACS-installationen, reporteridentiteten och dess godkända roller vid migration,
-eller anpassa dem uttryckligen till generatorns `cvebridge-reporter`.
-
-## Begränsningar
-
-Ett tomt fyndresultat är inget friskintyg. Scanner-varningar, misslyckade images,
-saknade underlag och gammal CVE-databas ska utredas. Inventeringen begränsas till
-100 unika images och 2 000 aktiva poddar per beställning. Rapporten begränsas till
-20 000 rader och 8 MiB bilaga. Avgränsa med namespace om gränserna nås.
-
-Ny installation kräver fungerande Mattermost, ACS, klustrets RBAC, registry och
-lagring. Lokala tester och lyckat imagebygge ersätter inte ett test i ert OpenShift-labb.
+[Installation](INSTALLATION.md) · [PVC](NATVERKSLAGRING.md) · [Åtkomst](ACCESS.md)

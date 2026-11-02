@@ -267,6 +267,13 @@ func configurationDefaults(input map[string]string) (map[string]string, error) {
 	for k, v := range input {
 		m[k] = v
 	}
+	// The short private installation uses one scoped ACS API token. Explicit
+	// per-operation credentials remain available for installations that need them.
+	for _, key := range []string{"STACKROX_SCAN_TOKEN", "STACKROX_STATUS_TOKEN", "STACKROX_SCHEDULE_TOKEN"} {
+		if _, explicit := m[key]; !explicit {
+			m[key] = m["STACKROX_TOKEN"]
+		}
+	}
 	for k, v := range map[string]string{
 		"NAMESPACE": "cvebridge", "STACKROX_URL": "https://central.stackrox.svc:443",
 		"STACKROX_SCANNER_COMPONENT": "SCANNER_V4", "SCHEDULE_DEFAULT_TIMEZONE": "Europe/Stockholm",

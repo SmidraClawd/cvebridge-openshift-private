@@ -40,7 +40,7 @@ Mattermost- och ACS-tokens tillförs fortfarande genom appens integrations-Secre
 
 ## Bygg och starta
 
-Följ [startguiden](../START_HAR.md): bygg, pusha, rendera och applicera manifesten.
+Följ [installationen](INSTALLATION.md): bygg, pusha, rendera och applicera manifesten.
 Bootstrap behövs fortfarande för botens Kubernetes-behörighetskontroll.
 Kontrollera att den befintliga lagringen är skrivbar för podens UID/grupp och
 lämplig för SQLite med korrekt fillåsning och synkronisering.
@@ -53,6 +53,6 @@ inte automatiskt om du byter PVC. Kör en botreplika mot databasen.
 
 Utan `STATE_EXISTING_PVC` kan generatorn skapa en ny PVC med klustrets
 standard-StorageClass. Explicit ny SMB-/NFS-lagring finns som ett separat
-alternativ i `.env.advanced.example`; det används inte för er färdiga PVC.
+alternativ i [env-options.example](env-options.example); det används inte för er färdiga PVC.
 
 [Kubernetes: montera en PVC i en pod](https://kubernetes.io/docs/concepts/storage/persistent-volumes/#claims-as-volumes).

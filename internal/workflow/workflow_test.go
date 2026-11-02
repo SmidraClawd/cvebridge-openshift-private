@@ -10,6 +10,10 @@ import (
 )
 
 func workflow(t *testing.T, values string, extra ...string) (string, string, string) {
+	return workflowAction(t, "push", values, extra...)
+}
+
+func workflowAction(t *testing.T, action, values string, extra ...string) (string, string, string) {
 	t.Helper()
 	if runtime.GOOS == "windows" {
 		t.Skip("POSIX helper")
@@ -33,6 +37,7 @@ printf 'oc %s\n' "$*" >> "$CALL_LOG"
 case "$*" in
  'whoami') printf 'alice\n';;
  'whoami -t') printf 'TEST_ONLY_OAUTH_TOKEN\n';;
+ 'get pvc company-state -n security -o name') [ "${MISSING_PVC:-0}" = 0 ];;
  'get project security -o name') [ "${MISSING_NAMESPACE:-0}" = 0 ];;
  'get route default-route -n openshift-image-registry -o jsonpath={.spec.host}') [ "${MISSING_ROUTE:-0}" = 0 ]; printf 'default-route-openshift-image-registry.apps.lab.test';;
  *) exit 2;;
@@ -41,9 +46,13 @@ esac
 	write("engine", `#!/bin/sh
 set -eu
 printf 'engine %s\n' "$*" >> "$CALL_LOG"
-if [ "$1" = login ]; then read -r token; [ "$token" = TEST_ONLY_OAUTH_TOKEN ]; fi
+case "$1" in
+ image) [ "${MISSING_LOCAL_IMAGE:-0}" = 0 ]; printf 'sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n';;
+ login) read -r token; [ "$token" = TEST_ONLY_OAUTH_TOKEN ];;
+ run) [ "${RENDER_FAIL:-0}" = 0 ];;
+esac
 `, 0700)
-	command := exec.Command("sh", filepath.Join(dir, "cvebridge.sh"), "push")
+	command := exec.Command("sh", filepath.Join(dir, "cvebridge.sh"), action)
 	command.Env = append(os.Environ(), "PATH="+dir+":"+os.Getenv("PATH"), "CONTAINER_ENGINE="+filepath.Join(dir, "engine"), "CALL_LOG="+filepath.Join(dir, "calls"))
 	command.Env = append(command.Env, extra...)
 	output, err := command.CombinedOutput()
@@ -60,7 +69,7 @@ func TestPushUsesRouteWhileKeepingInternalDeploymentReference(t *testing.T) {
 	if status != "ok" {
 		t.Fatal(output, calls)
 	}
-	for _, want := range []string{"oc get project security -o name", "engine login --username cvebridge --password-stdin default-route-openshift-image-registry.apps.lab.test", "engine tag image-registry.openshift-image-registry.svc:5000/security/cvebridge:v1 default-route-openshift-image-registry.apps.lab.test/security/cvebridge:v1", "engine push default-route-openshift-image-registry.apps.lab.test/security/cvebridge:v1"} {
+	for _, want := range []string{"oc get project security -o name", "engine login --username cvebridge --password-stdin default-route-openshift-image-registry.apps.lab.test", "engine tag cvebridge:local default-route-openshift-image-registry.apps.lab.test/security/cvebridge:v1", "engine push default-route-openshift-image-registry.apps.lab.test/security/cvebridge:v1"} {
 		if !strings.Contains(calls, want) {
 			t.Fatal("missing " + want + "\n" + calls)
 		}
@@ -101,5 +110,32 @@ func TestExternalRegistryOverrideRetainsExistingPushBehavior(t *testing.T) {
 	status, output, calls := workflow(t, "NAMESPACE=security\nAPP_IMAGE='registry.corp.test/security/cvebridge:v1'\n")
 	if status != "ok" || strings.Contains(calls, "oc ") || !strings.Contains(calls, "engine push registry.corp.test/security/cvebridge:v1") {
 		t.Fatal(status, output, calls)
+	}
+}
+
+func TestLocalBuildDoesNotRequireClusterOrConfiguration(t *testing.T) {
+	status, output, calls := workflowAction(t, "build", "NAMESPACE=$(id)\n")
+	if status != "ok" || strings.Contains(calls, "oc ") || strings.Contains(calls, "engine image inspect") || !strings.Contains(calls, "-t cvebridge:local .") {
+		t.Fatal(status, output, calls)
+	}
+}
+
+func TestAutomaticTagUsesBuiltImageAndRenderNeedsNoCluster(t *testing.T) {
+	status, output, calls := workflowAction(t, "image", "NAMESPACE=security\n")
+	if status != "ok" || strings.TrimSpace(output) != "image-registry.openshift-image-registry.svc:5000/security/cvebridge:go-aaaaaaaaaaaa" || strings.Contains(calls, "oc ") {
+		t.Fatal(status, output, calls)
+	}
+	status, output, calls = workflowAction(t, "render", "NAMESPACE=security\n")
+	if status != "ok" || strings.Contains(calls, "oc ") || !strings.Contains(calls, "cvebridge:local render --env-file /workspace/.env --image image-registry.openshift-image-registry.svc:5000/security/cvebridge:go-aaaaaaaaaaaa --output-dir /output") {
+		t.Fatal(status, output, calls)
+	}
+}
+
+func TestMissingImageClaimOrInvalidRenderStopsBeforeRegistryLogin(t *testing.T) {
+	for _, setting := range []string{"MISSING_LOCAL_IMAGE=1", "MISSING_PVC=1", "RENDER_FAIL=1"} {
+		status, _, calls := workflow(t, "NAMESPACE=security\nSTATE_EXISTING_PVC=company-state\n", setting)
+		if status != "failed" || strings.Contains(calls, "engine login") || strings.Contains(calls, "engine push") {
+			t.Fatal(setting, status, calls)
+		}
 	}
 }

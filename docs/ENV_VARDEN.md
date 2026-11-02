@@ -1,81 +1,64 @@
-# Fyll i .env
+# Fyll i .env – 11 fält
 
-Kör `./cvebridge.sh init` och öppna `.env`. Byt `CHANGE_ME` mot era värden.
-Serviceadresserna är exempel: kontrollera service, namespace och port i ert kluster.
+Kopiera `.env.example` till `.env`. Du fyller själv i företagets värden lokalt.
+Serviceadresserna är exempel och ska stämma med era installationer.
 
-| Fält | Vad du anger / var det finns |
+| Fält | Det du anger |
 | --- | --- |
-| `NAMESPACE` | Projektet där boten ska köras, till exempel `cvebridge`. |
-| `SCAN_NAMESPACES` | Projekt att skanna, till exempel `team-a,team-b`. |
-| `STATE_EXISTING_PVC` | Namnet på er färdiga PVC i samma `NAMESPACE`. Hitta namnet med `oc get pvc -n ert-projekt`. Serveradress och lagringslösenord behöver inte anges. Tomt skapar en PVC med klustrets standardlagring. |
-| `MATTERMOST_INTERNAL_URL` | Mattermosts Service, till exempel `http://mattermost.mattermost.svc:8065`. |
-| `MATTERMOST_BOT_TOKEN` | Mattermost-admin: Integrations → Bot Accounts → skapa bot med rollen Member → kopiera Access Token. Bjud in boten i den privata kanalen. |
-| `MATTERMOST_COMMAND_TOKEN` | Integrations → Slash Commands → skapa `cve` med POST → kopiera Token. Request URL står nedan. |
-| `MATTERMOST_CHANNEL_ID` | Be Mattermost-ansvarig hämta kanal-ID med `mmctl channel search --team devsecops team-security`. Byt team- och kanalnamn. |
-| `MATTERMOST_KUBE_USER_MAP` | Nyckel = personens User ID i Mattermosts System Console → User Management → Users. Värde = samma persons exakta `oc whoami`. Lägg till alla människor i kanalen. |
-| `STACKROX_URL` | Nåbar ACS Central-adress. `https://central.stackrox.svc:443` gäller när Central finns i samma kluster. |
-| `STACKROX_CLUSTER_ID` | Be ACS-ansvarig hämta rätt klusters `id` från `GET /v1/clusters`. |
-| De fyra `STACKROX_*TOKEN` | ACS: Platform Configuration → Integrations → Authentication Tokens → API Token → Generate Token. En separat token per rad. Roller nedan. |
+| `NAMESPACE` | Projektet där både boten och er färdiga PVC finns. |
+| `STATE_EXISTING_PVC` | Namnet på PVC:n. Se `oc get pvc -n ert-projekt`. |
+| `SCAN_NAMESPACES` | Projekt att skanna, exempelvis `team-a,team-b`. |
+| `MATTERMOST_INTERNAL_URL` | Er Mattermost-adress som boten kan nå. |
+| `MATTERMOST_BOT_TOKEN` | Botkontots Access Token. |
+| `MATTERMOST_COMMAND_TOKEN` | Token från registreringen av `/cve`. |
+| `MATTERMOST_CHANNEL_ID` | Rapportkanalens ID. |
+| `MATTERMOST_KUBE_USER_MAP` | Varje persons Mattermost-ID kopplat till samma persons OpenShift-användarnamn. |
+| `STACKROX_URL` | Nåbar HTTPS-adress till ACS Central. `.svc` fungerar inom samma kluster. |
+| `STACKROX_CLUSTER_ID` | Labbklustrets ID i ACS Central, från ACS-ansvarig eller `/v1/clusters`. |
+| `STACKROX_TOKEN` | En API-token för botens läsning, skanning, databasstatus och scheman. |
 
-Mappningen ska se ut så här, med era riktiga ID:n och konton:
+Botens callback, reporteridentitet, imageadress och image-tagg räknas ut.
+Databasen monteras på `/data/requests.sqlite3` via PVC:n. Ingen lagrings-Secret
+behövs i botinstallationen för en färdig PVC.
+
+## Var tokenen finns
+
+- **Mattermost bot:** admin öppnar Integrations → Bot Accounts → Add Bot Account.
+  Välj Member och kopiera Access Token. Bjud in boten i kanalen.
+- **Mattermost kommando:** Integrations → Slash Commands → registrera `cve` med
+  POST enligt [installationen](INSTALLATION.md), spara och kopiera Token.
+- **ACS:** Platform Configuration → Integrations → Authentication Tokens →
+  API Token → Generate Token. Välj rollen som ACS-ansvarig har godkänt för boten.
+
+Den gemensamma ACS-tokenens roll behöver Read på Deployment, Image, Cluster,
+Namespace och Administration (för databasstatus), samt Write på Image (för
+skanningsbeställningar). ACS-ansvarig verifierar rättigheter och access scope i
+er version. Begränsa åtkomsten till avsedd omfattning. Mänskliga användares
+namespace-behörighet kontrolleras dessutom i Kubernetes för varje beställning.
+
+Separata `STACKROX_SCAN_TOKEN`, `STACKROX_STATUS_TOKEN` och
+`STACKROX_SCHEDULE_TOKEN` går fortfarande att ange som uttryckliga undantag.
+De behövs inte i grundfilen. Övriga valfria inställningar finns i
+[env-options.example](env-options.example).
+
+## Användarmappningen med ett exempel
+
+Om Anna har Mattermost-ID `h8k3m2p9r7t6v5x4z1a0b2c3d4` och `oc whoami` visar
+`anna`, anger du:
 
 ```dotenv
-MATTERMOST_KUBE_USER_MAP='{"CHANGE_ME_USER_ID":"CHANGE_ME_OPENSHIFT_USER"}'
+MATTERMOST_KUBE_USER_MAP='{"h8k3m2p9r7t6v5x4z1a0b2c3d4":"anna"}'
 ```
 
-Med en färdig PVC behövs inga `STATE_SMB_*` eller `STATE_NETWORK_URL`.
-Se [lagringsguiden](NATVERKSLAGRING.md) för kopplingen till Deployment.
+Det betyder att personen med detta Mattermost-ID är OpenShift-användaren `anna`.
+Mattermost-admin hittar personens ID i System Console → User Management → Users.
+Varje person hämtar sitt eget OpenShift-användarnamn med `oc whoami`.
+Lägg till en koppling per mänsklig medlem i rapportkanalen. Mappningen ger inga
+nya klusterbehörigheter; [åtkomstmodellen](ACCESS.md) beskriver kontrollen.
 
-| Token | Behörighetsunderlag för ACS-ansvarig |
-| --- | --- |
-| `STACKROX_TOKEN` | Read: Deployment, Image, Cluster, Namespace. |
-| `STACKROX_SCAN_TOKEN` | Read/Write: Image. |
-| `STACKROX_STATUS_TOKEN` | Read: Administration för databasstatus. |
-| `STACKROX_SCHEDULE_TOKEN` | Read: Deployment, Cluster, Namespace. Read/Write: Image. Scope begränsas till godkända schemanamespaces i valt kluster. |
+Sensorn rapporterar klusterdata till Central. Boten anropar Centrals API, även
+när Central finns i ett annat kluster. Ange då den Central-adress som boten kan nå.
 
-ACS-ansvarig kontrollerar roller och scope-stöd i er version. Mappningen ger inte
-människorna nya OpenShift-behörigheter. Spara tokens lokalt i `.env`.
-
-## Hitta den Central som labbets Sensor redan använder
-
-Om Sensor ligger i namespace `stackrox` kan du läsa den konfigurerade adressen:
-
-```sh
-oc -n stackrox get deploy sensor -o jsonpath='{.spec.template.spec.containers[*].env[?(@.name=="ROX_CENTRAL_ENDPOINT")].value}{"\n"}'
-```
-
-Använd motsvarande HTTPS-adress för Centrals API i `STACKROX_URL`, efter kontroll
-med ACS-ansvarig. Boten behöver egna API-tokens och nätverksåtkomst även om Sensor
-redan är ansluten. `STACKROX_CLUSTER_ID` ska vara labbklustrets ID i samma Central.
-
-## Interna adresser räknas ut
-
-Med `NAMESPACE=cvebridge` blir Mattermost-kommandots **Request URL**:
-
-```text
-http://cvebridge-webhook.cvebridge.svc:8001/slash/cve
-```
-
-Boten räknar också ut formulärens callback-adress. Ingen OpenShift Route skapas.
-Mattermost-servern behöver kunna nå klustrets interna DNS och botens Service.
-Om Mattermost blockerar interna integrationer godkänner admin just botens
-servicevärd i `AllowedUntrustedInternalConnections`, enligt företagets policy.
-
-Deployment-imagen blir automatiskt:
-
-```text
-image-registry.openshift-image-registry.svc:5000/<namespace>/cvebridge:<automatisk-tagg>
-```
-
-Push från en dator utanför klustret använder registryts externa route. Om din
-byggmiljö når intern DNS kan du i stället sätta
-`REGISTRY_PUSH_HOST=image-registry.openshift-image-registry.svc:5000`.
-
-Fortsätt med [installationen](../START_HAR.md). Valfria undantag finns i
-`.env.advanced.example`. Privat CA: spara publik PEM i `certs/` och ange
-`STACKROX_CA_FILE=certs/central-ca.pem` när ACS kräver den.
-
-Källor: [Mattermost botkonton](https://developers.mattermost.com/integrate/reference/bot-accounts/),
-[slash-kommandon](https://developers.mattermost.com/integrate/slash-commands/custom/),
-[interna integrationer](https://docs.mattermost.com/developers/integrate/plugins/interactive-messages),
-[ACS-token](https://docs.redhat.com/en/documentation/red_hat_advanced_cluster_security_for_kubernetes/4.11/html/configuring/configure-api-token).
+Källor: [Mattermost botkonton](https://docs.mattermost.com/developers/integrate/reference/bot-accounts),
+[användar-ID](https://docs.mattermost.com/administration-guide/configure/user-management-configuration-settings#identify-a-users-id),
+[ACS API-token](https://docs.redhat.com/en/documentation/red_hat_advanced_cluster_security_for_kubernetes/4.11/html/configuring/configure-api-token).

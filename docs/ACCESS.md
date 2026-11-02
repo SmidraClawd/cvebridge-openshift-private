@@ -15,13 +15,14 @@ teammedlemmar nya klusterbehörigheter.
   verifierad åtkomst till. Den valfria policyn `requester` godkänner uttryckligen
   delning av beställarens tillåtna fynd med kanalen. Befintlig kanalhistorik
   ligger kvar när medlemskap ändras.
-- Schemalagda körningar använder ett separat reporter-servicekonto och en
-  särskild ACS-token. Kanalmedlemskap och identiteter kontrolleras även då.
+- Schemalagda körningar använder ett separat reporter-servicekonto. Grundfilen
+  använder samma ACS-token för läsning, skanning, status och scheman; separata
+  ACS-token kan anges uttryckligen. Kanalmedlemskap och identiteter kontrolleras även då.
 - Formulärsvar är bundna till ägare och kanal, går ut och kan inte återanvändas.
 
-Separata ACS-token skiljer inventeringsläsning, skanningsbeställningar,
-databasstatus och schemakörningar åt. Scope och plattformsbehörigheter godkänns
-för respektive installation.
+Den gemensamma ACS-tokenen behöver de godkända rättigheterna för alla dessa
+uppgifter. Separata token för skanning, status och scheman kan användas när
+installationen kräver det. Scope och plattformsbehörigheter godkänns per installation.
 
 Ofullständig skanning eller gammal CVE-databas visas som luckor. Första kompletta
 rapporten skapar normalt ett utgångsläge utan kanalping. Beständig bevakning

@@ -1,48 +1,24 @@
-# Verifiering av Go-porten
+# Verifiering
 
-Kontrollerat 2026-11-02:
+Kontrollerat lokalt 2026-11-02. Företagets OpenShift-installation är ännu inte testad.
 
-- 39 Go-testfunktioner godkända med race detector, inklusive API-testservrar,
-  behörighetskontroller, callback-ägarskap, återanvändningsskydd, revisionskonflikter,
-  DST-tider, sparad state, larmbekräftelser och manifestgenerering.
-- Standardmanifest med intern Service har verifierats med den byggda imagen och
-  det riktiga byggskriptet i två namespaces: intern callback, intern imageadress
-  och ingen Route. Ett uttryckligt HTTPS-undantag har också verifierats.
-- Korta `.env` expanderas till godkända kanal-/schemamappar och intern
-  registry-adress. Push-kommandot testas med simulerade `oc`- och containerkommandon:
-  routen hittas automatiskt, namespace kontrolleras före push och inloggning
-  använder token på stdin. Saknad route eller namespace stoppar pushen.
-- Befintlig PVC: Deployment monterar angivet claim-namn på `/data`. Tester
-  verifierar att ingen PV, PVC eller lagrings-Secret genereras eller ändras och
-  att ogiltiga namn och motstridiga inställningar nekas. Riktigt hjälpskript och
-  ny image verifierade med två claim-namn. Deployment accepterades av labbets
-  API med server-side dry-run och labbets befintliga PVC-specifikationer bevarades.
-- Nätverkslagring: SMB, UNC och NFS genererar statisk PV/PVC med `Retain`.
-  Det riktiga hjälpskriptet och den nya imagen har provats för alla tre samt
-  standardlagring. PV/PVC accepterades av lokala labbets API med server-side
-  dry-run. Tester verifierar separata lagrings-Secrets, felaktiga indata och
-  bevarad SQLite-state med rollback-journal och full synkronisering.
-- `go vet ./...` godkänd och containerimage byggd från Go-källkoden.
-- 11 kontroller mot det befintliga lokala Kubernetes-labbet med riktig Mattermost
-  och ACS/StackRox: vanlig användare kör manuell skanning, CVE-sökning och
-  provkörning av sparat schema direkt i Mattermost. Rapportkort och JSON-bilagor
-  levereras, nya skanntider verifieras, schema bevaras och befintliga kritiska
-  CVE:er orsakar ingen upprepad kanalping.
-- Manuell körning och schemakörning är även verifierade efter att bot-ID-fältet
-  togs bort; botens identitet verifieras via dess autentiserade Mattermost-profil.
-- Den manuella skanningen omfattade en image; schemakörningen två images och
-  189 råa fyndrader, med noll misslyckade images.
-- En tidigare Go-image verifierades med read-only rotfilsystem under UID 98765
-  och därefter UID 98766 mot samma beständiga SQLite-volume. Byggskriptets riktiga render-kommando
-  skapar privata manifest med filrättigheter 0600 och rätt image.
-- Kubernetes-objekten i den genererade installationen accepterades av labbets
-  API med server-side dry-run. OpenShift Route kunde inte testas av detta
-  Kubernetes-API och ingår inte i det påståendet.
+| Kontroll | Resultat |
+| --- | --- |
+| Go | 46 testfunktioner godkända med race detector. `go vet` godkänd. |
+| Konfiguration | Grundfilen har 11 fält. Gemensam ACS-token används för alla botuppgifter; uttryckliga token-undantag fungerar och ofullständiga undantag nekas. |
+| Container | Go-imagen byggd med vanlig `docker build -t cvebridge:local .`. `.env` ingår inte i byggkontexten. |
+| Lokalt registry | Riktigt lokalt Distribution-registry:3: hjälpskriptet taggar, loggar in med token på stdin, pushar och verifierar taggen i registryt. `oc`-svaren simulerades. |
+| YAML | Separata vanliga YAML-filer för Deployment, Service, ConfigMap, Secret och ServiceAccounts. Klusterbehörigheter ligger i separat bootstrap. Filerna har rättighet 0600. |
+| Kubernetes | Genererade resurser accepterade med server-side dry-run i lokala labbet. Inga resurser installerades. |
+| PVC | Färdig PVC refereras i Deployment. Ingen PV, PVC eller lagrings-Secret skapas i det läget. Databasen monteras på `/data`. |
+| Felvägar | Saknad image, projekt, PVC, registry-route och felaktig konfiguration stoppar flödet före push. Hemligheter skrivs inte i inloggningens argument. |
 
-Detta är ett lokalt labbtest, inte en verifierad installation i företagets
-OpenShift-kluster. Nya adresser, certifikat, tokens, registry, lagring, roller och
-Mattermost-inställningar behöver fortfarande verifieras där.
+Det tillfälliga registryt togs bort efter kontrollen. Företagets registry, TLS,
+åtkomsträttigheter, ACS-roll och verkliga PVC-montering behöver verifieras i labbet.
 
-Ingen riktig SMB- eller NFS-montering har verifierats. Plattformsteamet behöver
-kontrollera drivrutin, nätverk, kontouppgifter, UID/grupp, fillåsning och
-synkronisering på den avsedda lagringsservern.
+Den tidigare Go-versionen har också genomgått 11 riktiga Mattermost/ACS-kontroller:
+manuell skanning, CVE-sökning, formulär och provkörning av schema. Den kontrollen
+omfattade Åtgärd-rader, JSON-bilagor, nya skanntider och bevarat schema. En äldre
+Go-image har verifierats med read-only rotfilsystem och samma beständiga SQLite-fil
+under två olika icke-root-UID:n. Dessa tidigare tester ersätter inte verifiering
+av den nya installationen i er miljö.

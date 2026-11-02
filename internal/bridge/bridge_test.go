@@ -691,8 +691,8 @@ func TestShortEnvProducesInternalRegistryDeployment(t *testing.T) {
 	}
 }
 
-func TestShortEnvStillRequiresApprovedIdentitiesAndSeparateTokens(t *testing.T) {
-	for _, key := range []string{"MATTERMOST_KUBE_USER_MAP", "STACKROX_SCAN_TOKEN", "STACKROX_STATUS_TOKEN", "STACKROX_SCHEDULE_TOKEN"} {
+func TestShortEnvStillRequiresApprovedIdentitiesAndCredentials(t *testing.T) {
+	for _, key := range []string{"MATTERMOST_KUBE_USER_MAP", "STACKROX_TOKEN", "MATTERMOST_BOT_TOKEN", "MATTERMOST_COMMAND_TOKEN"} {
 		m := shortEnv()
 		delete(m, key)
 		if e := Render(&bytes.Buffer{}, m, "deployment"); e == nil {

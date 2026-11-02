@@ -2,8 +2,7 @@
 .env
 .env.*
 !.env.example
-!.env.advanced.example
-/deploy/generated/
+/deploy/
 /bin/
 /cvebridge
 *.sqlite3
@@ -14,6 +13,5 @@ __pycache__/
 *.pyc
 .venv/
 .DS_Store
-/PRIVAT_INSTALLATION.md
 
 /certs/

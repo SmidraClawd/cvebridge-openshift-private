@@ -70,6 +70,7 @@ func render(args []string) error {
 	env := f.String("env-file", ".env", "configuration file")
 	part := f.String("part", "deployment", "deployment or bootstrap")
 	image := f.String("image", "", "deployment image supplied by the build helper")
+	directory := f.String("output-dir", "", "write bootstrap.yaml and app/*.yaml to this directory")
 	if e := f.Parse(args); e != nil {
 		return e
 	}
@@ -84,6 +85,9 @@ func render(args []string) error {
 	}
 	if *image != "" {
 		values["APP_IMAGE"] = *image
+	}
+	if *directory != "" {
+		return bridge.RenderManifests(*directory, values)
 	}
 	return bridge.Render(os.Stdout, values, *part)
 }

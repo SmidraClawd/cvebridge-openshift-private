@@ -1,7 +1,7 @@
 # Valfria inställningar. Kopiera bara nödvändiga rader till .env och avkommentera.
 # Ta inte med samma nyckel två gånger. Hemligheter ska aldrig committas.
 
-# Automatisk image: image-registry.openshift-image-registry.svc:5000/NAMESPACE/cvebridge:go-GITREVISION
+# Automatisk image: image-registry.openshift-image-registry.svc:5000/NAMESPACE/cvebridge:go-IMAGE_ID
 # IMAGE_TAG=1.0.0-go
 # Push från en miljö som når intern DNS (Deployment använder alltid intern imageadress):
 # REGISTRY_PUSH_HOST=image-registry.openshift-image-registry.svc:5000
@@ -34,6 +34,10 @@
 
 # STACKROX_CA_FILE=certs/central-ca.pem
 # MATTERMOST_CA_FILE=certs/mattermost-ca.pem
+# Separata ACS-token är valfria undantag från grundfilens gemensamma STACKROX_TOKEN.
+# STACKROX_SCAN_TOKEN=CHANGE_ME
+# STACKROX_STATUS_TOKEN=CHANGE_ME
+# STACKROX_SCHEDULE_TOKEN=CHANGE_ME
 # STACKROX_SCANNER_COMPONENT=SCANNER_V4
 # STACKROX_DELEGATE_SCAN=false
 # MATTERMOST_BOT_USER_ID=valfritt_verifierat_bot_id
