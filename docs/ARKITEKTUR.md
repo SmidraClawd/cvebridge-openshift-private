@@ -1,37 +1,24 @@
 # Arkitektur
 
-CVEBridge är en Go-tjänst som kopplar Mattermost till ACS Central och klustrets
-Kubernetes-API.
+En Go-process tar emot autentiserade Mattermost-kommandon och kortlivade
+formulär-callbacks. Det finns ingen separat webbapp. Status, CVE-sökning,
+manuell skanning och scheman används från en godkänd privat teamkanal.
 
-## Tre anslutningar
+Stabila Mattermost-ID:n kopplas uttryckligen till klusterkonton. Kubernetes
+SubjectAccessReview kontrollerar list-behörighet till deployments per namespace.
+Scope och kanalmedlemmar kontrolleras på nytt under körningen och före publicering.
+Mänskliga användares grupper gissas inte. Schemalagda körningar har separat
+rapporteridentitet och ACS-token.
 
-| Anslutning | Uppgift |
-| --- | --- |
-| Mattermost ↔ CVEBridge | Slash-kommandon, formulär, rapportkort och JSON-bilagor. |
-| CVEBridge ↔ ACS Central | Inventering, skanningsbeställningar, sårbarhetsfynd och databasstatus. |
-| CVEBridge → Kubernetes-API | Namespace-behörigheter via SubjectAccessReview. |
+Sensorn rapporterar klusterdata till ACS Central. Boten hämtar inventeringen av
+aktiva poddar via Centrals API och använder labbets Kubernetes-API för
+behörighetskontroll. Central kan finnas i samma kluster eller i ett annat;
+`STACKROX_URL` ska vara en adress som boten kan nå. Lokala `.svc`-adresser
+fungerar inom respektive klusters tjänstenät.
 
-Klustrets Sensor rapporterar inventering och aktivitet till Central. Boten
-anropar Centrals API. Central kan finnas i samma kluster eller ett annat;
-använd en nåbar Central-adress. En `.svc`-adress hör till klustrets tjänstenät.
-
-## Från beställning till rapport
-
-1. Verifiera kommandot, beställaren och den godkända privata kanalen.
-2. Kontrollera namespace-behörigheter och kanalens delningspolicy.
-3. Läs aktiva poddars images från Central och beställ nya skanningar vid behov.
-4. Kontrollera åtkomsten igen och publicera rapporten med Åtgärd och JSON-resultat.
-
-Runtime-digests binder nya skanningar till de images som används. CVE-sökning och
-rapportläge läser befintliga skanningsresultat. Beställningar begränsas till 100
-unika images, 2 000 aktiva poddar, 20 000 rader och en bilaga på högst 8 MiB.
-
-## Deployment och state
-
-Imagen innehåller en statisk Go-binär, CA-certifikat och tidszoner.
-Företagskonfiguration tillförs vid körning via Kubernetes-konfiguration och Secrets.
-En vanlig Deployment kör en worker och använder SQLite på PVC. Generatorn skapar
-en intern Service som standard; extern HTTPS-route kan väljas uttryckligen.
+Runtime-digests binder begärda skanningar till rätt image; nyliga scan-tidsstämplar verifieras. CVE-sökning och
+rapportläge läser befintliga scans. Inaktiva deployment-images ingår inte.
+Rapporter begränsas till 100 images, 2 000 poddar, 20 000 rader och 8 MiB bilaga.
 
 Lagringen använder klustrets standard-StorageClass om `STATE_NETWORK_URL` är tomt.
 Med en SMB- eller NFS-sökväg skapas i stället en statisk PV i bootstrap-filen och
@@ -42,9 +29,16 @@ Filservern behöver verifierad fillåsning, synkronisering och skrivrättigheter
 podens UID/grupp. SQLite använder rollback-journal och full synkronisering,
 med en enda botreplika. Enbart en nätverkssökväg garanterar inte fungerande lagring.
 
-SQLite sparar scheman, historik, kortlivade formulär och bekräftade CVE:er.
-Missade schematider spelas inte upp som en backlogg. Larm sparas efter att
-Mattermost bekräftat inlägget. En krasch mellan publicering och lagring kan ge
-ett upprepat larm; exakt-en-gång-leverans garanteras inte.
+SQLite lagrar scheman, revisioner, historik och bekräftade CVE:er på beständig
+lagring. En worker och en replika används. Missade schematider spelas inte upp
+som en backlogg. Sommartid hoppar över saknade tider och väljer första förekomsten
+när klockan ställs tillbaka.
 
-Se [åtkomstmodellen](ACCESS.md) och [verifieringen](VERIFIERING.md).
+CVE-bevakning uppdateras efter Mattermost-bekräftelse. En krasch mellan inlägget
+och SQLite-commit kan ge dubbelleverans; exakt-en-gång-leverans garanteras inte.
+Första kompletta rapporten skapar normalt ett utgångsläge utan kanalping.
+
+Containerimagen innehåller en statisk Go-binär, CA-certifikat och tidszoner.
+Företagets tokens och adresser byggs inte in. En vanlig Kubernetes Deployment
+används med en intern Service som standard. Se [åtkomstmodellen](ACCESS.md) för
+identiteter, delning och behörighetsgränser.

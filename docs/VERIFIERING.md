@@ -2,7 +2,7 @@
 
 Kontrollerat 2026-11-02:
 
-- 32 Go-testfunktioner godkända med race detector, inklusive API-testservrar,
+- 37 Go-testfunktioner godkända med race detector, inklusive API-testservrar,
   behörighetskontroller, callback-ägarskap, återanvändningsskydd, revisionskonflikter,
   DST-tider, sparad state, larmbekräftelser och manifestgenerering.
 - Standardmanifest med intern Service har verifierats med den byggda imagen och
@@ -12,6 +12,11 @@ Kontrollerat 2026-11-02:
   registry-adress. Push-kommandot testas med simulerade `oc`- och containerkommandon:
   routen hittas automatiskt, namespace kontrolleras före push och inloggning
   använder token på stdin. Saknad route eller namespace stoppar pushen.
+- Nätverkslagring: SMB, UNC och NFS genererar statisk PV/PVC med `Retain`.
+  Det riktiga hjälpskriptet och den nya imagen har provats för alla tre samt
+  standardlagring. PV/PVC accepterades av lokala labbets API med server-side
+  dry-run. Tester verifierar separata lagrings-Secrets, felaktiga indata och
+  bevarad SQLite-state med rollback-journal och full synkronisering.
 - `go vet ./...` godkänd och containerimage byggd från Go-källkoden.
 - 11 kontroller mot det befintliga lokala Kubernetes-labbet med riktig Mattermost
   och ACS/StackRox: vanlig användare kör manuell skanning, CVE-sökning och
@@ -32,3 +37,7 @@ Kontrollerat 2026-11-02:
 Detta är ett lokalt labbtest, inte en verifierad installation i företagets
 OpenShift-kluster. Nya adresser, certifikat, tokens, registry, lagring, roller och
 Mattermost-inställningar behöver fortfarande verifieras där.
+
+Ingen riktig SMB- eller NFS-montering har verifierats. Plattformsteamet behöver
+kontrollera drivrutin, nätverk, kontouppgifter, UID/grupp, fillåsning och
+synkronisering på den avsedda lagringsservern.
