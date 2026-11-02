@@ -7,7 +7,7 @@ Serviceadresserna är exempel: kontrollera service, namespace och port i ert klu
 | --- | --- |
 | `NAMESPACE` | Projektet där boten ska köras, till exempel `cvebridge`. |
 | `SCAN_NAMESPACES` | Projekt att skanna, till exempel `team-a,team-b`. |
-| `STATE_NETWORK_URL` | Er delade nätverksmapp, exempelvis `//filserver.intern/bot-state` för SMB eller `nfs://server/export/bot-state` för NFS. Tomt använder klustrets standardlagring. |
+| `STATE_EXISTING_PVC` | Namnet på er färdiga PVC i samma `NAMESPACE`. Hitta namnet med `oc get pvc -n ert-projekt`. Serveradress och lagringslösenord behöver inte anges. Tomt skapar en PVC med klustrets standardlagring. |
 | `MATTERMOST_INTERNAL_URL` | Mattermosts Service, till exempel `http://mattermost.mattermost.svc:8065`. |
 | `MATTERMOST_BOT_TOKEN` | Mattermost-admin: Integrations → Bot Accounts → skapa bot med rollen Member → kopiera Access Token. Bjud in boten i den privata kanalen. |
 | `MATTERMOST_COMMAND_TOKEN` | Integrations → Slash Commands → skapa `cve` med POST → kopiera Token. Request URL står nedan. |
@@ -23,8 +23,8 @@ Mappningen ska se ut så här, med era riktiga ID:n och konton:
 MATTERMOST_KUBE_USER_MAP='{"CHANGE_ME_USER_ID":"CHANGE_ME_OPENSHIFT_USER"}'
 ```
 
-För SMB behövs även lagringskontot eller en befintlig Secret. Se
-[nätverkslagringen](NATVERKSLAGRING.md) för de få extra fälten och plattformens förutsättningar.
+Med en färdig PVC behövs inga `STATE_SMB_*` eller `STATE_NETWORK_URL`.
+Se [lagringsguiden](NATVERKSLAGRING.md) för kopplingen till Deployment.
 
 | Token | Behörighetsunderlag för ACS-ansvarig |
 | --- | --- |

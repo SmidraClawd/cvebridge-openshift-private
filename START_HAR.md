@@ -23,10 +23,10 @@ ACS Central, Scanner och Sensor ska redan fungera för det valda klustret.
 Öppna `.env` och byt `CHANGE_ME`. Mallen har korta grupper för OpenShift,
 Mattermost och ACS. [Fälthjälpen](docs/ENV_VARDEN.md) visar var värdena hämtas.
 
-Ange er delade mapp i `STATE_NETWORK_URL` om databasen ska ligga på en
-nätverksserver. Då skapas PV/PVC för just den mappen. För SMB behöver plattformen
-en SMB-drivrutin och lagringskontot eller en befintlig Secret enligt
-[lagringsguiden](docs/NATVERKSLAGRING.md). Tomt fält använder standard-StorageClass.
+Har ni redan en färdig PVC? Ange dess namn i `STATE_EXISTING_PVC` och använd
+samma `NAMESPACE` som PVC:n. Deployment monterar den på `/data`; inga nya
+lagringsresurser eller lagrings-Secrets skapas. Serveradress och lagringslösenord
+behöver inte anges. Se [lagringsguiden](docs/NATVERKSLAGRING.md).
 
 Serviceadresserna följer formen `service.namespace.svc:port`:
 
@@ -99,7 +99,7 @@ Deployment behåller alltid den interna imageadressen i standardflödet.
 `render` skapar privata filer med rätt image:
 
 - `deploy/generated/bootstrap.yaml`: engångsbehörigheter och eventuell nätverks-PV.
-- `deploy/generated/deployment.yaml`: ServiceAccounts, Secret, ConfigMap, PVC,
+- `deploy/generated/deployment.yaml`: ServiceAccounts, Secret, ConfigMap, eventuell PVC,
   Deployment och intern Service.
 
 Filerna är Kubernetes List i JSON-format, vilket är giltig YAML för `oc apply`.
@@ -117,8 +117,8 @@ Den ger appkontot rätt att skapa SubjectAccessReview på klusternivå och ger
 reporteridentiteten `list deployments` i de uttryckligen godkända
 schemanamespacen. De mål-namespacen ska redan finnas. En namespace-admin kan inte
 själv skapa klusterbehörigheten. Inga nya behörigheter ges till de mänskliga kontona.
-Vid nätverkslagring skapar bootstrap även den klustergemensamma PV:n. Plattformsteamet
-behöver granska serveråtkomst, montering och databasens fillåsning.
+Med `STATE_EXISTING_PVC` innehåller bootstrap inga lagringsresurser. PVC:n och
+serveranslutningen hanteras av plattformen.
 
 Applicera sedan din installation:
 

@@ -65,9 +65,10 @@ har också provats mot riktig Mattermost och ACS i det lokala labbet.
 
 Go · Mattermost API · ACS Central API · Kubernetes RBAC · SQLite på PVC.
 En vanlig Deployment med en replika; beställare och kanalåtkomst kontrolleras.
-Med `STATE_NETWORK_URL` kan PVC:n använda er SMB- eller NFS-lagring;
-[lagringsguiden](docs/NATVERKSLAGRING.md) beskriver anslutningen.
+Med `STATE_EXISTING_PVC` monterar boten er färdiga PVC på `/data`.
+Ingen serveradress eller lagrings-Secret behöver anges;
+[lagringsguiden](docs/NATVERKSLAGRING.md) beskriver kopplingen.
 
-37 Go-testfunktioner med race detector, `go vet` och containerbygge är godkända.
+39 Go-testfunktioner med race detector, `go vet` och containerbygge är godkända.
 Företagets OpenShift-installation behöver fortfarande verifieras i ert labb.
 Se [verifiering](docs/VERIFIERING.md) och [arkitektur](docs/ARKITEKTUR.md).

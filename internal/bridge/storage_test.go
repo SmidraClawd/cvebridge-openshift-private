@@ -26,6 +26,65 @@ func storageResources(t *testing.T, env map[string]string, part string) map[stri
 	return resources
 }
 
+func TestExistingPVCIsMountedWithoutManagingStorage(t *testing.T) {
+	for _, claim := range []string{"cvebridge-state", "company-data.v1"} {
+		env := shortEnv()
+		env["STATE_EXISTING_PVC"] = claim
+		for _, part := range []string{"bootstrap", "deployment"} {
+			resources := storageResources(t, env, part)
+			for _, r := range resources {
+				if r["kind"] == "PersistentVolume" || r["kind"] == "PersistentVolumeClaim" || r["kind"] == "Secret" && obj(r["metadata"])["name"] != "cvebridge-integration" {
+					t.Fatal("existing storage must not be created, patched or given a new Secret")
+				}
+			}
+			if part == "deployment" {
+				spec := obj(resources["Deployment/cvebridge"]["spec"])
+				pod := obj(obj(spec["template"])["spec"])
+				container := obj(arr(pod["containers"])[0])
+				if !same(pod["volumes"], []any{M{"name": "data", "persistentVolumeClaim": M{"claimName": claim}}}) || !same(container["volumeMounts"], []any{M{"name": "data", "mountPath": "/data"}}) {
+					t.Fatal("Deployment must mount the specified PVC at /data")
+				}
+				if obj(resources["Deployment/cvebridge"]["metadata"])["namespace"] != env["NAMESPACE"] || num(spec["replicas"]) != 1 || obj(spec["strategy"])["type"] != "Recreate" {
+					t.Fatal("claim namespace or single-writer policy changed")
+				}
+				config := obj(resources["ConfigMap/cvebridge-config"]["data"])
+				if config["STATE_FILE"] != "/data/requests.sqlite3" || config["STATE_EXISTING_PVC"] != nil {
+					t.Fatal("the application only needs its mounted database path")
+				}
+			}
+		}
+	}
+}
+
+func TestExistingPVCRejectsInvalidNamesAndConflictingSettings(t *testing.T) {
+	cases := []map[string]string{}
+	for _, name := range []string{"CHANGE_ME", "other-namespace/claim", "../claim", "UPPERCASE", "claim..name", "-claim", "claim-", strings.Repeat("a", 64), strings.Repeat("a.", 127) + "ab"} {
+		cases = append(cases, map[string]string{"STATE_EXISTING_PVC": name})
+	}
+	for key, value := range map[string]string{
+		"STATE_NETWORK_URL": "//files.lab.test/bot-state", "STORAGE_CLASS": "cephfs", "STATE_STORAGE_SIZE": "2Gi",
+		"STATE_SMB_USERNAME": "user", "STATE_SMB_PASSWORD": "TEST_ONLY_PASSWORD", "STATE_SMB_DOMAIN": "domain", "STATE_SMB_SECRET": "some-secret", "STATE_SMB_GID": "0",
+	} {
+		cases = append(cases, map[string]string{"STATE_EXISTING_PVC": "existing-data", key: value})
+	}
+	for i, input := range cases {
+		env := shortEnv()
+		for k, v := range input {
+			env[k] = v
+		}
+		for _, part := range []string{"bootstrap", "deployment"} {
+			var out bytes.Buffer
+			err := Render(&out, env, part)
+			if err == nil || out.Len() != 0 {
+				t.Fatalf("case %d: invalid or ambiguous claim configuration accepted", i)
+			}
+			if strings.Contains(err.Error(), "TEST_ONLY_PASSWORD") {
+				t.Fatal("unused storage credentials leaked in error")
+			}
+		}
+	}
+}
+
 func TestNetworkStorageBindsOnlyItsOwnRetainedPV(t *testing.T) {
 	for _, source := range []string{`\\files.lab.test\bot-state\cvebridge`, "smb://files.lab.test/bot-state/cvebridge", "//files.lab.test/bot-state/cvebridge", "nfs://storage.lab.test/exports/cvebridge", "storage.lab.test:/exports/cvebridge"} {
 		t.Run(source, func(t *testing.T) {

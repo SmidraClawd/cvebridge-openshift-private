@@ -2,7 +2,7 @@
 
 Kontrollerat 2026-11-02:
 
-- 37 Go-testfunktioner godkända med race detector, inklusive API-testservrar,
+- 39 Go-testfunktioner godkända med race detector, inklusive API-testservrar,
   behörighetskontroller, callback-ägarskap, återanvändningsskydd, revisionskonflikter,
   DST-tider, sparad state, larmbekräftelser och manifestgenerering.
 - Standardmanifest med intern Service har verifierats med den byggda imagen och
@@ -12,6 +12,11 @@ Kontrollerat 2026-11-02:
   registry-adress. Push-kommandot testas med simulerade `oc`- och containerkommandon:
   routen hittas automatiskt, namespace kontrolleras före push och inloggning
   använder token på stdin. Saknad route eller namespace stoppar pushen.
+- Befintlig PVC: Deployment monterar angivet claim-namn på `/data`. Tester
+  verifierar att ingen PV, PVC eller lagrings-Secret genereras eller ändras och
+  att ogiltiga namn och motstridiga inställningar nekas. Riktigt hjälpskript och
+  ny image verifierade med två claim-namn. Deployment accepterades av labbets
+  API med server-side dry-run och labbets befintliga PVC-specifikationer bevarades.
 - Nätverkslagring: SMB, UNC och NFS genererar statisk PV/PVC med `Retain`.
   Det riktiga hjälpskriptet och den nya imagen har provats för alla tre samt
   standardlagring. PV/PVC accepterades av lokala labbets API med server-side

@@ -107,7 +107,7 @@ func Render(w io.Writer, values map[string]string, part string) error {
 		}
 		env["MATTERMOST_DIALOG_URL"] = webhook + "/slash/cve/dialog"
 		env["STATE_FILE"] = "/data/requests.sqlite3"
-		volumes := []any{M{"name": "data", "persistentVolumeClaim": M{"claimName": "cvebridge-state"}}}
+		volumes := []any{M{"name": "data", "persistentVolumeClaim": M{"claimName": storage.ClaimName}}}
 		mounts := []any{M{"name": "data", "mountPath": "/data"}}
 		caData := map[string]string{}
 		for _, kind := range []string{"STACKROX", "MATTERMOST"} {
@@ -146,7 +146,9 @@ func Render(w io.Writer, values map[string]string, part string) error {
 		if storage.Secret != nil {
 			items = append(items, storage.Secret)
 		}
-		items = append(items, storage.PVC)
+		if storage.PVC != nil {
+			items = append(items, storage.PVC)
+		}
 		labels := M{"app.kubernetes.io/name": "cvebridge"}
 		pullPolicy := "IfNotPresent"
 		if strings.HasSuffix(image, ":latest") {

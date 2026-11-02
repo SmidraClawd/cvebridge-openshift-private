@@ -11,6 +11,7 @@ import (
 
 type stateStorage struct {
 	PVC, PV, Secret M
+	ClaimName       string
 }
 
 // Network storage is mounted by the cluster, not opened as a URL by SQLite.
@@ -20,9 +21,27 @@ func renderStateStorage(c Config) (stateStorage, error) {
 	ns := c.Get("NAMESPACE", "cvebridge")
 	size := c.Get("STATE_STORAGE_SIZE", "1Gi")
 	pvc := M{"accessModes": []string{"ReadWriteOnce"}, "resources": M{"requests": M{"storage": size}}}
-	storage := stateStorage{PVC: resource("PersistentVolumeClaim", "cvebridge-state", ns, M{"spec": pvc})}
+	storage := stateStorage{PVC: resource("PersistentVolumeClaim", "cvebridge-state", ns, M{"spec": pvc}), ClaimName: "cvebridge-state"}
 	source := strings.TrimSpace(c.Get("STATE_NETWORK_URL", ""))
 	smbKeys := []string{"STATE_SMB_USERNAME", "STATE_SMB_PASSWORD", "STATE_SMB_DOMAIN", "STATE_SMB_SECRET", "STATE_SMB_GID"}
+	if claim := c.Get("STATE_EXISTING_PVC", ""); claim != "" {
+		if len(claim) > 253 || placeholder(claim) {
+			return storage, fmt.Errorf("STATE_EXISTING_PVC must name an existing PVC in NAMESPACE")
+		}
+		for _, label := range strings.Split(claim, ".") {
+			if !NS.MatchString(label) {
+				return storage, fmt.Errorf("STATE_EXISTING_PVC must name an existing PVC in NAMESPACE")
+			}
+		}
+		for _, key := range append([]string{"STATE_NETWORK_URL", "STORAGE_CLASS", "STATE_STORAGE_SIZE"}, smbKeys...) {
+			if c.Get(key, "") != "" {
+				return storage, fmt.Errorf("remove %s when using STATE_EXISTING_PVC; the existing claim is managed separately", key)
+			}
+		}
+		storage.ClaimName = claim
+		storage.PVC = nil
+		return storage, nil
+	}
 	if source == "" {
 		for _, key := range smbKeys {
 			if c.Get(key, "") != "" {
