@@ -1,6 +1,7 @@
 # Fyll i .env – 11 fält
 
-Kopiera `.env.example` till `.env`. Du fyller själv i företagets värden lokalt.
+Kör `./cvebridge.sh init` för att skapa `.env`. En befintlig fil skrivs inte över.
+Du fyller själv i företagets värden lokalt.
 Serviceadresserna är exempel och ska stämma med era installationer.
 
 | Fält | Det du anger |
@@ -20,6 +21,10 @@ Serviceadresserna är exempel och ska stämma med era installationer.
 Botens callback, reporteridentitet, imageadress och image-tagg räknas ut.
 Databasen monteras på `/data/requests.sqlite3` via PVC:n. Ingen lagrings-Secret
 behövs i botinstallationen för en färdig PVC.
+
+Har du en äldre `.env` med fyra ACS-token? Behåll dina värden. De tre extra
+tokenraderna kan tas bort när den gemensamma `STACKROX_TOKEN` har rättigheterna
+som beskrivs nedan.
 
 ## Var tokenen finns
 

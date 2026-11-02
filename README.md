@@ -6,7 +6,7 @@ Databasen sparas på er befintliga PVC.
 ## Ditt flöde
 
 ```sh
-cp .env.example .env
+./cvebridge.sh init
 # Fyll i era 11 grundfält i .env.
 
 docker build -t cvebridge:local .
