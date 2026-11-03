@@ -1,0 +1,17 @@
+# Valfritt: använd bara om Mattermost behöver en extern HTTPS-route.
+# Byt värdnamnet. Uppdatera även MATTERMOST_DIALOG_URL i Deployment enligt guiden.
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: cvebridge-webhook
+spec:
+  host: CHANGE_ME_HOST
+  path: /slash/cve
+  to:
+    kind: Service
+    name: cvebridge-webhook
+  port:
+    targetPort: webhook
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect

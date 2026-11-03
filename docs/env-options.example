@@ -1,59 +1,30 @@
-# Valfria inställningar. Kopiera bara nödvändiga rader till .env och avkommentera.
-# Ta inte med samma nyckel två gånger. Hemligheter ska aldrig committas.
+# Valfria runtimefält. Kopiera bara nödvändiga rader till .env och avkommentera.
+# KEY=värde utan yttre citattecken, även för JSON. Inga dubbla nycklar.
+# Image, PVC, route och volymer redigeras i de färdiga YAML-filerna enligt README.
 
-# Automatisk image: image-registry.openshift-image-registry.svc:5000/NAMESPACE/cvebridge:go-IMAGE_ID
-# IMAGE_TAG=1.0.0-go
-# Push från en miljö som når intern DNS (Deployment använder alltid intern imageadress):
-# REGISTRY_PUSH_HOST=image-registry.openshift-image-registry.svc:5000
-# Push från dator utanför klustret: extern registry-route hämtas annars automatiskt.
-# APP_IMAGE=annan-registry.din-doman/team/cvebridge:1.0.0
-# IMAGE_PULL_SECRET=
-# STORAGE_CLASS=
-# STATE_STORAGE_SIZE=1Gi
+# Intern CA: montera CA-filerna enligt docs/INSTALLATION.md först.
+# STACKROX_CA_FILE=/ca/central.pem
+# MATTERMOST_CA_FILE=/ca/mattermost.pem
 
-# Endast om ingen färdig PVC finns och en ny nätverks-PV/PVC ska genereras:
-# STATE_NETWORK_URL=//server/delning
-# För NFS: nfs://server/export eller server:/export
-# Med STATE_EXISTING_PVC utelämnas STATE_NETWORK_URL, STORAGE_CLASS,
-# STATE_STORAGE_SIZE och alla STATE_SMB_*; befintlig lagring ändras inte.
-
-# SMB-inloggning när STATE_NETWORK_URL anger en Windows-/SMB-delning.
-# Skapar en separat Secret för lagringsdrivrutinen, inte för boten.
-# STATE_SMB_USERNAME=CHANGE_ME
-# STATE_SMB_PASSWORD=CHANGE_ME
-# STATE_SMB_DOMAIN=CHANGE_ME
-# Utan inloggningsfälten används en befintlig Secret (username, password, ev. domain):
-# STATE_SMB_SECRET=cvebridge-storage
-# Filernas grupp i SMB-monteringen; anpassas av plattformsteamet vid behov:
-# STATE_SMB_GID=0
-# STATE_NETWORK_URL och STORAGE_CLASS ska inte användas tillsammans.
-
-# Endast om Mattermost behöver nå boten via en extern HTTPS-route:
-# WEBHOOK_URL=https://cvebridge.apps.ditt-kluster.din-doman
-# WEBHOOK_PUBLIC_URL stöds fortfarande som äldre namn för samma inställning.
-
-# STACKROX_CA_FILE=certs/central-ca.pem
-# MATTERMOST_CA_FILE=certs/mattermost-ca.pem
-# Separata ACS-token är valfria undantag från grundfilens gemensamma STACKROX_TOKEN.
+# Separata ACS-token är valfria undantag från grundfilens STACKROX_TOKEN.
 # STACKROX_SCAN_TOKEN=CHANGE_ME
 # STACKROX_STATUS_TOKEN=CHANGE_ME
 # STACKROX_SCHEDULE_TOKEN=CHANGE_ME
 # STACKROX_SCANNER_COMPONENT=SCANNER_V4
 # STACKROX_DELEGATE_SCAN=false
 # MATTERMOST_BOT_USER_ID=valfritt_verifierat_bot_id
-# MATTERMOST_ACS_COMMAND_TOKEN=
+# MATTERMOST_ACS_COMMAND_TOKEN=CHANGE_ME
 
-# Standard: gemensamma behörigheter och scheman för kanalen/namespaces i korta .env.
-# Flera kanaler eller snävare scheman kan anges uttryckligen med dessa JSON-mappar.
-# MATTERMOST_CHANNEL_SCOPES='{"CHANNEL_ID":["team-a"]}'
-# MATTERMOST_CHANNEL_POLICIES='{"CHANNEL_ID":"common"}'
-# MATTERMOST_SCHEDULE_SCOPES='{"CHANNEL_ID":["team-a"]}'
-# MATTERMOST_SCHEDULE_MANAGERS='{"CHANNEL_ID":["USER_ID"]}'
-# MATTERMOST_SCHEDULE_SCOPES='{}'
-# SCHEDULE_SERVICE_USER=system:serviceaccount:cvebridge:cvebridge-reporter
+# Flera kanaler eller snävare scheman. Anpassa även reporterroller i bootstrap.
+# MATTERMOST_CHANNEL_SCOPES={"CHANNEL_ID":["team-a"]}
+# MATTERMOST_CHANNEL_POLICIES={"CHANNEL_ID":"common"}
+# MATTERMOST_SCHEDULE_SCOPES={"CHANNEL_ID":["team-a"]}
+# MATTERMOST_SCHEDULE_MANAGERS={"CHANNEL_ID":["USER_ID"]}
+# För att stänga av scheman: MATTERMOST_SCHEDULE_SCOPES={}
+# SCHEDULE_SERVICE_USER=system:serviceaccount:DITT_NAMESPACE:cvebridge-reporter
 # SCHEDULE_DEFAULT_TIMEZONE=Europe/Stockholm
-# Valfri driftbevakning: bjud in boten till en privat driftkanal och ange dess ID.
-# Ett fält aktiverar timkontroll, daglig status, fellarm och återställningsbesked.
+
+# Driftbevakning: bjud in boten till en privat driftkanal och ange dess ID.
 # DATABASE_MONITOR_CHANNEL_ID=CHANGE_ME_DRIFT_CHANNEL_ID
 # DATABASE_MAX_AGE_HOURS=24
 # CVE_ALERTS_ENABLED=true

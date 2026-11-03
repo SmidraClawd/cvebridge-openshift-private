@@ -1,4 +1,6 @@
 #!/bin/sh
+# Legacy helper. Manual installation uses the checked-in deploy/ files.
+# Generated manifests stay under deploy/local/ and never replace those files.
 set -eu
 cd "$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 engine=${CONTAINER_ENGINE:-docker}
@@ -61,9 +63,9 @@ if [ -z "$image" ]; then
 fi
 case "$image" in ''|*[!a-zA-Z0-9._:/@-]*) printf '%s\n' 'Ogiltig APP_IMAGE.' >&2; exit 1;; esac
 render_manifests() {
-  (umask 077; mkdir -p deploy)
-  "$engine" run --rm --user "$(id -u):$(id -g)" -v "$PWD:/workspace:ro" -v "$PWD/deploy:/output:rw" -w /workspace cvebridge:local render --env-file /workspace/.env --image "$image" --output-dir /output
-  printf '%s\n' 'Skapade deploy/bootstrap.yaml och separata YAML-filer i deploy/app/.'
+  (umask 077; mkdir -p deploy/local)
+  "$engine" run --rm --user "$(id -u):$(id -g)" -v "$PWD:/workspace:ro" -v "$PWD/deploy/local:/output:rw" -w /workspace cvebridge:local render --env-file /workspace/.env --image "$image" --output-dir /output
+  printf '%s\n' 'Skapade deploy/local/bootstrap.yaml och YAML-filer i deploy/local/app/.'
   webhook=$(field WEBHOOK_URL)
   if [ -z "$webhook" ]; then webhook=$(field WEBHOOK_PUBLIC_URL); fi
   webhook=${webhook:-http://cvebridge-webhook.$namespace.svc:8001}
@@ -104,6 +106,6 @@ case "$action" in
         "$engine" push "$image" ;;
     esac
     printf 'Klart. Deployment använder %s\n' "$image"
-    printf '%s\n' 'Plattformsteamet applicerar deploy/bootstrap.yaml en gång.' 'Du applicerar appen: oc apply -f deploy/app/'
+    printf '%s\n' 'Legacy-utdata: deploy/local/. Se README för manuell installation med deploy/.'
     ;;
 esac

@@ -8,7 +8,8 @@ Stabila Mattermost-ID:n kopplas uttryckligen till klusterkonton. Kubernetes
 SubjectAccessReview kontrollerar list-behörighet till deployments per namespace.
 Scope och kanalmedlemmar kontrolleras på nytt under körningen och före publicering.
 Mänskliga användares grupper gissas inte. Schemalagda körningar har separat
-rapporteridentitet och ACS-token.
+reporteridentitet i Kubernetes. Grundfilen använder en gemensam ACS-token;
+separata token kan anges som valfria undantag.
 
 Sensorn rapporterar klusterdata till ACS Central. Boten hämtar inventeringen av
 aktiva poddar via Centrals API och använder labbets Kubernetes-API för
@@ -20,16 +21,12 @@ Runtime-digests binder begärda skanningar till rätt image; nyliga scan-tidsst�
 rapportläge läser befintliga scans. Inaktiva deployment-images ingår inte.
 Rapporter begränsas till 100 images, 2 000 poddar, 20 000 rader och 8 MiB bilaga.
 
-Med `STATE_EXISTING_PVC` monteras en färdig PVC i botens namespace. Generatorn
-skapar eller ändrar då ingen PV, PVC eller lagrings-Secret. Utan befintlig PVC
-och nätverkssökväg används klustrets standard-StorageClass.
-Med en SMB- eller NFS-sökväg skapas i stället en statisk PV i bootstrap-filen och
-en PVC som binds till just den volymen. Databasen finns alltid på
-`/data/requests.sqlite3`. SMB kräver `smb.csi.k8s.io` och en lagrings-Secret;
-anslutningsuppgifterna tillförs aldrig botens container. PV:n använder `Retain`.
-Filservern behöver verifierad fillåsning, synkronisering och skrivrättigheter för
-podens UID/grupp. SQLite använder rollback-journal och full synkronisering,
-med en enda botreplika. Enbart en nätverkssökväg garanterar inte fungerande lagring.
+De färdiga YAML-filerna monterar en befintlig PVC i botens namespace. Du anger
+PVC-namnet manuellt som `claimName` i Deployment. Ingen PV eller PVC skapas av
+manifesten. Databasen finns på `/data/requests.sqlite3`. Plattformen hanterar
+nätverksmontering och rättigheter till lagringen. SQLite använder rollback-journal
+och full synkronisering, med en enda botreplika. Lagringen behöver fungerande
+fillåsning, synkronisering och skrivrättigheter för podens UID/grupp.
 
 SQLite lagrar scheman, revisioner, historik och bekräftade CVE:er på beständig
 lagring. En worker och en replika används. Missade schematider spelas inte upp

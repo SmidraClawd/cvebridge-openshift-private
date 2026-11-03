@@ -1,6 +1,7 @@
 # Fyll i .env – så hittar du värdena
 
-Kör `./cvebridge.sh init` och öppna `.env`. En befintlig fil behålls.
+Kopiera `.env.example` till `.env` med `cp -n .env.example .env` och öppna filen.
+En befintlig `.env` behålls. `oc` läser sedan filen med `--from-env-file=.env`.
 Fyll i de **11 grundfälten**. Driftbevakning är ett valfritt extra fält.
 Exemplen visar formatet; du ersätter dem med företagets värden.
 
@@ -22,7 +23,9 @@ Byt `DITT_NAMESPACE` mot projektet där boten och den färdiga PVC:n ska finnas.
 | `SCAN_NAMESPACES` | `oc get projects`. Välj projektnamnen där apparna som ska skannas finns. | `team-a,team-b` |
 
 PVC-namnet är namnet i OpenShift. Nätverkssökvägen bakom PVC:n skrivs inte här.
-Du behöver inte fylla i image, image-tagg eller registry i grundfilen; de räknas ut.
+Kopiera också PVC-namnet till `claimName` i `deploy/app/deployment.yaml`.
+Imageadress och tagg väljer du med de manuella Docker-kommandona i README och
+klistrar in på Deployment-filens `image`-rad. `.env` ersätter inte YAML-text automatiskt.
 
 ## 2. Mattermost – adress och kanaler
 
@@ -77,7 +80,7 @@ Om Annas Mattermost-ID är `h8k3m2p9r7t6v5x4z1a0b2c3d4` och hennes `oc whoami`
 visar `anna`, skriver du:
 
 ```dotenv
-MATTERMOST_KUBE_USER_MAP='{"h8k3m2p9r7t6v5x4z1a0b2c3d4":"anna"}'
+MATTERMOST_KUBE_USER_MAP={"h8k3m2p9r7t6v5x4z1a0b2c3d4":"anna"}
 ```
 
 Fler personer läggs till som fler par i samma JSON-objekt. Koppla varje person
@@ -111,8 +114,13 @@ du dess nåbara HTTPS-adress. Sensorn rapporterar till Central; boten frågar Ce
 En gemensam ACS-token räcker i grundfilen. Har ni redan separata token kan de
 behållas. Avancerade undantag finns i [env-options.example](env-options.example).
 
-Fyll värdena lokalt i `.env`. Tokenvärdena och genererade Secret-filer ska inte
-committas till GitHub.
+Fyll värdena lokalt i `.env`. Använd inte yttre citattecken runt värdena:
+`oc --from-env-file` behåller sådana tecken bokstavligt, även runt JSON.
+Skriv inga kommentarer på samma rad efter ett värde.
+
+Importera med kommandot i README. Filens alla grundvärden hamnar i appens Secret.
+Secret-skelettet i `deploy/app/secret.yaml` innehåller inga tokenvärden. Behåll
+`.env` och eventuella utdrag med tokenvärden utanför företagets Git.
 
 Källor: [botkonton](https://docs.mattermost.com/developers/integrate/reference/bot-accounts),
 [slash-kommandon](https://docs.mattermost.com/developers/integrate/slash-commands/custom),

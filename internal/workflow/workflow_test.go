@@ -129,6 +129,9 @@ func TestAutomaticTagUsesBuiltImageAndRenderNeedsNoCluster(t *testing.T) {
 	if status != "ok" || strings.Contains(calls, "oc ") || !strings.Contains(calls, "cvebridge:local render --env-file /workspace/.env --image image-registry.openshift-image-registry.svc:5000/security/cvebridge:go-aaaaaaaaaaaa --output-dir /output") {
 		t.Fatal(status, output, calls)
 	}
+	if !strings.Contains(calls, "/deploy/local:/output:rw") || strings.Contains(calls, "/deploy:/output:rw") {
+		t.Fatal("legacy rendering must not overwrite checked-in manual manifests", calls)
+	}
 }
 
 func TestMissingImageClaimOrInvalidRenderStopsBeforeRegistryLogin(t *testing.T) {

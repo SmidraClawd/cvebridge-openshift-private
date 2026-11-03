@@ -1,0 +1,80 @@
+# Ändra image och claimName manuellt före oc apply.
+# Namespace väljs med oc project DITT_NAMESPACE.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cvebridge
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: cvebridge
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: cvebridge
+    spec:
+      serviceAccountName: cvebridge
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: bot
+          image: image-registry.openshift-image-registry.svc:5000/CHANGE_ME_NAMESPACE/cvebridge:CHANGE_ME_TAG
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: webhook
+              containerPort: 8001
+          envFrom:
+            - configMapRef:
+                name: cvebridge-config
+            - secretRef:
+                name: cvebridge-integration
+          env:
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: MATTERMOST_DIALOG_URL
+              value: http://cvebridge-webhook.$(NAMESPACE).svc:8001/slash/cve/dialog
+          volumeMounts:
+            - name: data
+              mountPath: /data
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: "1"
+              memory: 512Mi
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: webhook
+            periodSeconds: 10
+            failureThreshold: 6
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: webhook
+            periodSeconds: 10
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: webhook
+            periodSeconds: 10
+            failureThreshold: 6
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: CHANGE_ME_PVC

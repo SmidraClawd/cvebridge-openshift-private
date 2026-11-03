@@ -2,25 +2,29 @@
 
 ## Ny image
 
+Följ de manuella Docker-kommandona i README. Använd en ny tagg och uppdatera
+`image` i `deploy/app/deployment.yaml`. Applicera sedan:
+
 ```sh
-docker build -t cvebridge:local .
-./cvebridge.sh push
-oc apply -f deploy/app/
+oc apply -f deploy/app/deployment.yaml
+oc rollout status deployment/cvebridge
 ```
 
-Skriptet använder det byggda image-ID:t för en automatisk tagg. Deployment hämtar
-imagen från labbets interna registry. Bootstrap appliceras av plattformen vid
-första installationen och när de godkända namespace-behörigheterna ändras.
+Bootstrap uppdateras av plattformsteamet om godkända namespaces ändras.
 
 ## Bara nya inställningar
 
-Ändra lokal `.env`, kör `./cvebridge.sh render` och applicera `deploy/app/`.
-Starta sedan om boten eftersom miljövariabler läses vid processstart:
+Ändra lokal `.env`, importera den och starta om boten:
 
 ```sh
-oc rollout restart deployment/cvebridge -n DITT_NAMESPACE
-oc rollout status deployment/cvebridge -n DITT_NAMESPACE
+oc project DITT_NAMESPACE
+oc create secret generic cvebridge-integration --from-env-file=.env --dry-run=client -o yaml | oc apply --server-side --field-manager=cvebridge-env -f -
+oc rollout restart deployment/cvebridge
+oc rollout status deployment/cvebridge
 ```
+
+Ändrad standardkonfiguration i `deploy/app/configmap.yaml` appliceras med
+`oc apply -f deploy/app/configmap.yaml` före omstarten.
 
 ## Beständig databas
 

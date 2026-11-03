@@ -23,10 +23,10 @@ Plattformen hanterar serveranslutningen och lagringens behörigheter.
 
 ## Vad som hamnar i Deployment
 
-Generatorn kopplar poddens volym till det namn du anger:
+Ändra `claimName` manuellt i `deploy/app/deployment.yaml` till PVC-namnet:
 
 ```yaml
-# Utdrag ur podspecifikationen; namnet ersätts från .env.
+# Utdrag ur podspecifikationen; fyll i samma namn som STATE_EXISTING_PVC.
 volumes:
   - name: data
     persistentVolumeClaim:
@@ -35,12 +35,12 @@ volumes:
 
 Containern monterar `data` på `/data`. Databasen sparas som
 `/data/requests.sqlite3` och används igen när poden startar om med samma PVC.
-Ingen PV, PVC eller lagrings-Secret skapas eller ändras av generatorn i detta läge.
+De färdiga YAML-filerna skapar ingen PV, PVC eller lagrings-Secret.
 Mattermost- och ACS-tokens tillförs fortfarande genom appens integrations-Secret.
 
 ## Bygg och starta
 
-Följ [installationen](INSTALLATION.md): bygg, pusha, rendera och applicera manifesten.
+Följ [installationen](INSTALLATION.md): bygg, tagga, pusha och applicera de färdiga YAML-filerna.
 Bootstrap behövs fortfarande för botens Kubernetes-behörighetskontroll.
 Kontrollera att den befintliga lagringen är skrivbar för podens UID/grupp och
 lämplig för SQLite med korrekt fillåsning och synkronisering.
@@ -49,10 +49,6 @@ Spara ett schema i Mattermost, starta om boten och kontrollera att schemat finns
 kvar. Kontrollera även databasfilen på lagringen. En befintlig databas flyttas
 inte automatiskt om du byter PVC. Kör en botreplika mot databasen.
 
-## Andra installationer
-
-Utan `STATE_EXISTING_PVC` kan generatorn skapa en ny PVC med klustrets
-standard-StorageClass. Explicit ny SMB-/NFS-lagring finns som ett separat
-alternativ i [env-options.example](env-options.example); det används inte för er färdiga PVC.
+Plattformsteamet hanterar PV/PVC och eventuell nätverksmontering separat.
 
 [Kubernetes: montera en PVC i en pod](https://kubernetes.io/docs/concepts/storage/persistent-volumes/#claims-as-volumes).

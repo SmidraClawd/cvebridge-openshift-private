@@ -22,8 +22,8 @@ Bygg och uppdatera enligt [README](../README.md). Om den nya programversionen
 redan körs och du enbart ändrar `.env`:
 
 ```sh
-./cvebridge.sh render
-oc apply -f deploy/app/
+oc project DITT_NAMESPACE
+oc create secret generic cvebridge-integration --from-env-file=.env --dry-run=client -o yaml | oc apply --server-side --field-manager=cvebridge-env -f -
 oc rollout restart deployment/cvebridge -n DITT_NAMESPACE
 ```
 
