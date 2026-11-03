@@ -25,12 +25,13 @@ och registrera **Integrations → Slash Commands → Add Slash Command**:
 | --- | --- |
 | Command Trigger Word | `cve` |
 | Request Method | `POST` |
-| Request URL | `http://cvebridge-webhook.DITT_NAMESPACE.svc:8001/slash/cve` |
+| Request URL via botens route | `https://ERT_BOT_VARDNAMN/slash/cve` |
 
-Byt `DITT_NAMESPACE`. Kopiera botens Access Token och kommandots Token till `.env`.
-Servern behöver nå både kommandot och formulärens callback. Om interna anslutningar
-blockeras godkänner Mattermost-admin just tjänstens värdnamn i
-`AllowedUntrustedInternalConnections`.
+Byt `ERT_BOT_VARDNAMN` mot botens route enligt nästa avsnitt. Kopiera botens
+Access Token och kommandots Token till `.env`. Mattermost-servern behöver nå
+både kommandot och formulärens callback. Botens utgående anslutning till
+Mattermosts API använder separat `MATTERMOST_INTERNAL_URL`; den får vara er
+vanliga HTTPS-adress trots variabelnamnet.
 
 ## Om Mattermost behöver en extern route
 
@@ -41,8 +42,15 @@ blockeras godkänner Mattermost-admin just tjänstens värdnamn i
 4. Ange `https://ERT_VARDNAMN/slash/cve` som Mattermost-kommandots Request URL.
 5. Applicera den ändrade Deployment-filen.
 
-Intern Service är standard. En route behöver inte skapas när den interna
-anslutningen redan fungerar. Edge-routen använder klustrets vanliga routecertifikat.
+Manifesten innehåller alltid en intern Service. När Mattermost-servern ligger
+utanför klustret och inte når tjänsten direkt används route-stegen ovan.
+Routens adress behöver vara nåbar från Mattermost-servern; den behöver inte vara
+öppen på internet. Edge-routen använder klustrets vanliga routecertifikat.
+
+Om Mattermost redan når Service direkt kan Request URL vara
+`http://cvebridge-webhook.DITT_NAMESPACE.svc:8001/slash/cve`, och Deployment-filens
+interna callback lämnas kvar. Om sådana interna anslutningar blockeras kan
+Mattermost-admin godkänna tjänstens värdnamn i `AllowedUntrustedInternalConnections`.
 
 ## Om Central eller Mattermost använder intern CA
 

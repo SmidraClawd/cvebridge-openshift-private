@@ -31,7 +31,7 @@ klistrar in på Deployment-filens `image`-rad. `.env` ersätter inte YAML-text a
 
 | Fält | Så hämtar du värdet | Exempel |
 | --- | --- | --- |
-| `MATTERMOST_INTERNAL_URL` | Ta serverdelen av er Mattermost-länk: allt före `/teamnamn/channels/...`. Adressen ska vara nåbar från boten. | `https://mattermost.foretagsnamn.se` |
+| `MATTERMOST_INTERNAL_URL` | Ta er vanliga HTTPS-serveradress: allt före `/teamnamn/channels/...`. Trots variabelnamnet får adressen vara extern. Boten lägger till `/api/v4`. | `https://mattermost.foretagsnamn.se` |
 | `MATTERMOST_CHANNEL_ID` | Öppna den privata rapportkanalen → **Visa info / View Info** via informationsikonen (i) → kopiera **ID** längst ner. | 26 tecken, exempelvis `h8k3m2p9r7t6v5x4z1a0b2c3d4` |
 | `DATABASE_MONITOR_CHANNEL_ID` **(valfritt)** | Öppna den privata driftkanalen och hämta **ID** på samma sätt. Bjud in boten där. | Driftkanalens eget ID, eller samma ID som rapportkanalen. |
 
@@ -39,8 +39,8 @@ Kanallänken kan sluta med `team-security`, men det är kanalens namn.
 I ID-fälten ska den 26 tecken långa strängen från **ID** stå.
 För enbart driftstatus behöver driftkanalens medlemmar ingen användarmappning.
 
-`http://mattermost.mattermost.svc:8065` i mallen är ett internt exempel.
-Använd det bara om tjänsten faktiskt heter så och boten når den i samma kluster.
+`MATTERMOST_INTERNAL_URL` är ett äldre variabelnamn och kräver ingen `.svc`-adress.
+Ange företagets nåbara HTTPS-adress. Lägg inte till `/api/v4` i värdet.
 
 ## 3. Mattermost – de två tokenvärdena
 
@@ -58,11 +58,13 @@ vid skapandet; en befintlig borttappad token behöver ersättas med en ny.
 
 1. Öppna **Integrations → Slash Commands → Add Slash Command**.
 2. Ange **Command Trigger Word:** `cve` och **Request Method:** `POST`.
-3. Ange **Request URL:** `http://cvebridge-webhook.DITT_NAMESPACE.svc:8001/slash/cve`.
+3. Ange **Request URL:** `https://ERT_BOT_VARDNAMN/slash/cve` när Mattermost når boten via route.
 4. Klicka **Save** och kopiera **Token** till `.env`.
 
-Byt `DITT_NAMESPACE`. Mattermost-servern måste nå adressen; se
-[installationen](INSTALLATION.md) om intern anslutning blockeras eller en route behövs.
+Byt `ERT_BOT_VARDNAMN` mot botens route. Sätt även Deployment-filens
+`MATTERMOST_DIALOG_URL` till `https://ERT_BOT_VARDNAMN/slash/cve/dialog`.
+Mattermost-servern måste nå adressen. Se [route-stegen](INSTALLATION.md#om-mattermost-behöver-en-extern-route).
+Om servern redan når klustrets Service kan intern Request URL användas enligt README.
 Om menyerna saknas ber du Mattermost-admin aktivera integrationerna eller skapa
 boten/kommandot. Du behöver inte ge själva boten adminroll.
 
@@ -107,9 +109,10 @@ Administration**, samt **Write** på **Image** för skanningsbeställningar.
 ACS-ansvarig kontrollerar roll och access scope för er version och avsedda kluster.
 Tokenen kan inte visas igen efter att skapandet är stängt.
 
-`https://central.stackrox.svc:443` i mallen fungerar bara om Central finns på den
-interna adressen i samma kluster. När Central finns i ett annat kluster anger
-du dess nåbara HTTPS-adress. Sensorn rapporterar till Central; boten frågar Central.
+`STACKROX_URL` är Centrals nåbara HTTPS-serveradress, även när Central ligger
+utanför labbklustret. Lägg inte till `/v1` i värdet. Sensorn rapporterar till
+Central; boten frågar Centrals API. Endast om ni uttryckligen vill använda en
+intern Service-adress till en Central i samma kluster kan en `.svc`-adress anges.
 
 En gemensam ACS-token räcker i grundfilen. Har ni redan separata token kan de
 behållas. Avancerade undantag finns i [env-options.example](env-options.example).

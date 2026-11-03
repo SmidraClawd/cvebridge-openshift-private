@@ -33,12 +33,12 @@ boten och den färdiga PVC:n ska finnas.
 | `NAMESPACE` | Välj projekt med `oc project PROJEKTNAMN`. Kör `oc project -q` och kopiera namnet. | `security-tools` |
 | `STATE_EXISTING_PVC` | Kör `oc get pvc -n DITT_NAMESPACE`. Kopiera **NAME** för den färdiga PVC:n. | `cvebridge-state` |
 | `SCAN_NAMESPACES` | Kör `oc get projects`. Ange apparnas projektnamn, separerade med kommatecken. | `team-a,team-b` |
-| `MATTERMOST_INTERNAL_URL` | Ta serverdelen av er Mattermost-länk, före `/teamnamn/channels/...`. Boten måste nå den. | `https://mattermost.foretagsnamn.se` |
+| `MATTERMOST_INTERNAL_URL` | Ta er vanliga HTTPS-serveradress, före `/teamnamn/channels/...`. Trots namnet INTERNAL får detta vara en extern adress. Boten lägger själv till `/api/v4`. | `https://mattermost.foretagsnamn.se` |
 | `MATTERMOST_BOT_TOKEN` | Mattermost-admin: **Integrations → Bot Accounts → Add Bot Account → Member → Create**. Kopiera **Access Token**, och bjud in boten till kanalen. | Den skapade Access Token-strängen. |
 | `MATTERMOST_COMMAND_TOKEN` | **Integrations → Slash Commands → Add Slash Command**. Trigger `cve`, metod `POST`, Request URL enligt nedan. Klicka **Save** och kopiera **Token**. | Slash-kommandots token. |
 | `MATTERMOST_CHANNEL_ID` | Öppna den privata rapportkanalen → **Visa info / View Info (i)** → kopiera **ID** längst ner. | Kanalens 26 tecken långa ID. |
 | `MATTERMOST_KUBE_USER_MAP` | Mattermost-admin: **System Console → User Management → Users → personen → ID**. Samma person kör `oc whoami` i OpenShift. Skriv paret som JSON enligt exemplet ovan. | Mattermost-ID → samma persons OpenShift-användarnamn. |
-| `STACKROX_URL` | Ta ACS Central-serverns adress från er ACS-inloggningslänk, utan sidans sökväg, eller be ACS-ansvarig om API-adressen. | `https://central.apps.ert-kluster.se` |
+| `STACKROX_URL` | Ta ACS Central-serverns vanliga HTTPS-adress, utan sidans sökväg, eller be ACS-ansvarig om API-adressen. Boten lägger själv till `/v1`. | `https://central.foretagsnamn.se` |
 | `STACKROX_CLUSTER_ID` | Be ACS-ansvarig läsa `GET /v1/clusters`: välj posten där **name** är labbklustret och kopiera **id**. | ACS-kluster-ID, inte projektnamn. |
 | `STACKROX_TOKEN` | ACS: **Platform Configuration → Integrations → Authentication Tokens → API Token → Generate Token**. Välj botens godkända roll → **Generate** → kopiera tokenen. | ACS API-tokenen. |
 | `DATABASE_MONITOR_CHANNEL_ID` (valfritt) | Öppna privat driftkanal → **Visa info (i) → ID**. Bjud in boten. Samma rapportkanal kan användas. | Driftkanalens ID. |
@@ -50,16 +50,37 @@ Använd personens eget OpenShift-konto. Det ger inga nya klusterbehörigheter.
 Write på Image. ACS-ansvarig godkänner rollen och access scope för er installation.
 Botens token och ACS-token visas vid skapandet; spara dem direkt i din lokala fil.
 
-**Mattermost Request URL** för `/cve`:
+### Vilken adress används åt vilket håll?
+
+- **Boten → Mattermost:** HTTPS-adressen i `MATTERMOST_INTERNAL_URL`, via Mattermosts API och bot-token.
+- **Boten → ACS Central:** HTTPS-adressen i `STACKROX_URL`, via ACS API och API-token.
+- **Mattermost → boten:** botens Request URL och callback för formulär. Den adressen behöver Mattermost-servern nå.
+
+Mattermost och Central behöver inte ligga i labbklustret. Ange serveradresserna
+utan `/api/v4` respektive `/v1`; dessa sökvägar lägger boten till själv.
+Namnet `MATTERMOST_INTERNAL_URL` behålls för kompatibilitet, inte som krav på intern DNS.
+
+**När Mattermost ligger utanför klustret:** fyll i värdnamnet i
+`deploy/optional/route.yaml`, applicera routen och byt Deployment-filens
+`MATTERMOST_DIALOG_URL` till `https://ERT_BOT_VARDNAMN/slash/cve/dialog`.
+Registrera sedan `/cve` med denna **Request URL**:
+
+```text
+https://ERT_BOT_VARDNAMN/slash/cve
+```
+
+[Route-stegen](docs/INSTALLATION.md#om-mattermost-behöver-en-extern-route) visar exakt vilka värden som ändras.
+Om Mattermost-servern redan når klustrets Service direkt kan denna adress användas:
 
 ```text
 http://cvebridge-webhook.DITT_NAMESPACE.svc:8001/slash/cve
 ```
 
-Mattermost-servern måste nå tjänsten. Saknas integrationernas menyer behöver
-Mattermost-admin hjälpa till. [Fler steg och exempel för .env](docs/ENV_VARDEN.md).
-Interna adresser som `central.stackrox.svc` fungerar inom det kluster där tjänsten
-finns. Central i ett annat kluster behöver en nåbar HTTPS-adress.
+Saknas integrationernas menyer hjälper Mattermost-admin till.
+[Fler steg och exempel för .env](docs/ENV_VARDEN.md).
+Deployment hämtar imagen från klustrets interna registry enligt nästa steg.
+Boten använder även klustrets interna Kubernetes-API för behörighetskontroller;
+den anslutningen får den automatiskt genom sitt ServiceAccount.
 
 ## 2. Bygg, tagga och pusha imagen själv
 
