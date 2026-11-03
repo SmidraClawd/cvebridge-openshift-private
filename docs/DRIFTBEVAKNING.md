@@ -8,10 +8,10 @@ Kontrollen beställer ingen imageskanning och ändrar inga ACS-inställningar.
 1. Öppna en **privat driftkanal** i Mattermost.
 2. Klicka **Visa info / View Info** via informationsikonen (i).
 3. Kopiera **ID** längst ner i panelen. Det är 26 tecken.
-4. Bjud in boten till kanalen och lägg ID:t i din lokala `.env`:
+4. Bjud in boten till kanalen och lägg ID:t under `data` i `deploy/app/configmap.yaml`:
 
-```dotenv
-DATABASE_MONITOR_CHANNEL_ID=CHANGE_ME_DRIFT_CHANNEL_ID
+```yaml
+DATABASE_MONITOR_CHANNEL_ID: "CHANGE_ME_DRIFT_CHANNEL_ID"
 ```
 
 Byt ut exempelvärdet mot kanalens riktiga 26-teckens-ID. Rapportkanalen kan
@@ -19,11 +19,11 @@ användas om ni vill ha driftstatus där. Inga nya token behövs; ACS-tokenens
 roll behöver redan **Administration: Read** för `/cve status`.
 
 Bygg och uppdatera enligt [README](../README.md). Om den nya programversionen
-redan körs och du enbart ändrar `.env`:
+redan körs och du enbart ändrar ConfigMap:
 
 ```sh
 oc project DITT_NAMESPACE
-oc create secret generic cvebridge-integration --from-env-file=.env --dry-run=client -o yaml | oc apply --server-side --field-manager=cvebridge-env -f -
+oc apply -f deploy/app/configmap.yaml
 oc rollout restart deployment/cvebridge -n DITT_NAMESPACE
 ```
 
@@ -53,8 +53,8 @@ lyckad Mattermost-leverans och sparandet kan ge en enstaka dubblett.
 
 Standard är `SCANNER_V4`: boten frågar ACS Central, som hämtar matcherns senaste
 sårbarhetsuppdatering. För äldre Scanner kan
-`STACKROX_SCANNER_COMPONENT=SCANNER` anges. Åldersgränsen kan vid behov ändras
-med `DATABASE_MAX_AGE_HOURS=24`.
+`STACKROX_SCANNER_COMPONENT: "SCANNER"` anges i ConfigMap. Åldersgränsen ändras
+vid behov med `DATABASE_MAX_AGE_HOURS: "24"`.
 
 Detta är databasstatus för den Scanner-integration som Central returnerar för
 vald komponent. Det är ingen kontroll av varje separat Scanner i alla säkrade

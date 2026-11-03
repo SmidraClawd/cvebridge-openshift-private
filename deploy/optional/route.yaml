@@ -1,5 +1,5 @@
 # Valfritt: använd bara om Mattermost behöver en extern HTTPS-route.
-# Byt värdnamnet. Uppdatera även MATTERMOST_DIALOG_URL i Deployment enligt guiden.
+# Byt värdnamnet. Ange samma värd i ConfigMaps MATTERMOST_DIALOG_URL enligt guiden.
 apiVersion: route.openshift.io/v1
 kind: Route
 metadata:

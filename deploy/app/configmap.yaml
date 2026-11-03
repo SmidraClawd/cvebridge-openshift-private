@@ -1,9 +1,30 @@
-# Standardinställningar. Företagets .env läses in i cvebridge-integration.
+# Fyll i företagets adresser, kanal-ID, användarmappning och app-namespaces här.
+# Tokenvärden fylls i separat i secret.yaml. Ingen .env behövs.
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: cvebridge-config
 data:
+  # Projekten där apparna finns. Namespace-namn skiljs med kommatecken.
+  SCAN_NAMESPACES: "team-a"
+
+  # Vanliga HTTPS-serveradresser. Boten lägger till /api/v4 respektive /v1.
+  # INTERNAL är ett äldre variabelnamn; Mattermost-adressen får vara extern.
+  MATTERMOST_INTERNAL_URL: "https://mattermost.CHANGE_ME_DOMAIN"
+  STACKROX_URL: "https://central.CHANGE_ME_DOMAIN"
+  STACKROX_CLUSTER_ID: "CHANGE_ME_CLUSTER_ID"
+
+  # Privat rapportkanal och varje medlems Mattermost-ID -> OpenShift-användare.
+  MATTERMOST_CHANNEL_ID: "CHANGE_ME_CHANNEL_ID"
+  MATTERMOST_KUBE_USER_MAP: '{"CHANGE_ME_USER_ID":"CHANGE_ME_OPENSHIFT_USER"}'
+
+  # Botens egen callback-adress. Samma värdnamn som i botens Route.
+  MATTERMOST_DIALOG_URL: "https://cvebridge.CHANGE_ME_DOMAIN/slash/cve/dialog"
+
+  # Valfritt: privat driftkanal för daglig databasstatus och fellarm.
+  # DATABASE_MONITOR_CHANNEL_ID: "CHANGE_ME_DRIFT_CHANNEL_ID"
+
+  # Standardvärden som normalt kan behållas.
   LISTEN_ADDR: ":8001"
   STATE_FILE: /data/requests.sqlite3
   STACKROX_SCANNER_COMPONENT: SCANNER_V4

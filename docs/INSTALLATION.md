@@ -1,6 +1,6 @@
 # Installation och nätverk
 
-Den fullständiga manuella ordningen finns i [README](../README.md): fyll `.env`,
+Den fullständiga manuella ordningen finns i [README](../README.md): fyll ConfigMap och Secret,
 bygg/tagga/pusha med Docker, redigera färdiga YAML och applicera med `oc`.
 Du behöver Docker eller Podman, `oc`, ett befintligt projekt med PVC och
 åtkomst till ACS Central, Mattermost och labbets registry.
@@ -12,9 +12,10 @@ Deployment innehåller två värden du ändrar själv: **image** och **claimName
 `deploy/bootstrap.yaml` innehåller plattformsbehörigheterna och redigeras en gång
 med botens namespace och varje godkänt app-namespace.
 
-`.env` importeras till Secret med det vanliga `oc create secret`-kommandot i
-README. Den byggs inte in i imagen och behöver inte kopieras till någon server.
-Kubernetes läser Secret via Deployment-filens `envFrom`.
+Fyll `deploy/app/configmap.yaml` med konfiguration och kopiera
+`deploy/app/secret.yaml.example` till lokal `secret.yaml` för tokenvärdena.
+Kubernetes läser båda via Deployment-filens `envFrom`. Ingen `.env` behövs
+och inga företagsvärden byggs in i imagen.
 
 ## Mattermost ställs in en gång
 
@@ -28,7 +29,7 @@ och registrera **Integrations → Slash Commands → Add Slash Command**:
 | Request URL via botens route | `https://ERT_BOT_VARDNAMN/slash/cve` |
 
 Byt `ERT_BOT_VARDNAMN` mot botens route enligt nästa avsnitt. Kopiera botens
-Access Token och kommandots Token till `.env`. Mattermost-servern behöver nå
+Access Token och kommandots Token till `stringData` i din lokala Secret-fil. Mattermost-servern behöver nå
 både kommandot och formulärens callback. Botens utgående anslutning till
 Mattermosts API använder separat `MATTERMOST_INTERNAL_URL`; den får vara er
 vanliga HTTPS-adress trots variabelnamnet.
@@ -36,11 +37,11 @@ vanliga HTTPS-adress trots variabelnamnet.
 ## Om Mattermost behöver en extern route
 
 1. Byt `CHANGE_ME_HOST` i `deploy/optional/route.yaml` till ert godkända värdnamn.
-2. Byt Deployment-filens `MATTERMOST_DIALOG_URL` till
+2. Byt ConfigMaps `MATTERMOST_DIALOG_URL` till
    `https://ERT_VARDNAMN/slash/cve/dialog`.
 3. Applicera `oc apply -f deploy/optional/route.yaml` i botens projekt.
 4. Ange `https://ERT_VARDNAMN/slash/cve` som Mattermost-kommandots Request URL.
-5. Applicera den ändrade Deployment-filen.
+5. Applicera ConfigMap och starta om Deployment enligt README.
 
 Manifesten innehåller alltid en intern Service. När Mattermost-servern ligger
 utanför klustret och inte når tjänsten direkt används route-stegen ovan.
@@ -48,8 +49,9 @@ Routens adress behöver vara nåbar från Mattermost-servern; den behöver inte 
 öppen på internet. Edge-routen använder klustrets vanliga routecertifikat.
 
 Om Mattermost redan når Service direkt kan Request URL vara
-`http://cvebridge-webhook.DITT_NAMESPACE.svc:8001/slash/cve`, och Deployment-filens
-interna callback lämnas kvar. Om sådana interna anslutningar blockeras kan
+`http://cvebridge-webhook.DITT_NAMESPACE.svc:8001/slash/cve`, och formulärens
+callback i ConfigMap anges som
+`http://cvebridge-webhook.DITT_NAMESPACE.svc:8001/slash/cve/dialog`. Om sådana interna anslutningar blockeras kan
 Mattermost-admin godkänna tjänstens värdnamn i `AllowedUntrustedInternalConnections`.
 
 ## Om Central eller Mattermost använder intern CA
@@ -77,9 +79,9 @@ Lägg till under containerns `volumeMounts`:
   readOnly: true
 ```
 
-Lägg sedan till `STACKROX_CA_FILE=/ca/central.pem` i `.env`, importera Secret
-igen och applicera Deployment. För Mattermost används motsvarande fil och
-`MATTERMOST_CA_FILE=/ca/mattermost.pem`; inkludera då även
+Lägg sedan till `STACKROX_CA_FILE: "/ca/central.pem"` under ConfigMaps `data`.
+Applicera ConfigMap och Deployment och starta om boten. För Mattermost används
+`MATTERMOST_CA_FILE: "/ca/mattermost.pem"`; inkludera då även
 `--from-file=mattermost.pem=certs/mattermost-ca.pem` när ConfigMap skapas.
 Lägg båda `--from-file`-argumenten i samma kommando när båda CA-filerna behövs.
 

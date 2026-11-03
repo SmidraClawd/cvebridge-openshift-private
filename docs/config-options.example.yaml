@@ -1,0 +1,36 @@
+# Valfria fält. Kopiera bara nödvändiga rader till rätt fil.
+# Dessa exempelobjekt appliceras inte som en del av app/.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cvebridge-config
+data:
+  # Montera publika CA-filer enligt INSTALLATION.md innan sökvägarna används.
+  # STACKROX_CA_FILE: "/ca/central.pem"
+  # MATTERMOST_CA_FILE: "/ca/mattermost.pem"
+  # STACKROX_SCANNER_COMPONENT: "SCANNER_V4"
+  # STACKROX_DELEGATE_SCAN: "false"
+  # MATTERMOST_BOT_USER_ID: "CHANGE_ME_BOT_ID"
+  # MATTERMOST_CHANNEL_SCOPES: '{"CHANNEL_ID":["team-a"]}'
+  # MATTERMOST_CHANNEL_POLICIES: '{"CHANNEL_ID":"common"}'
+  # MATTERMOST_SCHEDULE_SCOPES: '{"CHANNEL_ID":["team-a"]}'
+  # MATTERMOST_SCHEDULE_MANAGERS: '{"CHANNEL_ID":["USER_ID"]}'
+  # MATTERMOST_SCHEDULE_SCOPES: '{}'
+  # SCHEDULE_DEFAULT_TIMEZONE: "Europe/Stockholm"
+  # DATABASE_MONITOR_CHANNEL_ID: "CHANGE_ME_DRIFT_CHANNEL_ID"
+  # DATABASE_MAX_AGE_HOURS: "24"
+  # CVE_ALERTS_ENABLED: "true"
+  # CVE_ALERT_MIN_CVSS: "9"
+  # CVE_ALERT_FIRST_REPORT: "false"
+---
+# Kopiera eventuella token-undantag till din git-ignorerade secret.yaml.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: cvebridge-tokens
+type: Opaque
+stringData:
+  # STACKROX_SCAN_TOKEN: "CHANGE_ME_SCAN_TOKEN"
+  # STACKROX_STATUS_TOKEN: "CHANGE_ME_STATUS_TOKEN"
+  # STACKROX_SCHEDULE_TOKEN: "CHANGE_ME_SCHEDULE_TOKEN"
+  # MATTERMOST_ACS_COMMAND_TOKEN: "CHANGE_ME_ACS_COMMAND_TOKEN"

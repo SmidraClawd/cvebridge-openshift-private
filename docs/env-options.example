@@ -1,3 +1,4 @@
+# Legacy-format. För ConfigMap och Secret används config-options.example.yaml.
 # Valfria runtimefält. Kopiera bara nödvändiga rader till .env och avkommentera.
 # KEY=värde utan yttre citattecken, även för JSON. Inga dubbla nycklar.
 # Image, PVC, route och volymer redigeras i de färdiga YAML-filerna enligt README.

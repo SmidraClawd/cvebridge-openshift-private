@@ -41,3 +41,7 @@ Containerimagen innehåller en statisk Go-binär, CA-certifikat och tidszoner.
 Företagets tokens och adresser byggs inte in. En vanlig Kubernetes Deployment
 används med en intern Service som standard. Se [åtkomstmodellen](ACCESS.md) för
 identiteter, delning och behörighetsgränser.
+
+Konfiguration skickas genom `envFrom`: icke-hemliga värden från `cvebridge-config`
+och tokenvärden från `cvebridge-tokens`. Namespace hämtas från poddens metadata.
+Ingen lokal `.env` eller import av en sådan fil behövs för installationen.

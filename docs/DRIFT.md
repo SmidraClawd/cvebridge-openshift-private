@@ -14,17 +14,18 @@ Bootstrap uppdateras av plattformsteamet om godkända namespaces ändras.
 
 ## Bara nya inställningar
 
-Ändra lokal `.env`, importera den och starta om boten:
+Ändra `deploy/app/configmap.yaml` eller din lokala `deploy/app/secret.yaml`.
+Applicera dem och starta om boten:
 
 ```sh
 oc project DITT_NAMESPACE
-oc create secret generic cvebridge-integration --from-env-file=.env --dry-run=client -o yaml | oc apply --server-side --field-manager=cvebridge-env -f -
+oc apply -f deploy/app/configmap.yaml
+oc apply -f deploy/app/secret.yaml
 oc rollout restart deployment/cvebridge
 oc rollout status deployment/cvebridge
 ```
 
-Ändrad standardkonfiguration i `deploy/app/configmap.yaml` appliceras med
-`oc apply -f deploy/app/configmap.yaml` före omstarten.
+Den ifyllda Secret-filen är git-ignorerad. Mallen innehåller bara platshållare.
 
 ## Beständig databas
 

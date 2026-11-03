@@ -3,6 +3,7 @@
 .env.*
 !.env.example
 /deploy/local/
+/deploy/app/secret.yaml
 /bin/
 /cvebridge
 *.sqlite3

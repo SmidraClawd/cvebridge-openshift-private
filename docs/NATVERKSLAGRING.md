@@ -3,12 +3,10 @@
 Lagringsanslutningen finns redan i OpenShift. Boten behöver bara PVC:ns namn
 för att montera den som `/data`.
 
-## Två värden i .env
+## Välj projekt och PVC
 
-```dotenv
-NAMESPACE=CHANGE_ME_NAMESPACE
-STATE_EXISTING_PVC=CHANGE_ME_PVC
-```
+Namespace väljs med `oc project`. PVC-namnet fylls direkt i Deployment-filens
+`claimName`, utan någon miljöfil.
 
 Byt mot projektet där PVC:n finns och dess riktiga namn. Du hittar dem med:
 
@@ -17,8 +15,7 @@ oc get pvc -n ert-projekt
 ```
 
 PVC:n måste finnas i samma namespace som boten. Du anger ingen nätverkssökväg,
-lagringsanvändare eller lagringslösenord. Utelämna `STATE_NETWORK_URL`,
-`STORAGE_CLASS`, `STATE_STORAGE_SIZE` och alla `STATE_SMB_*` för detta flöde.
+lagringsanvändare eller lagringslösenord i appens konfiguration.
 Plattformen hanterar serveranslutningen och lagringens behörigheter.
 
 ## Vad som hamnar i Deployment
@@ -26,7 +23,7 @@ Plattformen hanterar serveranslutningen och lagringens behörigheter.
 Ändra `claimName` manuellt i `deploy/app/deployment.yaml` till PVC-namnet:
 
 ```yaml
-# Utdrag ur podspecifikationen; fyll i samma namn som STATE_EXISTING_PVC.
+# Utdrag ur podspecifikationen; fyll i den befintliga PVC:ns namn.
 volumes:
   - name: data
     persistentVolumeClaim:
@@ -36,7 +33,7 @@ volumes:
 Containern monterar `data` på `/data`. Databasen sparas som
 `/data/requests.sqlite3` och används igen när poden startar om med samma PVC.
 De färdiga YAML-filerna skapar ingen PV, PVC eller lagrings-Secret.
-Mattermost- och ACS-tokens tillförs fortfarande genom appens integrations-Secret.
+Mattermost- och ACS-tokens tillförs fortfarande genom Secret `cvebridge-tokens`.
 
 ## Bygg och starta
 
