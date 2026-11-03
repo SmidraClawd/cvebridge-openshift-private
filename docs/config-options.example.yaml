@@ -5,9 +5,9 @@ kind: ConfigMap
 metadata:
   name: cvebridge-config
 data:
-  # Montera publika CA-filer enligt INSTALLATION.md innan sökvägarna används.
-  # STACKROX_CA_FILE: "/ca/central.pem"
-  # MATTERMOST_CA_FILE: "/ca/mattermost.pem"
+  # Klustrets CA-paket används redan av app/. Alternativ separat CA enligt INSTALLATION.md:
+  # STACKROX_CA_FILE: "/ca-extra/ca.pem"
+  # MATTERMOST_CA_FILE: "/ca-extra/ca.pem"
   # STACKROX_SCANNER_COMPONENT: "SCANNER_V4"
   # STACKROX_DELEGATE_SCAN: "false"
   # MATTERMOST_BOT_USER_ID: "CHANGE_ME_BOT_ID"

@@ -27,6 +27,9 @@ data:
   # Standardvärden som normalt kan behållas.
   LISTEN_ADDR: ":8001"
   STATE_FILE: /data/requests.sqlite3
+  # OpenShift fyller trusted-ca.yaml; Deployment monterar paketet på /ca.
+  MATTERMOST_CA_FILE: /ca/ca-bundle.crt
+  STACKROX_CA_FILE: /ca/ca-bundle.crt
   STACKROX_SCANNER_COMPONENT: SCANNER_V4
   SCHEDULE_DEFAULT_TIMEZONE: Europe/Stockholm
   DATABASE_MAX_AGE_HOURS: "24"

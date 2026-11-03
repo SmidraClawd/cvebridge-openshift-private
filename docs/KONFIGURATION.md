@@ -28,6 +28,13 @@ Imageadress och tagg väljer du med de manuella Podman-kommandona i README och
 klistrar in på Deployment-filens `image`-rad. Namespace väljs med `oc project`
 och hämtas automatiskt av botprocessen.
 
+**CA-certifikat:** `MATTERMOST_CA_FILE` och `STACKROX_CA_FILE` är förifyllda med
+`/ca/ca-bundle.crt`. OpenShift levererar filen via den separata ConfigMapen
+`cvebridge-trusted-ca`; du behöver inget ytterligare tokenvärde eller någon
+certifikatexport. Plattformsteamet behöver bekräfta att företagets CA för
+Mattermost och ACS ingår i klustrets betrodda paket.
+[Kontroll och CA-byte](INSTALLATION.md#klustrets-betrodda-ca-paket).
+
 ## 2. Mattermost – adresser och kanaler i ConfigMap
 
 | Fält | Så hämtar du värdet | Exempel |

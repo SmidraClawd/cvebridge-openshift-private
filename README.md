@@ -5,6 +5,7 @@ Scheman och larmstatus sparas på er befintliga PVC.
 
 **Ingen `.env` behövs.** Du fyller konfiguration i ConfigMap och tokenvärden i
 Secret, bygger imagen lokalt och applicerar de färdiga YAML-filerna med `oc`.
+Klustrets betrodda CA-paket monteras automatiskt i boten via en separat ConfigMap.
 
 ## 1. Fyll i ConfigMap och Secret
 
@@ -77,6 +78,18 @@ samma adress med `/slash/cve` som sökväg. Byt `DITT_NAMESPACE` i hela adressen
 
 Boten får automatiskt botens namespace och åtkomst till Kubernetes interna API
 via sitt ServiceAccount. [Fler konfigurationsexempel](docs/KONFIGURATION.md).
+
+### Företagets certifikat
+
+`deploy/app/trusted-ca.yaml` ber OpenShift fylla **`cvebridge-trusted-ca`** med
+klustrets betrodda CA-paket. Deployment monterar filen på `/ca/ca-bundle.crt`;
+`MATTERMOST_CA_FILE` och `STACKROX_CA_FILE` är redan inställda på den sökvägen.
+Du behöver inte exportera certifikat eller bygga in dem i imagen.
+
+Det fungerar för era egna certifikat om deras utfärdande CA finns med i paketet.
+Kluster-API:t kan använda en annan CA. Om boten får certifikatfel behöver
+plattformsteamet bekräfta rätt CA för Mattermost och ACS.
+[Kontroll och alternativ CA-fil](docs/INSTALLATION.md#klustrets-betrodda-ca-paket).
 
 ## 2. Bygg, tagga och pusha imagen själv
 
@@ -163,6 +176,7 @@ oc logs deployment/cvebridge -c bot --tail=50
 | Fil | Innehåll |
 | --- | --- |
 | `deploy/app/configmap.yaml` | Adresser, kanal-ID, användarmappning, app-namespaces och standardinställningar. |
+| `deploy/app/trusted-ca.yaml` | Separat ConfigMap som OpenShift fyller med klustrets betrodda CA-paket. |
 | `deploy/app/secret.yaml.example` | Mall för de tre tokenvärdena. Kopieras till lokal `secret.yaml`. |
 | `deploy/app/deployment.yaml` | En botreplika, image, PVC och `envFrom` från ConfigMap och Secret. |
 | `deploy/app/service.yaml` | Intern Service för botens inkommande anrop. |
@@ -198,6 +212,8 @@ oc rollout status deployment/cvebridge
 ```
 
 Boten läser miljövariabler när processen startar. PVC:n bevarar scheman och larmstatus.
+När CA-paketet förnyas kör du också `oc rollout restart deployment/cvebridge`;
+boten läser certifikaten vid start. Imagen behöver inte byggas om för CA-byte.
 [Installation och TLS](docs/INSTALLATION.md) · [Driftbevakning](docs/DRIFTBEVAKNING.md) · [Skärmbilder](docs/BILDER.md)
 
 ConfigMap och de övriga mallarna kan sparas i företagets interna Git.
@@ -212,5 +228,6 @@ Källor: [Kubernetes ConfigMap](https://kubernetes.io/docs/concepts/configuratio
 [ACS API-token](https://docs.redhat.com/en/documentation/red_hat_advanced_cluster_security_for_kubernetes/4.11/html/configuring/configure-api-token),
 [ACS klusterlista](https://github.com/stackrox/stackrox/blob/master/proto/api/v1/cluster_service.proto),
 [OpenShift registry](https://docs.redhat.com/en/documentation/openshift_container_platform/4.20/html/registry/accessing-the-registry),
+[OpenShift CA-injektion](https://docs.redhat.com/en/documentation/openshift_container_platform/4.20/html-single/configuring_network_settings/configuring_network_settings#certificate-injection-using-operators),
 [Podman build](https://docs.podman.io/en/latest/markdown/podman-build.1.html),
 [Podman login](https://docs.podman.io/en/latest/markdown/podman-login.1.html).

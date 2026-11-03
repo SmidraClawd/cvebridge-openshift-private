@@ -54,36 +54,86 @@ callback i ConfigMap anges som
 `http://cvebridge-webhook.DITT_NAMESPACE.svc:8001/slash/cve/dialog`. Om sådana interna anslutningar blockeras kan
 Mattermost-admin godkänna tjänstens värdnamn i `AllowedUntrustedInternalConnections`.
 
-## Om Central eller Mattermost använder intern CA
+## Klustrets betrodda CA-paket
 
-Be respektive systemansvarig om den publika CA-kedjan i PEM-format. Spara den
-lokalt, exempelvis i `certs/central-ca.pem`. Skapa en ConfigMap manuellt:
+Detta är redan inkopplat i de färdiga OpenShift-filerna:
+
+```text
+Klustrets betrodda CA-paket → cvebridge-trusted-ca → /ca/ca-bundle.crt → boten
+```
+
+`deploy/app/trusted-ca.yaml` skapar en separat, tom ConfigMap med etiketten
+`config.openshift.io/inject-trusted-cabundle: "true"`. OpenShifts Cluster Network
+Operator fyller den med systemets och klustrets konfigurerade extra CA-certifikat.
+Deployment monterar paketet skrivskyddat. Båda CA-sökvägarna i appens ConfigMap
+pekar redan på `/ca/ca-bundle.crt`. `oc apply -f deploy/app/` applicerar allt.
+
+**Företagets CA för Mattermost och ACS måste finnas i paketet.** Kluster-API:ts
+CA och certifikaten för era HTTPS-adresser kan ha olika utfärdare. Kubernetes
+API fortsätter använda ServiceAccountets egen CA separat.
+
+Kontrollera efter applicering:
 
 ```sh
-oc create configmap cvebridge-ca --from-file=central.pem=certs/central-ca.pem --dry-run=client -o yaml | oc apply -f -
+oc get configmap cvebridge-trusted-ca
+oc rollout status deployment/cvebridge
+```
+
+`DATA` ska bli `1` när OpenShift lagt in `ca-bundle.crt`. Om poden väntar på
+filen kontrollerar plattformsteamet CA-injektionen. Ett fyllt paket visar att
+injektionen fungerar; testa även `/cve status` och `/cve scan team-a` för att
+kontrollera de riktiga HTTPS-anslutningarna.
+
+Lägg injiceringsetiketten **bara på den separata CA-ConfigMapen**. OpenShift
+tar över dess innehåll; etiketten får aldrig sättas på `cvebridge-config`,
+eftersom botens inställningar då skulle raderas.
+
+Efter CA-förnyelse startar du om boten för att läsa det uppdaterade paketet:
+
+```sh
+oc rollout restart deployment/cvebridge
+oc rollout status deployment/cvebridge
+```
+
+Ingen ny image eller privat certifikatnyckel behövs. Detta konfigurerar botens
+utgående HTTPS. Podman på byggdatorn och Mattermost-servern behöver själva lita
+på certifikaten för registryt respektive botens route.
+
+### Om rätt företags-CA saknas i klusterpaketet
+
+Be plattformsteamet kontrollera paketet. Om ni behöver en separat fil kan
+systemansvarig lämna den publika CA-kedjan i PEM-format. Spara den lokalt som
+`certs/foretags-ca.pem` och skapa en annan ConfigMap:
+
+```sh
+oc create configmap cvebridge-extra-ca --from-file=ca.pem=certs/foretags-ca.pem --dry-run=client -o yaml | oc apply -f -
 ```
 
 Lägg till detta i Deployment under `spec.template.spec.volumes`:
 
 ```yaml
-- name: ca
+- name: extra-ca
   configMap:
-    name: cvebridge-ca
+    name: cvebridge-extra-ca
 ```
 
 Lägg till under containerns `volumeMounts`:
 
 ```yaml
-- name: ca
-  mountPath: /ca
+- name: extra-ca
+  mountPath: /ca-extra
   readOnly: true
 ```
 
-Lägg sedan till `STACKROX_CA_FILE: "/ca/central.pem"` under ConfigMaps `data`.
-Applicera ConfigMap och Deployment och starta om boten. För Mattermost används
-`MATTERMOST_CA_FILE: "/ca/mattermost.pem"`; inkludera då även
-`--from-file=mattermost.pem=certs/mattermost-ca.pem` när ConfigMap skapas.
-Lägg båda `--from-file`-argumenten i samma kommando när båda CA-filerna behövs.
+Ändra `STACKROX_CA_FILE` till `/ca-extra/ca.pem` i `deploy/app/configmap.yaml`
+om filen gäller ACS. Ändra även `MATTERMOST_CA_FILE` om samma CA gäller där.
+En annan Mattermost-CA kan inkluderas som ytterligare fil i samma ConfigMap;
+ange då dess filnamn i `MATTERMOST_CA_FILE`. Behåll alla `--from-file`-argument
+i samma kommando. Ändra aldrig innehållet manuellt i `cvebridge-trusted-ca`.
+
+Applicera extra-CA, appens ConfigMap och Deployment, och starta om boten.
+Go-boten lägger de angivna CA-certifikaten till imagens befintliga betrodda
+certifikat. TLS-verifiering av certifikatkedja och värdnamn är alltid aktiv.
 
 ## Kontrollera installationen
 
@@ -100,4 +150,5 @@ också för scheman. Företagets riktiga anslutningar verifieras i ert labb.
 
 Källor: [Mattermost slash-kommandon](https://docs.mattermost.com/developers/integrate/slash-commands/custom),
 [OpenShift registry](https://docs.redhat.com/en/documentation/openshift_container_platform/4.20/html/registry/accessing-the-registry),
+[OpenShift CA-injektion](https://docs.redhat.com/en/documentation/openshift_container_platform/4.20/html-single/configuring_network_settings/configuring_network_settings#certificate-injection-using-operators),
 [Kubernetes ConfigMap-volym](https://kubernetes.io/docs/tasks/configure-pod-container/configure-pod-configmap/).
