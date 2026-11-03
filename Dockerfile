@@ -9,7 +9,7 @@ RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w -X main.version=${VERSION}"
     && mkdir -p /out/data && chmod 0770 /out/data && chown 10001:0 /out/data
 
 FROM scratch
-COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
+# CA certificates are supplied by the cluster as read-only volumes.
 # Copy the parent so /data retains its 0770 mode and group ownership.
 COPY --from=build /out/ /
 USER 10001:0

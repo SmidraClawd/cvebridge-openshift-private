@@ -33,6 +33,8 @@ och hämtas automatiskt av botprocessen.
 `cvebridge-trusted-ca`; du behöver inget ytterligare tokenvärde eller någon
 certifikatexport. Plattformsteamet behöver bekräfta att företagets CA för
 Mattermost och ACS ingår i klustrets betrodda paket.
+Imagen innehåller inget eget CA-paket; varje HTTPS-klient litar bara på sin
+angivna CA-fil. Kubernetes API använder ServiceAccountets CA separat.
 [Kontroll och CA-byte](INSTALLATION.md#klustrets-betrodda-ca-paket).
 
 ## 2. Mattermost – adresser och kanaler i ConfigMap

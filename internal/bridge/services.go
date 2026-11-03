@@ -22,10 +22,8 @@ type Services struct {
 }
 
 func client(ca string) (*http.Client, error) {
-	pool, e := x509.SystemCertPool()
-	if e != nil {
-		pool = x509.NewCertPool()
-	}
+	// Each service trusts only its configured bundle. Never inherit host roots.
+	pool := x509.NewCertPool()
 	if ca != "" {
 		b, e := os.ReadFile(ca)
 		if e != nil {

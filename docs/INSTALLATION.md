@@ -67,6 +67,10 @@ Klustrets betrodda CA-paket → cvebridge-trusted-ca → /ca/ca-bundle.crt → b
 Operator fyller den med systemets och klustrets konfigurerade extra CA-certifikat.
 Deployment monterar paketet skrivskyddat. Båda CA-sökvägarna i appens ConfigMap
 pekar redan på `/ca/ca-bundle.crt`. `oc apply -f deploy/app/` applicerar allt.
+Imagen innehåller inget CA-paket. Boten använder bara CA-certifikaten i angiven
+fil för respektive tjänst och läser ingen extra CA-lista från operativsystemet.
+Klustrets paket kan innehålla både vanliga och företagets egna CA-certifikat;
+vilka som ingår styrs i klustret.
 
 **Företagets CA för Mattermost och ACS måste finnas i paketet.** Kluster-API:ts
 CA och certifikaten för era HTTPS-adresser kan ha olika utfärdare. Kubernetes
@@ -132,8 +136,9 @@ ange då dess filnamn i `MATTERMOST_CA_FILE`. Behåll alla `--from-file`-argumen
 i samma kommando. Ändra aldrig innehållet manuellt i `cvebridge-trusted-ca`.
 
 Applicera extra-CA, appens ConfigMap och Deployment, och starta om boten.
-Go-boten lägger de angivna CA-certifikaten till imagens befintliga betrodda
-certifikat. TLS-verifiering av certifikatkedja och värdnamn är alltid aktiv.
+Den separata filen ersätter klusterpaketet för den tjänst vars sökväg du ändrar.
+Den behöver därför innehålla alla CA-certifikat som den tjänsten kräver.
+TLS-verifiering av certifikatkedja och värdnamn är alltid aktiv.
 
 ## Kontrollera installationen
 

@@ -6,6 +6,7 @@ Scheman och larmstatus sparas på er befintliga PVC.
 **Ingen `.env` behövs.** Du fyller konfiguration i ConfigMap och tokenvärden i
 Secret, bygger imagen lokalt och applicerar de färdiga YAML-filerna med `oc`.
 Klustrets betrodda CA-paket monteras automatiskt i boten via en separat ConfigMap.
+Imagen innehåller inget eget CA-paket.
 
 ## 1. Fyll i ConfigMap och Secret
 
@@ -85,6 +86,9 @@ via sitt ServiceAccount. [Fler konfigurationsexempel](docs/KONFIGURATION.md).
 klustrets betrodda CA-paket. Deployment monterar filen på `/ca/ca-bundle.crt`;
 `MATTERMOST_CA_FILE` och `STACKROX_CA_FILE` är redan inställda på den sökvägen.
 Du behöver inte exportera certifikat eller bygga in dem i imagen.
+Boten litar enbart på CA-certifikaten i respektive angiven fil. Vilka CA som
+ingår i klustrets paket styrs av plattformsteamets konfiguration; paketet kan
+innehålla både vanliga och företagets egna CA-certifikat.
 
 Det fungerar för era egna certifikat om deras utfärdande CA finns med i paketet.
 Kluster-API:t kan använda en annan CA. Om boten får certifikatfel behöver
@@ -214,6 +218,11 @@ oc rollout status deployment/cvebridge
 Boten läser miljövariabler när processen startar. PVC:n bevarar scheman och larmstatus.
 När CA-paketet förnyas kör du också `oc rollout restart deployment/cvebridge`;
 boten läser certifikaten vid start. Imagen behöver inte byggas om för CA-byte.
+
+**Uppdatering från en äldre image:** Bygg och pusha en ny image enligt steg 2,
+byt tagg i Deployment och applicera filerna för att ta bort det tidigare
+inbyggda standardpaketet. Efter det hanteras CA-byten genom montering och omstart.
+
 [Installation och TLS](docs/INSTALLATION.md) · [Driftbevakning](docs/DRIFTBEVAKNING.md) · [Skärmbilder](docs/BILDER.md)
 
 ConfigMap och de övriga mallarna kan sparas i företagets interna Git.
