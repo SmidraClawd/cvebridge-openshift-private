@@ -3,7 +3,7 @@
 # Generated manifests stay under deploy/local/ and never replace those files.
 set -eu
 cd "$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
-engine=${CONTAINER_ENGINE:-docker}
+engine=${CONTAINER_ENGINE:-podman}
 action=${1:-help}
 case "$action" in
   init)
@@ -46,7 +46,7 @@ if ! printf '%s\n' "$namespace" | LC_ALL=C grep -Eq '^[a-z0-9]([-a-z0-9]{0,61}[a
   printf '%s\n' 'Fyll i ett giltigt NAMESPACE i .env.' >&2; exit 1
 fi
 if ! local_id=$("$engine" image inspect --format '{{.Id}}' cvebridge:local); then
-  printf '%s\n' 'Bygg först: docker build -t cvebridge:local .' >&2; exit 1
+  printf 'Bygg först: %s build -t cvebridge:local .\n' "$engine" >&2; exit 1
 fi
 case "$local_id" in sha256:*) digest=${local_id#sha256:};; *) printf '%s\n' 'Kunde inte läsa den lokala imagen.' >&2; exit 1;; esac
 if ! printf '%s\n' "$digest" | LC_ALL=C grep -Eq '^[a-f0-9]{64}$'; then

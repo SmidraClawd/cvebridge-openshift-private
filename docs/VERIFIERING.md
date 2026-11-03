@@ -22,3 +22,8 @@ Mattermosts schemaformulär. Runtime-koden för dessa funktioner är oförändra
 Företagets ACS-roll, Mattermost-inställningar, registry, nätverk, certifikat och
 verkliga PVC behöver verifieras när ni installerar i labbet. Testa med
 `/cve status`, `/cve scan` och `/cve schedule`.
+
+Podman-kommandona i README har kontrollerats mot officiell dokumentation.
+Podman finns inte i denna verifieringsmiljö; ett riktigt Podman-bygge och
+registry-push behöver därför köras i er miljö. Hjälpskriptets befintliga
+workflow-tester är godkända efter byte av förvald motor.

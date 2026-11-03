@@ -2,7 +2,7 @@
 
 ## Ny image
 
-Följ de manuella Docker-kommandona i README. Använd en ny tagg och uppdatera
+Följ de manuella Podman-kommandona i README. Använd en ny tagg och uppdatera
 `image` i `deploy/app/deployment.yaml`. Applicera sedan:
 
 ```sh

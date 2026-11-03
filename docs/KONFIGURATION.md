@@ -24,7 +24,7 @@ Byt `DITT_NAMESPACE` mot projektet där boten och den färdiga PVC:n ska finnas.
 
 PVC-namnet är namnet i OpenShift. Nätverkssökvägen bakom PVC:n skrivs inte här.
 Ange PVC-namnet som `claimName` i `deploy/app/deployment.yaml`.
-Imageadress och tagg väljer du med de manuella Docker-kommandona i README och
+Imageadress och tagg väljer du med de manuella Podman-kommandona i README och
 klistrar in på Deployment-filens `image`-rad. Namespace väljs med `oc project`
 och hämtas automatiskt av botprocessen.
 

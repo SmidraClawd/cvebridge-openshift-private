@@ -1,8 +1,8 @@
 # Installation och nätverk
 
 Den fullständiga manuella ordningen finns i [README](../README.md): fyll ConfigMap och Secret,
-bygg/tagga/pusha med Docker, redigera färdiga YAML och applicera med `oc`.
-Du behöver Docker eller Podman, `oc`, ett befintligt projekt med PVC och
+bygg/tagga/pusha med Podman, redigera färdiga YAML och applicera med `oc`.
+Du behöver Podman, `oc`, ett befintligt projekt med PVC och
 åtkomst till ACS Central, Mattermost och labbets registry.
 
 ## Färdiga filer

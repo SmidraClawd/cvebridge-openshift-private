@@ -80,7 +80,8 @@ via sitt ServiceAccount. [Fler konfigurationsexempel](docs/KONFIGURATION.md).
 
 ## 2. Bygg, tagga och pusha imagen själv
 
-Kör kommandona ett i taget i samma terminal. Byt `DITT_NAMESPACE`.
+Kör kommandona ett i taget i samma Bash-terminal. Byt `DITT_NAMESPACE`.
+Podman bygger projektets befintliga `Dockerfile`.
 
 ```sh
 oc login
@@ -90,10 +91,10 @@ CVE_NAMESPACE=$(oc project -q)
 CVE_TAG=$(date +%Y%m%d-%H%M%S)
 CVE_REGISTRY=$(oc get route default-route -n openshift-image-registry -o jsonpath='{.spec.host}')
 
-docker build -t cvebridge:local .
-oc whoami -t | docker login "$CVE_REGISTRY" --username cvebridge --password-stdin
-docker tag cvebridge:local "$CVE_REGISTRY/$CVE_NAMESPACE/cvebridge:$CVE_TAG"
-docker push "$CVE_REGISTRY/$CVE_NAMESPACE/cvebridge:$CVE_TAG"
+podman build -f Dockerfile -t localhost/cvebridge:local .
+oc whoami -t | podman login "$CVE_REGISTRY" --username cvebridge --password-stdin
+podman tag localhost/cvebridge:local "$CVE_REGISTRY/$CVE_NAMESPACE/cvebridge:$CVE_TAG"
+podman push "$CVE_REGISTRY/$CVE_NAMESPACE/cvebridge:$CVE_TAG"
 
 printf '%s\n' "image-registry.openshift-image-registry.svc:5000/$CVE_NAMESPACE/cvebridge:$CVE_TAG"
 ```
@@ -109,7 +110,7 @@ Om byggdatorn redan når klustrets interna DNS kan du i stället sätta:
 CVE_REGISTRY=image-registry.openshift-image-registry.svc:5000
 ```
 
-Docker behöver lita på registryts certifikat. Ditt konto behöver rätt att pusha
+Podman behöver lita på registryts certifikat. Ditt konto behöver rätt att pusha
 till valt projekt. Deployment använder alltid den interna adressen ovan.
 
 ## 3. Redigera Deployment och bootstrap
@@ -210,4 +211,6 @@ Källor: [Kubernetes ConfigMap](https://kubernetes.io/docs/concepts/configuratio
 [kanal-ID](https://github.com/mattermost/mattermost/blob/master/webapp/channels/src/components/channel_info_rhs/about_area_channel.tsx),
 [ACS API-token](https://docs.redhat.com/en/documentation/red_hat_advanced_cluster_security_for_kubernetes/4.11/html/configuring/configure-api-token),
 [ACS klusterlista](https://github.com/stackrox/stackrox/blob/master/proto/api/v1/cluster_service.proto),
-[OpenShift registry](https://docs.redhat.com/en/documentation/openshift_container_platform/4.20/html/registry/accessing-the-registry).
+[OpenShift registry](https://docs.redhat.com/en/documentation/openshift_container_platform/4.20/html/registry/accessing-the-registry),
+[Podman build](https://docs.podman.io/en/latest/markdown/podman-build.1.html),
+[Podman login](https://docs.podman.io/en/latest/markdown/podman-login.1.html).
