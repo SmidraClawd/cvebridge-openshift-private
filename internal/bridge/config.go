@@ -179,6 +179,9 @@ func NewConfig(m map[string]string) (Config, error) {
 		return Config{}, err
 	}
 	c := Config{Env: m}
+	if mode := c.Get("ACCESS_MODE", ""); mode != "operations" && mode != "per-user" {
+		return c, fmt.Errorf("ACCESS_MODE must be operations or per-user")
+	}
 	for _, k := range []string{"CVE_ALERTS_ENABLED", "CVE_ALERT_FIRST_REPORT", "STACKROX_DELEGATE_SCAN"} {
 		if v, ok := m[k]; ok && v != "true" && v != "false" {
 			return c, fmt.Errorf("%s must be true or false", k)
@@ -203,6 +206,9 @@ func NewConfig(m map[string]string) (Config, error) {
 		k string
 		v any
 	}{{"MATTERMOST_CHANNEL_SCOPES", &c.Scopes}, {"MATTERMOST_SCHEDULE_SCOPES", &c.ScheduleScopes}, {"MATTERMOST_SCHEDULE_MANAGERS", &c.Managers}, {"MATTERMOST_CHANNEL_POLICIES", &c.Policies}, {"MATTERMOST_KUBE_USER_MAP", &c.Users}} {
+		if c.OperationsOnly() && p.k != "MATTERMOST_CHANNEL_SCOPES" && p.k != "MATTERMOST_SCHEDULE_SCOPES" {
+			continue
+		}
 		if e := read(p.k, p.v); e != nil {
 			return c, e
 		}
@@ -240,8 +246,14 @@ func NewConfig(m map[string]string) (Config, error) {
 			return c, fmt.Errorf("invalid approved user mapping")
 		}
 	}
-	if len(c.ScheduleScopes) > 0 && !regexp.MustCompile(`^system:serviceaccount:[a-z0-9-]+:[a-z0-9-]+$`).MatchString(c.Get("SCHEDULE_SERVICE_USER", "")) {
+	if !c.OperationsOnly() && len(c.ScheduleScopes) > 0 && !regexp.MustCompile(`^system:serviceaccount:[a-z0-9-]+:[a-z0-9-]+$`).MatchString(c.Get("SCHEDULE_SERVICE_USER", "")) {
 		return c, fmt.Errorf("SCHEDULE_SERVICE_USER must be the reporter service account")
+	}
+	if c.OperationsOnly() {
+		ch := c.Get("MATTERMOST_CHANNEL_ID", "")
+		if !ID.MatchString(ch) || len(c.Scopes) != 1 || len(c.Scopes[ch]) == 0 {
+			return c, fmt.Errorf("configure one MATTERMOST_CHANNEL_ID and its SCAN_NAMESPACES for operations")
+		}
 	}
 	if !regexp.MustCompile(`^[A-Za-z0-9-]+$`).MatchString(c.Get("STACKROX_CLUSTER_ID", "")) {
 		return c, fmt.Errorf("STACKROX_CLUSTER_ID is required")
@@ -284,7 +296,8 @@ func configurationDefaults(input map[string]string) (map[string]string, error) {
 		}
 	}
 	for k, v := range map[string]string{
-		"NAMESPACE": "cvebridge", "STACKROX_URL": "https://central.stackrox.svc:443",
+		"ACCESS_MODE": "operations",
+		"NAMESPACE":   "cvebridge", "STACKROX_URL": "https://central.stackrox.svc:443",
 		"STACKROX_SCANNER_COMPONENT": "SCANNER_V4", "SCHEDULE_DEFAULT_TIMEZONE": "Europe/Stockholm",
 		"DATABASE_MAX_AGE_HOURS": "24", "CVE_ALERTS_ENABLED": "true", "CVE_ALERT_MIN_CVSS": "9", "CVE_ALERT_FIRST_REPORT": "false",
 	} {

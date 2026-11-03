@@ -59,7 +59,7 @@ func ErrorMessage(err error) M {
 	return card("Förfrågan kunde inte slutföras", message(err), "**ACS · Kontrollera beställningen**", "#D97732")
 }
 func HelpMessage() M {
-	return card("Vad vill du göra?", "`/cve scan [namespace]` – ny skanning och rapport.\n`/cve report [namespace]` – befintligt underlag.\n`/cve CVE-2021-44228 [namespace]` – sök en CVE.\n`/cve schedule` – öppna schemaformuläret här.\n`/cve status` – CVE-databasens aktualitet.\n\nKör i en godkänd privat teamkanal. Resultat och JSON-bilaga delas med kanalen efter behörighetskontroll.", "**ACS · Snabbhjälp**", "#438D9A")
+	return card("Vad vill du göra?", "`/cve scan [namespace]` – ny skanning och rapport.\n`/cve report [namespace]` – befintligt underlag.\n`/cve CVE-2021-44228 [namespace]` – sök en CVE.\n`/cve schedule` – öppna schemaformuläret här.\n`/cve status` – CVE-databasens aktualitet.\n\nKör i botens konfigurerade privata kanal. Resultat och JSON-bilaga skickas till kanalen.", "**ACS · Snabbhjälp**", "#438D9A")
 }
 func ResultMessage(r M) M {
 	switch str(r["kind"]) {

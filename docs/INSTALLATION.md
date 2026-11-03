@@ -9,8 +9,8 @@ Du behöver Podman, `oc`, ett befintligt projekt med PVC och
 
 `deploy/app/` använder det namespace du väljer med `oc project`.
 Deployment innehåller två värden du ändrar själv: **image** och **claimName**.
-`deploy/bootstrap.yaml` innehåller plattformsbehörigheterna och redigeras en gång
-med botens namespace och varje godkänt app-namespace.
+Driftläget behöver inga RBAC-bindningar eller något bootstrap-steg. Botens
+ServiceAccount har ingen API-token monterad. Skanningar och status hämtas från ACS.
 
 Fyll `deploy/app/configmap.yaml` med konfiguration och kopiera
 `deploy/app/secret.yaml.example` till lokal `secret.yaml` för tokenvärdena.
@@ -73,8 +73,8 @@ Klustrets paket kan innehålla både vanliga och företagets egna CA-certifikat;
 vilka som ingår styrs i klustret.
 
 **Företagets CA för Mattermost och ACS måste finnas i paketet.** Kluster-API:ts
-CA och certifikaten för era HTTPS-adresser kan ha olika utfärdare. Kubernetes
-API fortsätter använda ServiceAccountets egen CA separat.
+CA och certifikaten för era HTTPS-adresser kan ha olika utfärdare. Driftläget
+använder inte Kubernetes API och behöver ingen separat API-CA.
 
 Kontrollera efter applicering:
 
@@ -149,8 +149,8 @@ oc logs deployment/cvebridge -c bot --tail=50
 ```
 
 Testa `/cve status`, `/cve scan team-a` och `/cve schedule` i rapportkanalen.
-Namespace-behörigheterna kontrolleras för användarna; reporterrollen behövs
-också för scheman. Företagets riktiga anslutningar verifieras i ert labb.
+Kör kommandona i den privata kanalen från `MATTERMOST_CHANNEL_ID`. Kanalens
+medlemmar behöver ingen användarmappning. Företagets riktiga anslutningar verifieras i ert labb.
 `/healthz` kontrollerar endast botprocessen.
 
 Källor: [Mattermost slash-kommandon](https://docs.mattermost.com/developers/integrate/slash-commands/custom),

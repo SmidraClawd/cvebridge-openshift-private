@@ -25,7 +25,8 @@ var imageDigest = "sha256:" + strings.Repeat("a", 64)
 
 func testEnv() map[string]string {
 	return map[string]string{
-		"NAMESPACE": "cvebridge", "APP_IMAGE": "registry.acme.test/security/cvebridge:go-test", "WEBHOOK_PUBLIC_URL": "https://cvebridge.apps.acme.test",
+		"ACCESS_MODE": "per-user",
+		"NAMESPACE":   "cvebridge", "APP_IMAGE": "registry.acme.test/security/cvebridge:go-test", "WEBHOOK_PUBLIC_URL": "https://cvebridge.apps.acme.test",
 		"MATTERMOST_INTERNAL_URL": "https://mattermost.acme.test", "STACKROX_URL": "https://central.acme.test", "STACKROX_CLUSTER_ID": "cluster-123",
 		"MATTERMOST_BOT_USER_ID": botID, "MATTERMOST_BOT_TOKEN": "bot-secret", "MATTERMOST_COMMAND_TOKEN": "slash-secret",
 		"STACKROX_TOKEN": "rox-read", "STACKROX_SCAN_TOKEN": "rox-scan", "STACKROX_STATUS_TOKEN": "rox-status", "STACKROX_SCHEDULE_TOKEN": "rox-scheduled",

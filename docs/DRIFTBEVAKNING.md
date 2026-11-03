@@ -61,10 +61,11 @@ vald komponent. Det är ingen kontroll av varje separat Scanner i alla säkrade
 kluster, av Scanner-programmets version eller av att varje nypublicerad CVE
 redan finns med. En färsk tidsstämpel betyder att databasen är inom er gräns.
 
-Driftkanalen får enbart denna övergripande databasstatus. Att ange den här ger
-inte åtkomst till namespace-rapporter eller slash-kommandon. Boten verifierar
-att kanalen är privat och aktiv och att botkontot är medlem före leverans.
-Kontrollen behöver ingen användarmappning för driftkanalens medlemmar.
+Bevakningsmeddelandena innehåller bara övergripande databasstatus. Använd samma
+kanal-ID i `DATABASE_MONITOR_CHANNEL_ID` och `MATTERMOST_CHANNEL_ID` om ni vill
+ha status, skanningar och scheman samlade i driftkanalen. En annan kanal som
+enbart anges i bevakningsfältet får bara databasstatus. Boten verifierar att
+kanalen är privat och aktiv och att botkontot är medlem före leverans.
 
 Om själva boten eller Mattermost ligger nere kan inget meddelande levereras.
 Använd klustrets vanliga övervakning för botens tillgänglighet; `/healthz`

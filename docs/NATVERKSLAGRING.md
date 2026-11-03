@@ -38,7 +38,7 @@ Mattermost- och ACS-tokens tillförs fortfarande genom Secret `cvebridge-tokens`
 ## Bygg och starta
 
 Följ [installationen](INSTALLATION.md): bygg, tagga, pusha och applicera de färdiga YAML-filerna.
-Bootstrap behövs fortfarande för botens Kubernetes-behörighetskontroll.
+Driftläget behöver inget bootstrap-steg eller någon Kubernetes-behörighetskontroll.
 Kontrollera att den befintliga lagringen är skrivbar för podens UID/grupp och
 lämplig för SQLite med korrekt fillåsning och synkronisering.
 

@@ -10,7 +10,7 @@ oc apply -f deploy/app/deployment.yaml
 oc rollout status deployment/cvebridge
 ```
 
-Bootstrap uppdateras av plattformsteamet om godkända namespaces ändras.
+Ändra `SCAN_NAMESPACES` i ConfigMap om driftens projektlista ändras.
 
 ## Bara nya inställningar
 

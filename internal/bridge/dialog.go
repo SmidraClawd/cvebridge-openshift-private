@@ -32,12 +32,16 @@ func (a *App) DialogContext(ctx context.Context, owner, ch string) (*Schedule, S
 	if len(a.S.C.ScheduleScopes[ch]) == 0 {
 		return nil, snap, problem(403, "Kanalen är inte godkänd för scheman.")
 	}
-	if managers := a.S.C.Managers[ch]; len(managers) > 0 && !has(managers, owner) {
-		return nil, snap, problem(403, "Du är inte utsedd att ändra kanalens schema.")
-	}
-	user, e := a.S.User(ctx, owner)
-	if e != nil {
-		return nil, snap, e
+	user := owner
+	if !a.S.C.OperationsOnly() {
+		if managers := a.S.C.Managers[ch]; len(managers) > 0 && !has(managers, owner) {
+			return nil, snap, problem(403, "Du är inte utsedd att ändra kanalens schema.")
+		}
+		var err error
+		user, err = a.S.User(ctx, owner)
+		if err != nil {
+			return nil, snap, err
+		}
 	}
 	actor, e := a.S.ActorAudience(ctx, owner, ch, nil)
 	if e != nil {
@@ -116,7 +120,11 @@ func (a *App) OpenDialog(ctx context.Context, owner, ch, trigger string) error {
 	for _, d := range c.Days {
 		days = append(days, string(rune('0'+d)))
 	}
-	dialog := M{"callback_id": callbackID, "title": "Teamets schema", "state": key, "introduction_text": "Välj dagar, tider och namespaces. Spara för att börja köra automatiskt.", "submit_label": "Utför", "notify_on_cancel": true, "elements": []any{
+	title := "Teamets schema"
+	if a.S.C.OperationsOnly() {
+		title = "Driftens schema"
+	}
+	dialog := M{"callback_id": callbackID, "title": title, "state": key, "introduction_text": "Välj dagar, tider och namespaces. Spara för att börja köra automatiskt.", "submit_label": "Utför", "notify_on_cancel": true, "elements": []any{
 		selectElement("days", "Veckodagar", []string{"0", "1", "2", "3", "4", "5", "6"}, Days, strings.Join(days, ","), true),
 		M{"name": "times", "display_name": "Tider", "type": "text", "default": strings.Join(c.Times, ", "), "help_text": "HH:MM, högst fyra tider, minst en timme mellan."},
 		M{"name": "timezone", "display_name": "Tidszon", "type": "text", "default": c.Timezone},

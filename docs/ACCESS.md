@@ -1,37 +1,29 @@
-# Åtkomstmodell
+# Driftkanalen styr åtkomsten
 
-CVEBridge använder befintliga identiteter och behörigheter. Boten ger inte
-teammedlemmar nya klusterbehörigheter.
+Standardläget i den privata installationen är `ACCESS_MODE: operations`.
+Ange en privat driftkanal i `MATTERMOST_CHANNEL_ID` och projekten som ska
+skannas i `SCAN_NAMESPACES`. Bjud in boten och driften till kanalen.
 
-- Använd ett Mattermost-botkonto utan adminroll i en godkänd privat kanal.
-  Den autentiserade botidentiteten verifieras via Mattermosts `/users/me`-API.
-- Koppla stabila Mattermost-ID:n till exakta Kubernetes-användarnamn. Profilnamn
-  och e-postadresser används inte som implicit identitet.
-- Kubernetes SubjectAccessReview kontrollerar `list deployments` per namespace
-  före arbete, under skanning och före leverans. Mänskliga användares grupper
-  gissas inte; endast `system:authenticated` antas. Gruppbaserad åtkomst kan
-  behöva kompletteras med godkända direkta användarbindningar.
-- Standardpolicyn `common` delar bara namespaces som alla kanalmedlemmar har
-  verifierad åtkomst till. Den valfria policyn `requester` godkänner uttryckligen
-  delning av beställarens tillåtna fynd med kanalen. Befintlig kanalhistorik
-  ligger kvar när medlemskap ändras.
-- Schemalagda körningar använder ett separat reporter-servicekonto. Grundfilen
-  använder samma ACS-token för läsning, skanning, status och scheman; separata
-  ACS-token kan anges uttryckligen. Kanalmedlemskap och identiteter kontrolleras även då.
-- Formulärsvar är bundna till ägare och kanal, går ut och kan inte återanvändas.
+Alla medlemmar i driftkanalen kan köra status, skanningar, CVE-sökning och
+skapa eller ändra kanalens schema. Nya kollegor behöver bara bjudas in där.
+Ingen `MATTERMOST_KUBE_USER_MAP`, personligt OpenShift-konto eller
+Kubernetes-behörighetskontroll används. Boten hämtar data direkt från ACS Central.
 
-Valfri [driftbevakning](DRIFTBEVAKNING.md) delar endast övergripande databasstatus
-med en uttryckligen konfigurerad privat driftkanal. Den kontrollerar botidentitet,
-aktiv privat kanal och botmedlemskap. Den hämtar inga namespace-fynd och använder
-därför inte användarmappning eller Kubernetes-behörigheter för driftleveransen.
+Slash-token, TLS, den konfigurerade privata kanalen och botens/avsändarens
+medlemskap verifieras. Kommandon i andra kanaler och skanning av projekt utanför
+`SCAN_NAMESPACES` avvisas. ACS-tokenens roll och access scope avgör vilka
+klusterdata boten faktiskt kan hämta och vilka skanningar den kan beställa.
 
-Den gemensamma ACS-tokenen behöver de godkända rättigheterna för alla dessa
-uppgifter. Separata token för skanning, status och scheman kan användas när
-installationen kräver det. Scope och plattformsbehörigheter godkänns per installation.
+Formulär är bundna till personen och kanalen, går ut och kan inte återanvändas.
+Alla driftmedlemmar kan ändra schemat; samtidig redigering skyddas av revisioner.
+Schemalagda rapporter fortsätter utan koppling till en tidigare skapares klusterkonto.
+Behörigheten att bjuda in personer till driftkanalen styr vilka som får se
+kanalens rapporter och historik.
 
-Ofullständig skanning eller gammal CVE-databas visas som luckor. Första kompletta
-rapporten skapar normalt ett utgångsläge utan kanalping. Beständig bevakning
-minskar upprepade larm men garanterar inte exakt-en-gång-leverans vid krascher.
+Botens ServiceAccount har ingen API-token monterad och behöver ingen
+SubjectAccessReview-, reporter- eller listbehörighet i klustret.
+Den tidigare modellen finns kvar i koden för uttryckligt `ACCESS_MODE: per-user`,
+men används inte av driftinstallationens YAML-filer.
 
-Kör en replika med beständig SQLite-lagring. `/healthz` är ett processtest;
-verifiera en riktig skanning efter anslutning till Mattermost, ACS och Kubernetes.
+Scheman och larmstatus sparas på PVC:n. Kör en replika med Recreate.
+`/healthz` visar att processen svarar; verifiera en riktig skanning i ert labb.

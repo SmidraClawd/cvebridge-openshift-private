@@ -44,9 +44,12 @@ func NewServices(c Config) (*Services, error) {
 	if e != nil {
 		return nil, e
 	}
-	kube, e := client(c.Get("KUBE_CA_FILE", "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"))
-	if e != nil {
-		return nil, e
+	var kube *http.Client
+	if !c.OperationsOnly() {
+		kube, e = client(c.Get("KUBE_CA_FILE", "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"))
+		if e != nil {
+			return nil, e
+		}
 	}
 	return &Services{c, mm, rox, kube}, nil
 }
@@ -248,6 +251,9 @@ func (s *Services) members(ctx context.Context, ch string, page int) ([]M, error
 	return out, nil
 }
 func (s *Services) ActorAudience(ctx context.Context, owner, ch string, ns []string) (Audience, error) {
+	if s.C.OperationsOnly() {
+		return s.operationsAudience(ctx, owner, ch, ns, false)
+	}
 	user, e := s.User(ctx, owner)
 	if e != nil {
 		return Audience{}, e
@@ -275,6 +281,9 @@ func (s *Services) ActorAudience(ctx context.Context, owner, ch string, ns []str
 	return a, nil
 }
 func (s *Services) ScheduledAudience(ctx context.Context, ch string, ns []string) (Audience, error) {
+	if s.C.OperationsOnly() {
+		return s.operationsAudience(ctx, "", ch, ns, true)
+	}
 	user := s.C.Get("SCHEDULE_SERVICE_USER", "")
 	parts := strings.Split(user, ":")
 	if len(parts) != 4 {

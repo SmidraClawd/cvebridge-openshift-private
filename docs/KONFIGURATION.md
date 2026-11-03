@@ -11,7 +11,6 @@ Exemplen visar formatet; ersätt dem med era värden.
 oc project -q
 oc get pvc -n DITT_NAMESPACE
 oc get projects
-oc whoami
 ```
 
 Byt `DITT_NAMESPACE` mot projektet där boten och den färdiga PVC:n ska finnas.
@@ -34,7 +33,7 @@ och hämtas automatiskt av botprocessen.
 certifikatexport. Plattformsteamet behöver bekräfta att företagets CA för
 Mattermost och ACS ingår i klustrets betrodda paket.
 Imagen innehåller inget eget CA-paket; varje HTTPS-klient litar bara på sin
-angivna CA-fil. Kubernetes API använder ServiceAccountets CA separat.
+angivna CA-fil. Ingen Kubernetes-API-klient eller ServiceAccount-token behövs i driftläget.
 [Kontroll och CA-byte](INSTALLATION.md#klustrets-betrodda-ca-paket).
 
 ## 2. Mattermost – adresser och kanaler i ConfigMap
@@ -47,7 +46,7 @@ angivna CA-fil. Kubernetes API använder ServiceAccountets CA separat.
 
 Kanallänken kan sluta med `team-security`, men det är kanalens namn.
 I ID-fälten ska den 26 tecken långa strängen från **ID** stå.
-För enbart driftstatus behöver driftkanalens medlemmar ingen användarmappning.
+I driftläget behöver inga medlemmar användarmappning eller egna OpenShift-konton.
 
 `MATTERMOST_INTERNAL_URL` är ett äldre variabelnamn och kräver ingen `.svc`-adress.
 Ange företagets nåbara HTTPS-adress. Lägg inte till `/api/v4` i värdet.
@@ -78,26 +77,16 @@ Om servern redan når klustrets Service kan intern Request URL användas enligt 
 Om menyerna saknas ber du Mattermost-admin aktivera integrationerna eller skapa
 boten/kommandot. Du behöver inte ge själva boten adminroll.
 
-## 4. Koppla Mattermost-personen till OpenShift-personen
+## 4. Driftkanalen ersätter användarmappningen
 
-**`MATTERMOST_KUBE_USER_MAP`** fylls med en koppling per mänsklig medlem i
-rapportkanalen:
+Skapa en privat kanal för driften, bjud in boten och driftkollegorna och ange
+kanalens ID i `MATTERMOST_CHANNEL_ID`. `ACCESS_MODE: operations` är förifyllt.
+Alla medlemmar kan köra status, skanningar och scheman för `SCAN_NAMESPACES`.
+När en kollega tillkommer räcker det att bjuda in personen till kanalen.
 
-1. Mattermost-admin: **System Console → User Management → Users → välj personen**.
-   Kopiera personens **ID**.
-2. Samma person kör `oc whoami` efter sin egen inloggning i OpenShift.
-3. Lägg personens Mattermost-ID till vänster och OpenShift-användarnamn till höger.
-
-Om Annas Mattermost-ID är `h8k3m2p9r7t6v5x4z1a0b2c3d4` och hennes `oc whoami`
-visar `anna`, skriver du:
-
-```yaml
-MATTERMOST_KUBE_USER_MAP: '{"h8k3m2p9r7t6v5x4z1a0b2c3d4":"anna"}'
-```
-
-Fler personer läggs till som fler par i samma JSON-objekt. Koppla varje person
-till sitt eget konto. Boten använder kopplingen för att kontrollera personens
-befintliga namespace-behörigheter; den ger inte nya rättigheter.
+`MATTERMOST_KUBE_USER_MAP` behövs inte. Boten frågar ACS direkt och gör inga
+personliga behörighetskontroller mot OpenShift. Inga reporterroller eller
+SubjectAccessReview-behörigheter behöver skapas.
 
 ## 5. ACS Central – adress och kluster-ID i ConfigMap, token i Secret
 
@@ -149,7 +138,6 @@ Vid ändring: applicera filerna igen och kör `oc rollout restart deployment/cve
 
 Källor: [botkonton](https://docs.mattermost.com/developers/integrate/reference/bot-accounts),
 [slash-kommandon](https://docs.mattermost.com/developers/integrate/slash-commands/custom),
-[användar-ID](https://docs.mattermost.com/administration-guide/configure/user-management-configuration-settings#identify-a-users-id),
 [kanal-ID i Mattermosts informationspanel](https://github.com/mattermost/mattermost/blob/master/webapp/channels/src/components/channel_info_rhs/about_area_channel.tsx),
 [ACS API-token](https://docs.redhat.com/en/documentation/red_hat_advanced_cluster_security_for_kubernetes/4.11/html/configuring/configure-api-token),
 [ACS klusterlista](https://github.com/stackrox/stackrox/blob/master/proto/api/v1/cluster_service.proto).

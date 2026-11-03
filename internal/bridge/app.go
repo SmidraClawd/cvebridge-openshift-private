@@ -86,7 +86,7 @@ func (a *App) execute(ch, owner, command string, ns []string, run *Run) {
 				return problem(403, "Schemat ändrades eller pausades. Inga nya resultat publiceras.")
 			}
 			fresh, e = a.S.ScheduledAudience(ctx, ch, ns)
-			if e == nil && fresh.Policy != run.Config.Policy {
+			if e == nil && !a.S.C.OperationsOnly() && fresh.Policy != run.Config.Policy {
 				e = problem(403, "Delningspolicyn har ändrats. Spara schemat igen.")
 			}
 		} else {
@@ -296,5 +296,9 @@ func (a *App) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	a.tasks.Add(1)
 	go func() { defer a.tasks.Done(); defer a.worker.Unlock(); a.execute(ch, owner, command, ns, nil) }()
-	reply(w, card("Körningen är köad", "Behörigheterna kontrolleras före körningen. Rapporten kommer i den här kanalen. Eventuella fel visas privat för dig.", "**ACS · Beställning mottagen**", "#438D9A"))
+	text := "Behörigheterna kontrolleras före körningen. Rapporten kommer i den här kanalen. Eventuella fel visas privat för dig."
+	if a.S.C.OperationsOnly() {
+		text = "Boten hämtar resultatet från ACS. Rapporten kommer i driftkanalen. Eventuella fel visas privat för dig."
+	}
+	reply(w, card("Körningen är köad", text, "**ACS · Beställning mottagen**", "#438D9A"))
 }

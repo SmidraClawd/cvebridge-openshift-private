@@ -1,6 +1,8 @@
-# CVEBridge · ConfigMap och Secret i OpenShift
+# CVEBridge · Driftbot för Mattermost och ACS
 
-Go-boten visar CVE-rapporter, åtgärder och schemaformulär direkt i Mattermost.
+Go-boten visar databasstatus, CVE-rapporter, åtgärder och scheman i en privat
+Mattermost-kanal för driften. Medlemmarna kan köra boten direkt utan egna
+OpenShift-konton eller användarmappning. Bjud in nya kollegor till driftkanalen.
 Scheman och larmstatus sparas på er befintliga PVC.
 
 **Ingen `.env` behövs.** Du fyller konfiguration i ConfigMap och tokenvärden i
@@ -10,8 +12,8 @@ Imagen innehåller inget eget CA-paket.
 
 ## 1. Fyll i ConfigMap och Secret
 
-Öppna **`deploy/app/configmap.yaml`** och fyll i adresser, kanal-ID,
-användarmappning och app-namespaces. Standardinställningarna längst ner kan
+Öppna **`deploy/app/configmap.yaml`** och fyll i adresser, driftkanalens ID
+och app-namespaces. Standardinställningarna längst ner kan
 normalt behållas. Alla värden under `data` ska vara YAML-strängar.
 
 Skapa din lokala Secret-fil en gång och fyll de tre tokenvärdena:
@@ -32,12 +34,11 @@ PVC:n ska finnas. Namespace och PVC anges i kommandon/YAML, inte i ConfigMap.
 
 | Värde | Var du fyller i det | Så hämtar du värdet |
 | --- | --- | --- |
-| Botens namespace | `oc project` och `deploy/bootstrap.yaml` | Välj med `oc project PROJEKTNAMN`. `oc project -q` visar valt namn. |
+| Botens namespace | `oc project` | Välj med `oc project PROJEKTNAMN`. `oc project -q` visar valt namn. |
 | PVC-namn | `claimName` i `deploy/app/deployment.yaml` | `oc get pvc -n DITT_NAMESPACE` → kopiera rätt **NAME**. |
 | `SCAN_NAMESPACES` | ConfigMap | `oc get projects` → välj apparnas projektnamn, exempelvis `team-a,team-b`. |
 | `MATTERMOST_INTERNAL_URL` | ConfigMap | Er vanliga HTTPS-serveradress, före `/teamnamn/channels/...`, exempelvis `https://mattermost.foretaget.se`. Boten lägger själv till `/api/v4`. INTERNAL är ett äldre namn; adressen får vara extern. |
-| `MATTERMOST_CHANNEL_ID` | ConfigMap | Privat rapportkanal → **Visa info / View Info (i)** → kopiera **ID** längst ner. Det är 26 tecken. |
-| `MATTERMOST_KUBE_USER_MAP` | ConfigMap | Mattermost-admin: **System Console → User Management → Users → personen → ID**. Samma person kör `oc whoami`. Koppla värdena som JSON enligt nedan. |
+| `MATTERMOST_CHANNEL_ID` | ConfigMap | Privat driftkanal → **Visa info / View Info (i)** → kopiera **ID** längst ner. Det är 26 tecken. |
 | `STACKROX_URL` | ConfigMap | ACS Central-serverns vanliga HTTPS-adress från er ACS-inloggningslänk, utan sidans sökväg. Boten lägger själv till `/v1`. |
 | `STACKROX_CLUSTER_ID` | ConfigMap | ACS-ansvarig läser `GET /v1/clusters`, matchar labbklustrets **name** och kopierar dess **id**. |
 | `MATTERMOST_DIALOG_URL` | ConfigMap | Botens egen route: `https://ERT_BOT_VARDNAMN/slash/cve/dialog`. Använd samma värdnamn som i `deploy/optional/route.yaml`. |
@@ -46,14 +47,14 @@ PVC:n ska finnas. Namespace och PVC anges i kommandon/YAML, inte i ConfigMap.
 | `MATTERMOST_COMMAND_TOKEN` | Secret | **Integrations → Slash Commands → Add Slash Command**. Trigger `cve`, metod `POST`, Request URL enligt nedan. **Save** → kopiera **Token**. |
 | `STACKROX_TOKEN` | Secret | ACS: **Platform Configuration → Integrations → Authentication Tokens → API Token → Generate Token**. Välj godkänd roll → **Generate** → kopiera tokenen. |
 
-Exempel på användarmappning i ConfigMap, om Annas `oc whoami` visar `anna`:
+**Driftkanalen är åtkomsten.** Skapa den som privat, bjud in driften och boten,
+och ange dess ID i `MATTERMOST_CHANNEL_ID`. Alla medlemmar kan köra kommandon
+och ändra schemat för projekten i `SCAN_NAMESPACES`. `ACCESS_MODE: operations`
+är redan valt. Ingen användarmappning, reporterroll eller Kubernetes-RBAC behövs.
 
-```yaml
-MATTERMOST_KUBE_USER_MAP: '{"h8k3m2p9r7t6v5x4z1a0b2c3d4":"anna"}'
+```text
+Driftkanalen → CVEBridge → ACS Central → rapport i driftkanalen
 ```
-
-Lägg till ett par per mänsklig medlem i rapportkanalen. Mappningen kopplar
-samma person mellan systemen och ger inga nya klusterbehörigheter.
 
 ACS-rollen behöver **Read** på Deployment, Image, Cluster, Namespace och
 Administration samt **Write** på Image. ACS-ansvarig godkänner roll och access scope.
@@ -77,8 +78,8 @@ Om Mattermost-servern redan når klustrets Service kan callback i ConfigMap vara
 `http://cvebridge-webhook.DITT_NAMESPACE.svc:8001/slash/cve/dialog` och Request URL
 samma adress med `/slash/cve` som sökväg. Byt `DITT_NAMESPACE` i hela adressen.
 
-Boten får automatiskt botens namespace och åtkomst till Kubernetes interna API
-via sitt ServiceAccount. [Fler konfigurationsexempel](docs/KONFIGURATION.md).
+Boten får sitt namespace automatiskt från poden. Den använder inget Kubernetes-API
+för skanningar eller behörighetskontroller. [Fler konfigurationsexempel](docs/KONFIGURATION.md).
 
 ### Företagets certifikat
 
@@ -130,7 +131,7 @@ CVE_REGISTRY=image-registry.openshift-image-registry.svc:5000
 Podman behöver lita på registryts certifikat. Ditt konto behöver rätt att pusha
 till valt projekt. Deployment använder alltid den interna adressen ovan.
 
-## 3. Redigera Deployment och bootstrap
+## 3. Redigera Deployment
 
 I `deploy/app/deployment.yaml` ändrar du image och PVC-namn:
 
@@ -142,17 +143,8 @@ claimName: CHANGE_ME_PVC
 
 Klistra in hela imageadressen från steg 2. PVC:n ska finnas i botens namespace.
 
-Plattformsteamet fyller i `deploy/bootstrap.yaml`:
-
-- `CHANGE_ME_NAMESPACE` → botens namespace.
-- `CHANGE_ME_SCAN_NAMESPACE` → ett app-namespace från ConfigMaps `SCAN_NAMESPACES`.
-
-För flera app-namespaces kopieras filens **Role + RoleBinding** en gång per
-app-namespace. Därefter applicerar plattformsteamet:
-
-```sh
-oc apply -f deploy/bootstrap.yaml
-```
+Inget separat bootstrap-steg behövs för driftläget. ServiceAccountet har ingen
+API-token monterad; inventering och skanning går via ACS.
 
 ## 4. Applicera YAML och starta boten
 
@@ -179,13 +171,12 @@ oc logs deployment/cvebridge -c bot --tail=50
 
 | Fil | Innehåll |
 | --- | --- |
-| `deploy/app/configmap.yaml` | Adresser, kanal-ID, användarmappning, app-namespaces och standardinställningar. |
+| `deploy/app/configmap.yaml` | Adresser, driftkanalens ID, app-namespaces och standardinställningar. |
 | `deploy/app/trusted-ca.yaml` | Separat ConfigMap som OpenShift fyller med klustrets betrodda CA-paket. |
 | `deploy/app/secret.yaml.example` | Mall för de tre tokenvärdena. Kopieras till lokal `secret.yaml`. |
 | `deploy/app/deployment.yaml` | En botreplika, image, PVC och `envFrom` från ConfigMap och Secret. |
 | `deploy/app/service.yaml` | Intern Service för botens inkommande anrop. |
-| `deploy/app/serviceaccounts.yaml` | Botens och reporterns servicekonton. |
-| `deploy/bootstrap.yaml` | Behörighetskontroll och reporterns godkända namespaces. |
+| `deploy/app/serviceaccounts.yaml` | Botens servicekonto utan API-token. |
 | `deploy/optional/route.yaml` | Botens nåbara HTTPS-adress om Mattermost behöver en route. |
 
 Kubernetes skickar ConfigMap och Secret som miljövariabler till botprocessen.
@@ -219,9 +210,10 @@ Boten läser miljövariabler när processen startar. PVC:n bevarar scheman och l
 När CA-paketet förnyas kör du också `oc rollout restart deployment/cvebridge`;
 boten läser certifikaten vid start. Imagen behöver inte byggas om för CA-byte.
 
-**Uppdatering från en äldre image:** Bygg och pusha en ny image enligt steg 2,
-byt tagg i Deployment och applicera filerna för att ta bort det tidigare
-inbyggda standardpaketet. Efter det hanteras CA-byten genom montering och omstart.
+**Uppdatering till driftläget:** Bygg och pusha en ny image enligt steg 2,
+byt tagg i Deployment och applicera filerna. Behåll `ACCESS_MODE: operations`
+och ange driftkanalens ID. Tidigare användarmappning behövs inte.
+CA-byten efter installationen kräver bara montering och omstart.
 
 [Installation och TLS](docs/INSTALLATION.md) · [Driftbevakning](docs/DRIFTBEVAKNING.md) · [Skärmbilder](docs/BILDER.md)
 
@@ -232,7 +224,6 @@ Källor: [Kubernetes ConfigMap](https://kubernetes.io/docs/concepts/configuratio
 [Kubernetes Secret](https://kubernetes.io/docs/concepts/configuration/secret/),
 [Mattermost botkonton](https://docs.mattermost.com/developers/integrate/reference/bot-accounts),
 [slash-kommandon](https://docs.mattermost.com/developers/integrate/slash-commands/custom),
-[användar-ID](https://docs.mattermost.com/administration-guide/configure/user-management-configuration-settings#identify-a-users-id),
 [kanal-ID](https://github.com/mattermost/mattermost/blob/master/webapp/channels/src/components/channel_info_rhs/about_area_channel.tsx),
 [ACS API-token](https://docs.redhat.com/en/documentation/red_hat_advanced_cluster_security_for_kubernetes/4.11/html/configuring/configure-api-token),
 [ACS klusterlista](https://github.com/stackrox/stackrox/blob/master/proto/api/v1/cluster_service.proto),

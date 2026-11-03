@@ -16,13 +16,7 @@
 # MATTERMOST_BOT_USER_ID=valfritt_verifierat_bot_id
 # MATTERMOST_ACS_COMMAND_TOKEN=CHANGE_ME
 
-# Flera kanaler eller snävare scheman. Anpassa även reporterroller i bootstrap.
-# MATTERMOST_CHANNEL_SCOPES={"CHANNEL_ID":["team-a"]}
-# MATTERMOST_CHANNEL_POLICIES={"CHANNEL_ID":"common"}
-# MATTERMOST_SCHEDULE_SCOPES={"CHANNEL_ID":["team-a"]}
-# MATTERMOST_SCHEDULE_MANAGERS={"CHANNEL_ID":["USER_ID"]}
-# För att stänga av scheman: MATTERMOST_SCHEDULE_SCOPES={}
-# SCHEDULE_SERVICE_USER=system:serviceaccount:DITT_NAMESPACE:cvebridge-reporter
+# Driftläget använder MATTERMOST_CHANNEL_ID och SCAN_NAMESPACES.
 # SCHEDULE_DEFAULT_TIMEZONE=Europe/Stockholm
 
 # Driftbevakning: bjud in boten till en privat driftkanal och ange dess ID.
