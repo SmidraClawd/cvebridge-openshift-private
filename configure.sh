@@ -212,7 +212,12 @@ def status(s):
 def commands(s, ready):
     local = 'localhost/cvebridge:' + s['tag']
     print('\nKör själv i projektmappen, efter din vanliga oc login:')
-    print('podman build -f Dockerfile -t ' + shlex.quote(local) + ' .')
+    print('Go 1.27.3 behöver vara installerat. Kommandona bygger för Linux/amd64 (Intel/AMD).')
+    print('mkdir -p bin/rootfs/data')
+    print('GOPROXY=off GOTOOLCHAIN=local CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -mod=vendor -trimpath -ldflags=' + shlex.quote('-s -w -X main.version=' + s['tag']) + ' -o bin/cvebridge ./cmd/cvebridge')
+    print('chmod 0755 bin/cvebridge')
+    print('chmod 0770 bin/rootfs/data')
+    print('podman build --platform linux/amd64 -f Dockerfile -t ' + shlex.quote(local) + ' .')
     print('podman tag ' + shlex.quote(local) + ' ' + shlex.quote(image(s)))
     print('oc whoami -t | podman login ' + REGISTRY + ' --username cvebridge --password-stdin')
     print('podman push ' + shlex.quote(image(s)))

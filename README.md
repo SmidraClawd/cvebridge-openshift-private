@@ -5,14 +5,19 @@ Boten frågar ACS Central direkt. Driftmedlemmarna behöver inga personliga
 OpenShift-konton eller användarmappningar. Scheman och larmstatus sparas på PVC.
 
 ```text
-hämta projektet → logga in → ./configure.sh → bygg → tagga → pusha → oc apply → testa i Mattermost
+hämta → ./configure.sh → Go bygger lokalt → Podman paketerar → tagga/pusha → oc apply → testa
 ```
 
 ## Förbered
 
-Ubuntu/Linux med **Git, Bash, Python 3, Podman och `oc`**. Projektet och en befintlig
+Ubuntu/Linux med **Go 1.27.3, Git, Bash, Python 3, Podman och `oc`**. Projektet och en befintlig
 PVC ska finnas i OpenShift. Standardprojektet är **`image-security`**; PVC:n
 måste finnas i samma projekt som boten.
+
+Installera Go från företagets godkända källa eller följ
+[Gos installationsguide](https://go.dev/doc/install). Kontrollera med `go version`.
+Kommandona nedan bygger för **Linux/amd64**, alltså klusternoder med Intel/AMD.
+För ARM64-noder används `GOARCH=arm64` och `--platform linux/arm64` i stället.
 
 Registryadressen är fast i detta flöde:
 
@@ -98,33 +103,37 @@ alla genererade YAML-filer är git-ignorerade och får filrättighet `0600`.
 Det finns ingen `.env`-fil i installationsflödet. Har du fyllt gamla YAML-filer
 från en tidigare version, behåll en lokal kopia av dem tills du matat in svaren.
 
-## 3. Bygg imagen med Podman
+## 3. Bygg programmet lokalt med Go
 
-Kör efter `./configure.sh`. Första raden läser den sparade taggen; andra raden
-bygger imagen med **samma tagg som i Deployment**:
+Kör efter `./configure.sh`. Go på din Ubuntu bygger den färdiga körfilen
+`bin/cvebridge`. Första raden läser samma tagg som används i Deployment:
 
 ```sh
 CVEBRIDGE_TAG=$(python3 -c 'import json; print(json.load(open(".local/setup.json"))["tag"])')
-podman build -f Dockerfile -t "localhost/cvebridge:$CVEBRIDGE_TAG" .
+mkdir -p bin/rootfs/data
+GOPROXY=off GOTOOLCHAIN=local CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
+  go build -mod=vendor -trimpath \
+  -ldflags="-s -w -X main.version=$CVEBRIDGE_TAG" \
+  -o bin/cvebridge ./cmd/cvebridge
+chmod 0755 bin/cvebridge
+chmod 0770 bin/rootfs/data
 ```
 
-Go-paketen följer med projektet i `vendor/`. Bygget kompilerar dem lokalt och
-hämtar inga Go-paket från internet. Du behöver ingen Go-installation på Ubuntu
-och inget extra certifikat för Go-paketens nedladdning.
+Go-paketen följer med projektet i `vendor/`. Go läser dem lokalt utan att hämta
+paket eller en annan Go-version från internet. Ingen certifikatkontroll stängs av.
+`bin/rootfs/data` blir den tomma lagringsplatsen `/data` i imagen. PVC:n monteras
+på `/data` i OpenShift.
 
-Go-byggimagen `docker.io/library/golang:1.27.3` behöver finnas lokalt eller kunna
-hämtas. Företagsinställningar och tokens byggs inte in i botens image. Vänta
-tills bygget är klart utan fel innan du fortsätter.
+Om Go saknas eller är för gammalt, installera Go 1.27.3 innan du fortsätter.
+Vänta tills Go-bygget är klart utan fel. Kör om detta steg efter kodändringar.
 
-Om loggen fortfarande visar `go mod download` eller försöker hämta
-`go-humanize`, använder du den äldre versionen. Kör `git pull --ff-only` i
-projektmappen och bygg igen med Dockerfile därifrån.
+## 4. Paketera med Podman, tagga och pusha
 
-## 4. Tagga, logga in i registryt och pusha
-
-Använd taggen från steg 3:
+Dockerfile paketerar den färdiga körfilen. Den bygger ingen Go-kod och hämtar
+ingen byggimage. Kör med taggen från steg 3:
 
 ```sh
+podman build --platform linux/amd64 -f Dockerfile -t "localhost/cvebridge:$CVEBRIDGE_TAG" .
 CVEBRIDGE_IMAGE="image-registry.openshift-image-registry.svc:5000/image-security/cvebridge:$CVEBRIDGE_TAG"
 podman tag "localhost/cvebridge:$CVEBRIDGE_TAG" "$CVEBRIDGE_IMAGE"
 oc whoami -t | podman login image-registry.openshift-image-registry.svc:5000 --username cvebridge --password-stdin
@@ -134,6 +143,11 @@ podman push "$CVEBRIDGE_IMAGE"
 `podman tag` ger imagen registryadressen. `podman login` använder din befintliga
 OpenShift-inloggning. `podman push` laddar upp imagen till `image-security`.
 Vänta tills pushen är klar utan fel innan du applicerar YAML-filerna.
+
+Imagen innehåller körfilen och den tomma datamappen. Källkod, `vendor/`, tokens
+och företagsinställningar följer inte med. Saknas `bin/cvebridge`, kör steg 3 först.
+Om Dockerfile fortfarande hämtar en Go-image eller kör `go mod download`,
+hämta uppdateringen med `git pull --ff-only` och använd Dockerfile därifrån.
 
 Skriptet skriver också ut färdiga kommandon med taggen redan ifylld. Du kan
 kopiera dem som alternativ till steg 3–4. Det kör inget av kommandona åt dig.
@@ -219,8 +233,9 @@ Go-tester, skriptets utkast/återupptagning, hemliga värden, YAML-struktur,
 konsekvent registry/tagg och HTTPS-flödet testas lokalt. Företagets faktiska
 registry, OpenShift CA-injektion, Mattermost/ACS och PVC behöver verifieras i labbet.
 `/healthz` visar bara att botprocessen svarar. Byggen här använder Docker eftersom
-Podman saknas i testmiljön; samma Dockerfile används av båda. Kompileringen
-testas med nätverket avstängt och beroenden från `vendor/`.
+Podman saknas i testmiljön; samma Dockerfile används av båda. Go-bygget testas
+med tom modulcache och paketnedladdning avstängd. Paketeringen testas med
+nätverket avstängt, följt av kontroll av körfil, datamapp och containerns start.
 
 [Go-paket från vendor](https://go.dev/ref/mod#vendoring)
 ·

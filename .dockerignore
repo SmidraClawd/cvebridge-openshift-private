@@ -1,9 +1,8 @@
-*
-!go.mod
-!go.sum
-!cmd/
-!cmd/**
-!internal/
-!internal/**
-!vendor/
-!vendor/**
+**
+!bin/
+bin/**
+!bin/cvebridge
+!bin/rootfs/
+bin/rootfs/**
+!bin/rootfs/data/
+bin/rootfs/data/**
