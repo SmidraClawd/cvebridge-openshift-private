@@ -65,9 +65,15 @@ func list(v any) []any             { return v.([]any) }
 
 func image(t *testing.T, dir string) string {
 	t.Helper()
-	deployment := object(t, dir, "deployment.yaml")
+	deployment := object(t, dir, "z-deployment.yaml")
 	pod := mapping(mapping(deployment["spec"])["template"])["spec"]
 	return mapping(list(mapping(pod)["containers"])[0])["image"].(string)
+}
+
+func revision(t *testing.T, dir string) any {
+	t.Helper()
+	template := mapping(mapping(object(t, dir, "z-deployment.yaml")["spec"])["template"])
+	return mapping(mapping(template["metadata"])["annotations"])["cvebridge/setup-revision"]
 }
 
 func TestReadySetupWritesConsistentYAMLAndKeepsCredentialsPrivate(t *testing.T) {
@@ -97,13 +103,13 @@ func TestReadySetupWritesConsistentYAMLAndKeepsCredentialsPrivate(t *testing.T) 
 	if !strings.HasPrefix(fullImage, registry) || strings.Count(output, fullImage) != 2 {
 		t.Fatal("build/tag/push and deployment must share one registry image", output)
 	}
-	for _, filename := range []string{"configmap.yaml", "secret.yaml", "deployment.yaml", "service.yaml", "serviceaccount.yaml", "trusted-ca.yaml", "route.yaml"} {
+	for _, filename := range []string{"configmap.yaml", "secret.yaml", "z-deployment.yaml", "service.yaml", "serviceaccount.yaml", "trusted-ca.yaml", "route.yaml"} {
 		obj := object(t, dir, filename)
 		if mapping(obj["metadata"])["namespace"] != "image-security" {
 			t.Fatal("single apply must use explicit namespaces", filename)
 		}
 	}
-	pod := mapping(mapping(mapping(object(t, dir, "deployment.yaml")["spec"])["template"])["spec"])
+	pod := mapping(mapping(mapping(object(t, dir, "z-deployment.yaml")["spec"])["template"])["spec"])
 	if pod["automountServiceAccountToken"] != false || mapping(object(t, dir, "serviceaccount.yaml"))["automountServiceAccountToken"] != false {
 		t.Fatal("operations must not need a Kubernetes API token")
 	}
@@ -149,16 +155,28 @@ func TestReconfigureKeepsTagAndSecretsUnlessNewTagIsRequested(t *testing.T) {
 		t.Fatal(err, output)
 	}
 	before := image(t, dir)
+	beforeRevision := revision(t, dir)
 	if output, err := run(t, dir, make([]string, 11)); err != nil || !strings.Contains(output, "[sparad]") {
 		t.Fatal(err, output)
 	}
 	if image(t, dir) != before {
 		t.Fatal("changing configuration must not change the image tag")
 	}
+	if revision(t, dir) != beforeRevision {
+		t.Fatal("unchanged answers must not restart the pod")
+	}
+	changed := make([]string, 11)
+	changed[9] = "new-command-credential"
+	if output, err := run(t, dir, changed); err != nil {
+		t.Fatal(err, output)
+	}
+	if revision(t, dir) == beforeRevision || image(t, dir) != before {
+		t.Fatal("token update must trigger rollout without an image rebuild")
+	}
 	if output, err := run(t, dir, nil, "--check"); err != nil || strings.Contains(output, "acs-literal") {
 		t.Fatal(err, output)
 	}
-	if err := os.Remove(filepath.Join(dir, "deploy/deployment.yaml")); err != nil {
+	if err := os.Remove(filepath.Join(dir, "deploy/z-deployment.yaml")); err != nil {
 		t.Fatal(err)
 	}
 	if output, err := run(t, dir, nil, "--check"); err == nil || !strings.Contains(output, "behöver uppdateras") {

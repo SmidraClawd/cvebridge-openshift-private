@@ -23,7 +23,7 @@ STATE = LOCAL / 'setup.json'
 DEPLOY = ROOT / 'deploy'
 REGISTRY = 'image-registry.openshift-image-registry.svc:5000'
 IMAGE_PROJECT = 'image-security'
-FILES = ('configmap.yaml', 'secret.yaml', 'deployment.yaml', 'service.yaml',
+FILES = ('configmap.yaml', 'secret.yaml', 'deployment.yaml', 'z-deployment.yaml', 'service.yaml',
          'serviceaccount.yaml', 'trusted-ca.yaml', 'route.yaml', 'image-puller.yaml')
 FIELDS = (
     ('namespace', 'Namespace för boten', 'image-security', False),
@@ -171,9 +171,9 @@ def manifests(s):
         'secret.yaml': resource('Secret', 'cvebridge-tokens', ns, type='Opaque', stringData={
             'MATTERMOST_BOT_TOKEN': s['bot_token'], 'MATTERMOST_COMMAND_TOKEN': s['command_token'], 'STACKROX_TOKEN': s['acs_token']}),
         'serviceaccount.yaml': resource('ServiceAccount', 'cvebridge', ns, automountServiceAccountToken=False),
-        'deployment.yaml': resource('Deployment', 'cvebridge', ns, spec={
+        'z-deployment.yaml': resource('Deployment', 'cvebridge', ns, spec={
             'replicas': 1, 'strategy': {'type': 'Recreate'}, 'selector': {'matchLabels': labels},
-            'template': {'metadata': {'labels': labels}, 'spec': pod}}),
+            'template': {'metadata': {'labels': labels, 'annotations': {'cvebridge/setup-revision': s.get('revision', 'initial')}}, 'spec': pod}}),
         'service.yaml': resource('Service', 'cvebridge-webhook', ns, spec={
             'selector': labels, 'ports': [{'name': 'webhook', 'port': 8001, 'targetPort': 'webhook'}]}),
         'trusted-ca.yaml': resource('ConfigMap', 'cvebridge-trusted-ca', ns, data={}),
@@ -257,6 +257,8 @@ def main():
         raise ValueError('Utkastets imagetagg är ogiltig. Filen har inte skrivits över.')
     if 'tag' in s and not re.fullmatch(r'[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}', s['tag']):
         raise ValueError('Utkastets imagetagg är ogiltig. Filen har inte skrivits över.')
+    if 'revision' in s and (not isinstance(s['revision'], str) or not re.fullmatch(r'[a-f0-9]{32}', s['revision'])):
+        raise ValueError('Utkastets konfigurationsrevision är ogiltig. Filen har inte skrivits över.')
     if not s.get('tag') or args.new_tag:
         s['tag'] = datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%d-%H%M%S-') + secrets.token_hex(2)
     if args.check:
@@ -273,6 +275,7 @@ def main():
     print('Enter = behåll sparat värde, - = rensa. Tomt nytt fält sparas som utkast.')
     print('Registry: ' + REGISTRY + '/' + IMAGE_PROJECT + '/cvebridge')
     print('Namespace och befintlig PVC ska redan finnas i OpenShift.\n')
+    previous = [s[key] for key, _, _, _ in FIELDS]
     for key, label, _, sensitive in FIELDS:
         current = s.get(key, '')
         hint = ' [sparad]' if sensitive and current else (' [' + current + ']' if current else '')
@@ -286,6 +289,9 @@ def main():
                 print(str(err))
     if LOCAL.is_symlink() or DEPLOY.is_symlink():
         raise ValueError('Konfigurationsmapparna får inte vara symboliska länkar.')
+    if not s.get('revision') or previous != [s[key] for key, _, _, _ in FIELDS]:
+        # An opaque revision triggers rollout without publishing a secret hash.
+        s['revision'] = secrets.token_hex(16)
     LOCAL.mkdir(exist_ok=True, mode=0o700)
     LOCAL.chmod(0o700)
     write_private(STATE, json.dumps(s, ensure_ascii=False, indent=2) + '\n')

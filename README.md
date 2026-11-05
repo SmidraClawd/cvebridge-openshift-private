@@ -98,6 +98,7 @@ oc logs deployment/cvebridge -n image-security -c bot --tail=50
 Byt namespace i kontrollkommandona om du valde ett annat. Alla YAML-filer har
 redan rätt namespace. `deploy/` innehåller ConfigMap, Secret, Deployment,
 ServiceAccount, Service, CA-ConfigMap och Route när ett Route-värdnamn är angivet.
+Deployment heter `z-deployment.yaml` så ConfigMap och Secret appliceras före omstarten.
 Väljer du annat botnamespace än `image-security` skapas även `image-puller.yaml`;
 kontot som kör apply behöver då rätt att ge image-pull-åtkomst i `image-security`.
 
@@ -129,10 +130,11 @@ och kör sedan:
 
 ```sh
 oc apply -f deploy/
-oc rollout restart deployment/cvebridge -n image-security
 ```
 
-Ingen ny image behövs. Starta även om boten när klustrets CA-paket förnyas.
+Skriptet markerar ändringen i Deployment så poden startas om automatiskt vid apply.
+Ingen ny image behövs. När enbart klustrets CA-paket förnyas används
+`oc rollout restart deployment/cvebridge -n image-security` för att läsa in den nya filen.
 
 **Ny programversion:** kör `./configure.sh --new-tag`, använd de nya bygg- och
 pushkommandona och applicera mappen igen. Scheman och larmstatus ligger kvar
