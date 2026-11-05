@@ -112,6 +112,36 @@ Du behöver ingen Go-installation på Ubuntu; bygget sker i byggcontainern.
 Företagsinställningar och tokens byggs inte in i imagen. Vänta tills bygget
 är klart utan fel innan du fortsätter.
 
+### Om bygget ger `x509: certificate signed by unknown authority`
+
+Om felet visas när Go hämtar exempelvis `go-humanize` kan byggcontainern sakna
+företagets proxy-CA. Klustrets CA-mount används först när boten körs i OpenShift.
+
+Har Ubuntu redan företagets CA installerad, kör detta **i stället för det vanliga
+byggkommandot**. Det låter Go läsa Ubuntus betrodda CA-paket under bygget:
+
+```sh
+CVEBRIDGE_TAG=$(python3 -c 'import json; print(json.load(open(".local/setup.json"))["tag"])')
+podman build -f Dockerfile \
+  --volume /etc/ssl/certs/ca-certificates.crt:/etc/ssl/certs/ca-certificates.crt:ro \
+  -t "localhost/cvebridge:$CVEBRIDGE_TAG" .
+```
+
+Saknas CA:n även i Ubuntu, be IT om **CA-certifikatet som används för företagets
+HTTPS-proxy**, i PEM-format med ändelsen `.crt`. Spara det som
+`certs/foretag-ca.crt` i projektmappen; `certs/` är git-ignorerad. Installera sedan
+certifikatet i Ubuntu och kör byggkommandot ovan igen:
+
+```sh
+sudo cp certs/foretag-ca.crt /usr/local/share/ca-certificates/foretag-ca.crt
+sudo update-ca-certificates
+```
+
+Mounten används bara under bygget. Den kopieras inte in i botens slutliga image;
+boten använder fortfarande CA-paketet från OpenShift när den körs.
+TLS-verifieringen är påslagen. Se [Podmans byggvolymer](https://docs.podman.io/en/stable/markdown/podman-build.1.html#volume-v-host-dir-container-dir-options)
+och [Ubuntus CA-installation](https://ubuntu.com/server/docs/how-to/security/install-a-root-ca-certificate-in-the-trust-store/).
+
 ## 4. Tagga, logga in i registryt och pusha
 
 Använd taggen från steg 3:
