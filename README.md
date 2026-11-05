@@ -103,6 +103,27 @@ alla genererade YAML-filer är git-ignorerade och får filrättighet `0600`.
 Det finns ingen `.env`-fil i installationsflödet. Har du fyllt gamla YAML-filer
 från en tidigare version, behåll en lokal kopia av dem tills du matat in svaren.
 
+### Testa ACS från Ubuntu
+
+Har du fått HTTP 403 i Mattermost? Testa med dina sparade ACS-uppgifter:
+
+```sh
+./configure.sh --test-acs
+```
+
+Testet läser adress och token från dina sparade svar. Det ändrar inga filer och
+visar inte tokenen. Du behöver varken bygga programmet eller starta boten.
+
+- **200:** svaret kontrolleras som ACS-data. Driftstatus ska ge en uppdateringstid.
+- **401:** kontrollera tokenens giltighet.
+- **403:** kontrollera tokenens roll, särskilt **Administration → Read** för driftstatus. En proxy kan också neka anropet.
+- **Certifikatfel:** kontrollera företagets CA på Ubuntu.
+
+`https://central.foretaget.se` och `https://central.foretaget.se:443` använder
+samma HTTPS-port. Port 443 är normal. Ange Central-adressen utan `/main` eller
+`/v1`; testet lägger till rätt API-sökväg. Testet gäller åtkomsten från Ubuntu;
+podens nätverk, proxy och CA-paket kan skilja sig.
+
 ## 3. Bygg programmet lokalt med Go
 
 Kör efter `./configure.sh`. Go på din Ubuntu bygger den färdiga körfilen
