@@ -108,39 +108,17 @@ CVEBRIDGE_TAG=$(python3 -c 'import json; print(json.load(open(".local/setup.json
 podman build -f Dockerfile -t "localhost/cvebridge:$CVEBRIDGE_TAG" .
 ```
 
-Du behöver ingen Go-installation på Ubuntu; bygget sker i byggcontainern.
-Företagsinställningar och tokens byggs inte in i imagen. Vänta tills bygget
-är klart utan fel innan du fortsätter.
+Go-paketen följer med projektet i `vendor/`. Bygget kompilerar dem lokalt och
+hämtar inga Go-paket från internet. Du behöver ingen Go-installation på Ubuntu
+och inget extra certifikat för Go-paketens nedladdning.
 
-### Om bygget ger `x509: certificate signed by unknown authority`
+Go-byggimagen `docker.io/library/golang:1.27.3` behöver finnas lokalt eller kunna
+hämtas. Företagsinställningar och tokens byggs inte in i botens image. Vänta
+tills bygget är klart utan fel innan du fortsätter.
 
-Om felet visas när Go hämtar exempelvis `go-humanize` kan byggcontainern sakna
-företagets proxy-CA. Klustrets CA-mount används först när boten körs i OpenShift.
-
-Har Ubuntu redan företagets CA installerad, kör detta **i stället för det vanliga
-byggkommandot**. Det låter Go läsa Ubuntus betrodda CA-paket under bygget:
-
-```sh
-CVEBRIDGE_TAG=$(python3 -c 'import json; print(json.load(open(".local/setup.json"))["tag"])')
-podman build -f Dockerfile \
-  --volume /etc/ssl/certs/ca-certificates.crt:/etc/ssl/certs/ca-certificates.crt:ro \
-  -t "localhost/cvebridge:$CVEBRIDGE_TAG" .
-```
-
-Saknas CA:n även i Ubuntu, be IT om **CA-certifikatet som används för företagets
-HTTPS-proxy**, i PEM-format med ändelsen `.crt`. Spara det som
-`certs/foretag-ca.crt` i projektmappen; `certs/` är git-ignorerad. Installera sedan
-certifikatet i Ubuntu och kör byggkommandot ovan igen:
-
-```sh
-sudo cp certs/foretag-ca.crt /usr/local/share/ca-certificates/foretag-ca.crt
-sudo update-ca-certificates
-```
-
-Mounten används bara under bygget. Den kopieras inte in i botens slutliga image;
-boten använder fortfarande CA-paketet från OpenShift när den körs.
-TLS-verifieringen är påslagen. Se [Podmans byggvolymer](https://docs.podman.io/en/stable/markdown/podman-build.1.html#volume-v-host-dir-container-dir-options)
-och [Ubuntus CA-installation](https://ubuntu.com/server/docs/how-to/security/install-a-root-ca-certificate-in-the-trust-store/).
+Om loggen fortfarande visar `go mod download` eller försöker hämta
+`go-humanize`, använder du den äldre versionen. Kör `git pull --ff-only` i
+projektmappen och bygg igen med Dockerfile därifrån.
 
 ## 4. Tagga, logga in i registryt och pusha
 
@@ -241,8 +219,11 @@ Go-tester, skriptets utkast/återupptagning, hemliga värden, YAML-struktur,
 konsekvent registry/tagg och HTTPS-flödet testas lokalt. Företagets faktiska
 registry, OpenShift CA-injektion, Mattermost/ACS och PVC behöver verifieras i labbet.
 `/healthz` visar bara att botprocessen svarar. Byggen här använder Docker eftersom
-Podman saknas i testmiljön; samma Dockerfile används av båda.
+Podman saknas i testmiljön; samma Dockerfile används av båda. Kompileringen
+testas med nätverket avstängt och beroenden från `vendor/`.
 
+[Go-paket från vendor](https://go.dev/ref/mod#vendoring)
+·
 [Slash-kommandon i Mattermost](https://docs.mattermost.com/developers/integrate/slash-commands/custom)
 · [OpenShift registry](https://docs.redhat.com/en/documentation/openshift_container_platform/4.20/html/registry/accessing-the-registry)
 · [OpenShift CA-paket](https://docs.redhat.com/en/documentation/openshift_container_platform/4.20/html-single/configuring_network_settings/configuring_network_settings#certificate-injection-using-operators)

@@ -1,11 +1,13 @@
 FROM docker.io/library/golang:1.27.3 AS build
 WORKDIR /src
+# Dependencies are shipped in vendor; compilation never downloads Go modules.
+ENV GOPROXY=off GOTOOLCHAIN=local
 COPY go.mod go.sum ./
-RUN go mod download
+COPY vendor/ ./vendor/
 COPY cmd/ ./cmd/
 COPY internal/ ./internal/
 ARG VERSION=dev
-RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w -X main.version=${VERSION}" -o /out/cvebridge ./cmd/cvebridge \
+RUN CGO_ENABLED=0 go build -mod=vendor -trimpath -ldflags="-s -w -X main.version=${VERSION}" -o /out/cvebridge ./cmd/cvebridge \
     && mkdir -p /out/data && chmod 0770 /out/data && chown 10001:0 /out/data
 
 FROM scratch

@@ -7,14 +7,16 @@ permissions:
 jobs:
   go:
     runs-on: ubuntu-latest
+    env:
+      GOPROXY: 'off'
+      GOTOOLCHAIN: local
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
           go-version: '1.27.3'
-      - run: go mod verify
-      - run: go test -race ./...
-      - run: go vet ./...
-      - run: CGO_ENABLED=0 go build -trimpath ./cmd/cvebridge
-      - run: docker build -t cvebridge:ci .
+      - run: go test -mod=vendor -race ./...
+      - run: go vet -mod=vendor ./...
+      - run: CGO_ENABLED=0 go build -mod=vendor -trimpath ./cmd/cvebridge
+      - run: docker build --network=none -t cvebridge:ci .
       - run: docker run --rm cvebridge:ci version
