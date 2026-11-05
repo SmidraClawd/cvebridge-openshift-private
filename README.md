@@ -5,12 +5,12 @@ Boten frågar ACS Central direkt. Driftmedlemmarna behöver inga personliga
 OpenShift-konton eller användarmappningar. Scheman och larmstatus sparas på PVC.
 
 ```text
-./configure.sh → svara på frågor → bygg/tagga/pusha med Podman → oc apply -f deploy/
+hämta projektet → logga in → ./configure.sh → bygg → tagga → pusha → oc apply → testa i Mattermost
 ```
 
 ## Förbered
 
-Ubuntu/Linux med **Bash, Python 3, Podman och `oc`**. Projektet och en befintlig
+Ubuntu/Linux med **Git, Bash, Python 3, Podman och `oc`**. Projektet och en befintlig
 PVC ska finnas i OpenShift. Standardprojektet är **`image-security`**; PVC:n
 måste finnas i samma projekt som boten.
 
@@ -25,7 +25,33 @@ CA. Det här flödet använder samma interna adress för taggning, push och Depl
 En vanlig dator utanför klustrets nät kan behöva nätverks-/DNS-åtkomst ordnad av
 plattformsteamet för att nå just den adressen.
 
-## 1. Fyll i genom skriptet
+## 1. Hämta projektet och logga in
+
+Vid första hämtningen:
+
+```sh
+git clone https://github.com/SmidraClawd/cvebridge-openshift-private.git
+cd cvebridge-openshift-private
+```
+
+Har du redan projektet, öppna terminalen i projektmappen och hämta uppdateringen:
+
+```sh
+git pull --ff-only
+```
+
+I OpenShift-konsolen: klicka på ditt användarnamn → **Copy login command**.
+Kör inloggningskommandot i terminalen. Kontrollera sedan kontot och PVC-namnet:
+
+```sh
+oc whoami
+oc get pvc -n image-security
+```
+
+PVC:n ska vara **Bound**. Byt `image-security` om boten ska köras i ett annat
+projekt. Kör resten av stegen i **samma terminal, från projektmappen**.
+
+## 2. Fyll i genom skriptet
 
 Kör från projektmappen:
 
@@ -72,31 +98,57 @@ alla genererade YAML-filer är git-ignorerade och får filrättighet `0600`.
 Det finns ingen `.env`-fil i installationsflödet. Har du fyllt gamla YAML-filer
 från en tidigare version, behåll en lokal kopia av dem tills du matat in svaren.
 
-## 2. Bygg, tagga och pusha själv
+## 3. Bygg imagen med Podman
 
-Logga in med ert vanliga `oc login`-kommando. Kopiera sedan de **exakta kommandon
-som skriptet visar** för:
-
-1. `podman build` — bygger imagen lokalt.
-2. `podman tag` — använder den fasta registryadressen och automatisk tagg.
-3. `oc whoami -t | podman login ... --password-stdin` — loggar in i registryt.
-4. `podman push` — skickar imagen till `image-security`.
-
-Skriptet bygger, pushar eller applicerar inget åt dig. Företagsinställningar och
-tokens byggs inte in i imagen.
-
-## 3. Starta med en enda apply
-
-När skriptet säger att boten är klar att installera, och imagen är pushad:
+Kör efter `./configure.sh`. Första raden läser den sparade taggen; andra raden
+bygger imagen med **samma tagg som i Deployment**:
 
 ```sh
-oc apply -f deploy/
-oc rollout status deployment/cvebridge -n image-security
-oc logs deployment/cvebridge -n image-security -c bot --tail=50
+CVEBRIDGE_TAG=$(python3 -c 'import json; print(json.load(open(".local/setup.json"))["tag"])')
+podman build -f Dockerfile -t "localhost/cvebridge:$CVEBRIDGE_TAG" .
 ```
 
-Byt namespace i kontrollkommandona om du valde ett annat. Alla YAML-filer har
-redan rätt namespace. `deploy/` innehåller ConfigMap, Secret, Deployment,
+Du behöver ingen Go-installation på Ubuntu; bygget sker i byggcontainern.
+Företagsinställningar och tokens byggs inte in i imagen. Vänta tills bygget
+är klart utan fel innan du fortsätter.
+
+## 4. Tagga, logga in i registryt och pusha
+
+Använd taggen från steg 3:
+
+```sh
+CVEBRIDGE_IMAGE="image-registry.openshift-image-registry.svc:5000/image-security/cvebridge:$CVEBRIDGE_TAG"
+podman tag "localhost/cvebridge:$CVEBRIDGE_TAG" "$CVEBRIDGE_IMAGE"
+oc whoami -t | podman login image-registry.openshift-image-registry.svc:5000 --username cvebridge --password-stdin
+podman push "$CVEBRIDGE_IMAGE"
+```
+
+`podman tag` ger imagen registryadressen. `podman login` använder din befintliga
+OpenShift-inloggning. `podman push` laddar upp imagen till `image-security`.
+Vänta tills pushen är klar utan fel innan du applicerar YAML-filerna.
+
+Skriptet skriver också ut färdiga kommandon med taggen redan ifylld. Du kan
+kopiera dem som alternativ till steg 3–4. Det kör inget av kommandona åt dig.
+
+## 5. Starta boten i OpenShift
+
+Kontrollera att konfigurationen är komplett:
+
+```sh
+./configure.sh --check
+```
+
+När kontrollen är godkänd och imagen är pushad, applicera hela mappen och
+kontrollera att boten startar. Namespace läses från dina sparade svar:
+
+```sh
+CVEBRIDGE_NAMESPACE=$(python3 -c 'import json; print(json.load(open(".local/setup.json"))["namespace"])')
+oc apply -f deploy/
+oc rollout status deployment/cvebridge -n "$CVEBRIDGE_NAMESPACE"
+oc logs deployment/cvebridge -n "$CVEBRIDGE_NAMESPACE" -c bot --tail=50
+```
+
+Alla YAML-filer har redan rätt namespace. `deploy/` innehåller ConfigMap, Secret, Deployment,
 ServiceAccount, Service, CA-ConfigMap och Route när ett Route-värdnamn är angivet.
 Deployment heter `z-deployment.yaml` så ConfigMap och Secret appliceras före omstarten.
 Väljer du annat botnamespace än `image-security` skapas även `image-puller.yaml`;
@@ -105,10 +157,23 @@ kontot som kör apply behöver då rätt att ge image-pull-åtkomst i `image-sec
 OpenShift fyller den separata `cvebridge-trusted-ca` med klustrets betrodda
 CA-paket. Det monteras på `/ca/ca-bundle.crt`; imagen innehåller inga CA-filer.
 CA:n som utfärdat Mattermosts och ACS certifikat måste ingå i klusterpaketet.
-`oc get configmap cvebridge-trusted-ca -n image-security` ska visa `DATA: 1`.
+Kontrollera att CA-paketet har fyllts i; kommandot ska visa `DATA: 1`:
+
+```sh
+oc get configmap cvebridge-trusted-ca -n "$CVEBRIDGE_NAMESPACE"
+```
+
 Botens ServiceAccount behöver ingen Kubernetes-API-token eller personlig RBAC.
 
-Testa i driftkanalen när `/cve` är registrerat och boten är inbjuden:
+## 6. Testa i Mattermost
+
+Bjud in boten till den privata driftkanalen. Registrera `/cve` under
+**Integrations → Slash Commands** med metoden **POST** och Request URL
+`https://BOTENS_ROUTE/slash/cve`. Skriptet visar den fullständiga adressen.
+Om du lämnade kommandotoken tom, kopiera tokenen från Mattermost och kör
+`./configure.sh` igen, följt av `oc apply -f deploy/`. Ingen ny image behövs.
+
+Skriv sedan i driftkanalen:
 
 ```text
 /cve status
