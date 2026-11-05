@@ -79,7 +79,6 @@ func revision(t *testing.T, dir string) any {
 func TestReadySetupWritesConsistentYAMLAndKeepsCredentialsPrivate(t *testing.T) {
 	dir := project(t)
 	input := answers()
-	input[3] = "https://central.example.test:443/"
 	output, err := run(t, dir, input)
 	if err != nil {
 		t.Fatal(err, output)
@@ -94,9 +93,6 @@ func TestReadySetupWritesConsistentYAMLAndKeepsCredentialsPrivate(t *testing.T) 
 		t.Fatal("literal secret values changed")
 	}
 	cm := mapping(object(t, dir, "configmap.yaml")["data"])
-	if cm["STACKROX_URL"] != "https://central.example.test:443" {
-		t.Fatal("explicit HTTPS port 443 must be preserved for ACS")
-	}
 	if cm["SCAN_NAMESPACES"] != "team-a,team-b" || cm["MATTERMOST_DIALOG_URL"] != "https://"+input[10]+"/slash/cve/dialog" || cm["ACCESS_MODE"] != "operations" {
 		t.Fatal("configuration was not completed automatically")
 	}

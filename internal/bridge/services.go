@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"mime/multipart"
 	"net/http"
 	"net/url"
@@ -19,6 +20,7 @@ import (
 type Services struct {
 	C             Config
 	MM, Rox, Kube *http.Client
+	debugLogger   *log.Logger
 }
 
 func client(ca string) (*http.Client, error) {
@@ -51,7 +53,7 @@ func NewServices(c Config) (*Services, error) {
 			return nil, e
 		}
 	}
-	return &Services{c, mm, rox, kube}, nil
+	return &Services{C: c, MM: mm, Rox: rox, Kube: kube}, nil
 }
 func request(ctx context.Context, client *http.Client, method, address, auth string, payload any) (M, error) {
 	var body io.Reader
@@ -106,13 +108,44 @@ func (s *Services) RoxRequest(ctx context.Context, path, cap string, payload any
 	}
 	tok := s.C.Get(k, "")
 	if tok == "" {
+		s.acsDebug("request_blocked", M{"operation": cap, "credential": k, "scheduled": scheduled, "reason": "missing_token"})
 		return nil, problem(503, "StackRox-behörigheten för denna åtgärd saknas.")
 	}
 	method := "GET"
 	if payload != nil {
 		method = "POST"
 	}
-	return request(ctx, s.Rox, method, strings.TrimRight(s.C.Get("STACKROX_URL", ""), "/")+path, tok, payload)
+	address := strings.TrimRight(s.C.Get("STACKROX_URL", ""), "/") + path
+	if !s.acsDebugEnabled() {
+		return request(ctx, s.Rox, method, address, tok, payload)
+	}
+	fields := M{"method": method, "endpoint": acsEndpoint(address), "operation": cap, "credential": k,
+		"shared_token": tok == s.C.Get("STACKROX_TOKEN", ""), "scheduled": scheduled}
+	s.acsDebug("request_start", fields)
+	started := time.Now()
+	base := s.Rox.Transport
+	if base == nil {
+		base = http.DefaultTransport
+	}
+	trace := &acsTransport{base: base}
+	client := *s.Rox
+	client.Transport = trace
+	result, err := request(ctx, &client, method, address, tok, payload)
+	fields["duration_ms"] = time.Since(started).Milliseconds()
+	fields["status"] = trace.status
+	fields["content_type"] = trace.contentType
+	fields["server"] = trace.server
+	fields["result"] = "ok"
+	if err != nil {
+		fields["result"] = "error"
+		fields["error_kind"] = trace.errorKind
+		if trace.errorKind == "" {
+			fields["error_kind"] = "response"
+		}
+		fields["hint"] = acsHTTPHint(trace.status, path)
+	}
+	s.acsDebug("request_complete", fields)
+	return result, err
 }
 func (s *Services) Permit(ctx context.Context, user string, groups []string, ns string) (bool, error) {
 	b, e := os.ReadFile(s.C.Get("KUBE_TOKEN_FILE", "/var/run/secrets/kubernetes.io/serviceaccount/token"))

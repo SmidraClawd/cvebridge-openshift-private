@@ -7,19 +7,15 @@ exec python3 -c "$(cat <<'PY'
 import argparse
 import datetime
 import getpass
-import http.client
 import json
 import os
 import re
 import secrets
 import shlex
-import ssl
 import sys
 import tempfile
 from pathlib import Path
 from urllib.parse import urlsplit
-from urllib.error import HTTPError, URLError
-from urllib.request import HTTPRedirectHandler, HTTPSHandler, Request, build_opener
 
 ROOT = Path(sys.argv.pop(1))
 LOCAL = ROOT / '.local'
@@ -236,90 +232,15 @@ def commands(s, ready):
     if ready and s['namespace'] != IMAGE_PROJECT:
         print('image-puller.yaml ger botens namespace rätt att dra imagen från image-security; apply behöver rätt att skapa bindningen där.')
 
-def test_acs(s):
-    if not s.get('acs_url') or not s.get('acs_token'):
-        print('ACS-adress och ACS API-token behövs. Komplettera dem med ./configure.sh.')
-        return 1
-
-    class NoRedirect(HTTPRedirectHandler):
-        def redirect_request(self, req, fp, code, msg, headers, newurl):
-            return None
-
-    # Use Ubuntu's trust store and normal proxy settings. Never follow a redirect
-    # with the Authorization header or print credentials/upstream error bodies.
-    opener = build_opener(HTTPSHandler(context=ssl.create_default_context()), NoRedirect())
-    print('Test från Ubuntu: ' + s['acs_url'])
-    print('HTTPS använder port 443 om ingen annan port anges.')
-    print('Din sparade ACS-token används utan att visas. Inga filer ändras.')
-    checks = (
-        ('ACS Central', '/v1/metadata'),
-        ('CVE-databasens driftstatus', '/v1/integrationhealth/vulndefinitions?component=SCANNER_V4'),
-    )
-    passed = True
-    for label, path in checks:
-        req = Request(s['acs_url'] + path, headers={
-            'Authorization': 'Bearer ' + s['acs_token'], 'Accept': 'application/json',
-        })
-        try:
-            with opener.open(req, timeout=20) as response:
-                code = response.status
-                body = response.read(65537)
-        except HTTPError as err:
-            code = err.code
-            err.close()
-        except (URLError, OSError, http.client.HTTPException) as err:
-            reason = getattr(err, 'reason', err)
-            if isinstance(reason, ssl.SSLCertVerificationError):
-                text = 'Certifikatfel: Ubuntu litar inte på certifikatkedjan. Kontrollera företagets CA.'
-            elif isinstance(reason, ssl.SSLError):
-                text = 'TLS-anslutningen misslyckades. Kontrollera HTTPS-adress och port.'
-            elif isinstance(reason, TimeoutError):
-                text = 'Timeout: kontrollera adress, port och nätverksåtkomst.'
-            else:
-                text = 'Anslutningen misslyckades. Kontrollera adress, DNS, nätverk och proxy.'
-            print(label + ': ' + text)
-            passed = False
-            continue
-        if code == 200:
-            try:
-                data = json.loads(body) if len(body) <= 65536 else None
-                if not isinstance(data, dict):
-                    raise ValueError()
-                if path == '/v1/metadata':
-                    if not isinstance(data.get('version'), str):
-                        raise ValueError()
-                    text = 'Central svarar med ACS-metadata.'
-                else:
-                    point = datetime.datetime.fromisoformat(str(data.get('lastUpdatedTimestamp') or data.get('lastUpdated') or '').replace('Z', '+00:00'))
-                    if point.tzinfo is None:
-                        raise ValueError()
-                    text = 'Åtkomst fungerar. Uppdateringstiden kan läsas.'
-            except (ValueError, TypeError):
-                text = 'Svaret kunde inte verifieras som förväntad ACS-data. Kontrollera Central-adressen och vald Scanner V4.'
-                passed = False
-        else:
-            passed = False
-            text = {
-                401: 'Tokenen godkändes inte. Kontrollera att den är rätt och fortfarande giltig.',
-                403: 'Åtkomst nekad. För driftstatus krävs Administration: Read. En proxy kan också neka anropet.',
-                404: 'API-sökvägen hittades inte. Kontrollera Central-adressen och ACS-versionen.',
-            }.get(code, 'Oväntat HTTP-svar. Kontrollera ACS eller proxy.')
-            if 300 <= code < 400:
-                text = 'Adressen vill omdirigera. Ingen omdirigering följdes; kontrollera Central-adressen och eventuell inloggningsproxy.'
-        print(label + ': HTTP ' + str(code) + ' · ' + text)
-    print('Testet gäller Ubuntu. Podens nätverk, proxy och CA-paket kan skilja sig.')
-    return 0 if passed else 1
-
 def main():
     parser = argparse.ArgumentParser(prog='./configure.sh', description='Förbered CVEBridge lokalt. Bygg, push och apply kör du själv.')
     options = parser.add_mutually_exclusive_group()
     options.add_argument('--check', action='store_true', help='Visa vad som saknas, utan att ändra filer.')
     options.add_argument('--new-tag', action='store_true', help='Skapa ny imagetagg för en ny programversion.')
-    options.add_argument('--test-acs', action='store_true', help='Testa sparad ACS-adress och token från Ubuntu utan att ändra filer.')
     args = parser.parse_args()
     if LOCAL.is_symlink() or DEPLOY.is_symlink():
         raise ValueError('Konfigurationsmapparna får inte vara symboliska länkar.')
-    if (args.check or args.test_acs) and not STATE.exists():
+    if args.check and not STATE.exists():
         print('Inga svar har sparats ännu. Kör ./configure.sh först.')
         return 1
     s = {}
@@ -343,8 +264,6 @@ def main():
         raise ValueError('Utkastets imagetagg är ogiltig. Filen har inte skrivits över.')
     if 'revision' in s and (not isinstance(s['revision'], str) or not re.fullmatch(r'[a-f0-9]{32}', s['revision'])):
         raise ValueError('Utkastets konfigurationsrevision är ogiltig. Filen har inte skrivits över.')
-    if args.test_acs:
-        return test_acs(s)
     if not s.get('tag') or args.new_tag:
         s['tag'] = datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%d-%H%M%S-') + secrets.token_hex(2)
     if args.check:

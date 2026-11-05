@@ -179,13 +179,17 @@ func (s *Services) databaseStatusAt(ctx context.Context, now time.Time) M {
 }
 func (s *Services) Scan(ctx context.Context, namespaces []string, authorize func() error, force, scheduled bool) (M, error) {
 	start := time.Now()
+	s.acsDebug("scan_start", M{"namespaces": namespaces, "cluster_id": s.C.Get("STACKROX_CLUSTER_ID", ""), "force": force, "scheduled": scheduled})
 	if e := authorize(); e != nil {
+		s.acsDebug("scan_failed", M{"stage": "authorization"})
 		return nil, e
 	}
 	inv, e := s.Inventory(ctx, namespaces, scheduled)
 	if e != nil {
+		s.acsDebug("scan_failed", M{"stage": "inventory"})
 		return nil, e
 	}
+	s.acsDebug("inventory_complete", M{"pods": inv.Pods, "images": len(inv.Images), "missing_images": inv.Missing})
 	rows := []any{}
 	errors := []any{}
 	warnings := []any{}
@@ -193,6 +197,7 @@ func (s *Services) Scan(ctx context.Context, namespaces []string, authorize func
 	failed, scanned, components, partial := 0, 0, 0, 0
 	truncated := false
 	for number, entry := range inv.Images {
+		s.acsDebug("image_start", M{"image": entry.Name, "number": number + 1, "total_images": len(inv.Images)})
 		if e := authorize(); e != nil {
 			return nil, e
 		}
@@ -218,6 +223,18 @@ func (s *Services) Scan(ctx context.Context, namespaces []string, authorize func
 		stamp := str(scan["scanTime"])
 		point, parseErr := time.Parse(time.RFC3339Nano, stamp)
 		if err != nil || parseErr != nil || str(image["id"]) != entry.Digest || has(stringsOf(image["notes"]), "MISSING_SCAN_DATA") || (force && point.Before(attempt.Add(-2*time.Second))) || point.After(time.Now().Add(5*time.Minute)) {
+			reason := "scan_time_outside_expected_range"
+			switch {
+			case err != nil:
+				reason = "acs_request_failed"
+			case parseErr != nil:
+				reason = "missing_or_invalid_scan_time"
+			case str(image["id"]) != entry.Digest:
+				reason = "image_digest_mismatch"
+			case has(stringsOf(image["notes"]), "MISSING_SCAN_DATA"):
+				reason = "missing_scan_data"
+			}
+			s.acsDebug("image_failed", M{"image": entry.Name, "reason": reason})
 			failed++
 			errors = append(errors, M{"image": entry.Name, "reason": "Ett komplett och aktuellt skanningsresultat kunde inte verifieras"})
 			continue
@@ -268,6 +285,7 @@ func (s *Services) Scan(ctx context.Context, namespaces []string, authorize func
 	if force {
 		mode = "scan"
 	}
+	s.acsDebug("scan_complete", M{"mode": mode, "scanned_images": scanned, "failed_images": failed, "partial_images": partial, "duration_ms": time.Since(start).Milliseconds()})
 	return M{"kind": "scan", "mode": mode, "namespaces": namespaces, "rows": rows, "scannedImages": scanned, "totalImages": len(inv.Images), "failedImages": failed, "unscannedImages": inv.Missing, "partialImages": partial, "pods": inv.Pods, "components": components, "errors": errors, "warnings": warnings, "truncated": truncated, "scanTimes": scanTimes, "database": s.DatabaseStatus(ctx), "finishedAt": time.Now().UTC().Format(time.RFC3339), "durationSeconds": int(time.Since(start).Seconds())}, nil
 }
 func (s *Services) Lookup(ctx context.Context, cve string, ns []string, authorize func() error) (M, error) {

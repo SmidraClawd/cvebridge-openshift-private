@@ -103,27 +103,6 @@ alla genererade YAML-filer är git-ignorerade och får filrättighet `0600`.
 Det finns ingen `.env`-fil i installationsflödet. Har du fyllt gamla YAML-filer
 från en tidigare version, behåll en lokal kopia av dem tills du matat in svaren.
 
-### Testa ACS från Ubuntu
-
-Har du fått HTTP 403 i Mattermost? Testa med dina sparade ACS-uppgifter:
-
-```sh
-./configure.sh --test-acs
-```
-
-Testet läser adress och token från dina sparade svar. Det ändrar inga filer och
-visar inte tokenen. Du behöver varken bygga programmet eller starta boten.
-
-- **200:** svaret kontrolleras som ACS-data. Driftstatus ska ge en uppdateringstid.
-- **401:** kontrollera tokenens giltighet.
-- **403:** kontrollera tokenens roll, särskilt **Administration → Read** för driftstatus. En proxy kan också neka anropet.
-- **Certifikatfel:** kontrollera företagets CA på Ubuntu.
-
-`https://central.foretaget.se` och `https://central.foretaget.se:443` använder
-samma HTTPS-port. Port 443 är normal. Ange Central-adressen utan `/main` eller
-`/v1`; testet lägger till rätt API-sökväg. Testet gäller åtkomsten från Ubuntu;
-podens nätverk, proxy och CA-paket kan skilja sig.
-
 ## 3. Bygg programmet lokalt med Go
 
 Kör efter `./configure.sh`. Go på din Ubuntu bygger den färdiga körfilen
@@ -247,6 +226,30 @@ Ingen ny image behövs. När enbart klustrets CA-paket förnyas används
 **Ny programversion:** kör `./configure.sh --new-tag`, använd de nya bygg- och
 pushkommandona och applicera mappen igen. Scheman och larmstatus ligger kvar
 på samma PVC. Kör en replika; lagringen behöver fungerande SQLite-fillåsning.
+
+## Felsök StackRox i podloggarna
+
+Den privata boten skriver felsökningsloggar med prefixet `[ACS DEBUG]`.
+Du ser API-adress utan queryvärden, GET/POST, HTTP-kod, svarstyp, tidsåtgång
+och namnet på tokeninställningen. Skanningen loggar även antal poddar/images
+och varför ett skanningsresultat inte kunde användas. Tokens, headers för
+autentisering och innehållet i anrop eller svar skrivs inte ut.
+
+Kör loggkommandot och starta sedan en skanning i Mattermost:
+
+```sh
+oc logs -f deployment/cvebridge -n image-security -c bot --tail=100
+```
+
+```text
+/cve scan team-a
+```
+
+Byt namespace och `team-a` om du valt andra projekt. Vid HTTP 403 visar
+loggen vilket anrop som nekades och vilken behörighet du ska kontrollera.
+Certifikat-, DNS- och timeoutfel får separata `error_kind`-värden.
+Du kan stänga av debug med `oc set env deployment/cvebridge LOG_LEVEL=info -n image-security`.
+Sätt `LOG_LEVEL=debug` på samma sätt för att aktivera igen.
 
 ## Verifiering
 
