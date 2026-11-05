@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"flag"
 	"fmt"
 	"github.com/SmidraClawd/cvebridge/internal/bridge"
 	"log"
@@ -21,13 +20,8 @@ func main() {
 		case "version":
 			fmt.Println(version)
 			return
-		case "render":
-			if e := render(os.Args[2:]); e != nil {
-				log.Fatal(e)
-			}
-			return
 		default:
-			log.Fatal("usage: cvebridge [render|version]")
+			log.Fatal("usage: cvebridge [version]")
 		}
 	}
 	c, e := bridge.ConfigFromEnv()
@@ -64,30 +58,4 @@ func main() {
 	<-done
 	<-shutdownDone
 	app.Wait()
-}
-func render(args []string) error {
-	f := flag.NewFlagSet("render", flag.ContinueOnError)
-	env := f.String("env-file", ".env", "configuration file")
-	part := f.String("part", "deployment", "deployment or bootstrap")
-	image := f.String("image", "", "deployment image supplied by the build helper")
-	directory := f.String("output-dir", "", "write bootstrap.yaml and app/*.yaml to this directory")
-	if e := f.Parse(args); e != nil {
-		return e
-	}
-	file, e := os.Open(*env)
-	if e != nil {
-		return e
-	}
-	defer file.Close()
-	values, e := bridge.ReadEnv(file)
-	if e != nil {
-		return e
-	}
-	if *image != "" {
-		values["APP_IMAGE"] = *image
-	}
-	if *directory != "" {
-		return bridge.RenderManifests(*directory, values)
-	}
-	return bridge.Render(os.Stdout, values, *part)
 }

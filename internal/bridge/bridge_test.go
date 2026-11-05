@@ -1,10 +1,8 @@
 package bridge
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
-	"encoding/pem"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -147,17 +145,6 @@ func newFixture(t *testing.T) *fixture {
 	t.Cleanup(func() { _ = store.Close() })
 	f.App = NewApp(context.Background(), s, store)
 	return f
-}
-func TestEnvDataNeverExecutes(t *testing.T) {
-	v, e := ReadEnv(strings.NewReader("TOKEN='$(touch /tmp/nope)`id`$HOME'\nMAP='{\"key\":\"value\"}'\n"))
-	if e != nil || v["TOKEN"] != "$(touch /tmp/nope)`id`$HOME" {
-		t.Fatal(v, e)
-	}
-	for _, s := range []string{"export A=x", "A='unterminated", "A=x\nA=y"} {
-		if _, e := ReadEnv(strings.NewReader(s)); e == nil {
-			t.Fatalf("accepted %q", s)
-		}
-	}
 }
 func TestCommandAuthentication(t *testing.T) {
 	for _, tt := range []struct {
@@ -377,118 +364,6 @@ func TestPublicListenerRejectsForgedIdentityAndOversizedInput(t *testing.T) {
 		t.Fatal(w.Code)
 	}
 }
-func TestRenderDeploymentAndSeparateBootstrap(t *testing.T) {
-	env := testEnv()
-	for _, part := range []string{"deployment", "bootstrap"} {
-		var out bytes.Buffer
-		if e := Render(&out, env, part); e != nil {
-			t.Fatal(e)
-		}
-		var list M
-		if e := json.Unmarshal(out.Bytes(), &list); e != nil {
-			t.Fatal(e)
-		}
-		if str(list["kind"]) != "List" {
-			t.Fatal(list)
-		}
-		kinds := map[string]bool{}
-		for _, v := range arr(list["items"]) {
-			r := obj(v)
-			kind := str(r["kind"])
-			kinds[kind] = true
-			if part == "deployment" && (kind == "ClusterRole" || kind == "ClusterRoleBinding" || kind == "Namespace") {
-				t.Fatal("cluster-scoped object in regular deployment")
-			}
-			if kind == "Deployment" {
-				pod := obj(obj(obj(r["spec"])["template"])["spec"])
-				if len(arr(pod["containers"])) != 1 {
-					t.Fatal("unexpected website/proxy")
-				}
-				if num(obj(r["spec"])["replicas"]) != 1 {
-					t.Fatal("unsafe replicas")
-				}
-			}
-			if kind != "Secret" && strings.Contains(encode(r), "bot-secret") {
-				t.Fatal("token outside Secret")
-			}
-		}
-		if part == "deployment" && (!kinds["Deployment"] || !kinds["Route"] || !kinds["PersistentVolumeClaim"]) {
-			t.Fatal(kinds)
-		}
-		if part == "bootstrap" && !kinds["ClusterRole"] {
-			t.Fatal(kinds)
-		}
-	}
-}
-func TestRenderRejectsUnfilledOrUnsafeInputs(t *testing.T) {
-	for k, v := range map[string]string{"APP_IMAGE": "$(id)", "MATTERMOST_BOT_TOKEN": "CHANGE_ME", "WEBHOOK_PUBLIC_URL": "http://bad.test", "SCHEDULE_SERVICE_USER": "system:serviceaccount:other:reporter"} {
-		env := testEnv()
-		env[k] = v
-		if e := Render(&bytes.Buffer{}, env, "deployment"); e == nil {
-			t.Errorf("accepted %s", k)
-		}
-	}
-}
-
-func TestInternalServicesNeedNoPublicRoute(t *testing.T) {
-	for _, namespace := range []string{"cvebridge", "security-tools"} {
-		env := testEnv()
-		delete(env, "WEBHOOK_PUBLIC_URL")
-		delete(env, "MATTERMOST_DIALOG_URL")
-		delete(env, "APP_IMAGE")
-		env["NAMESPACE"] = namespace
-		env["MATTERMOST_INTERNAL_URL"] = "http://mattermost.mattermost.svc:8065"
-		env["STACKROX_URL"] = "https://central.stackrox.svc:443"
-		env["SCHEDULE_SERVICE_USER"] = "system:serviceaccount:" + namespace + ":cvebridge-reporter"
-		var out bytes.Buffer
-		if err := Render(&out, env, "deployment"); err != nil {
-			t.Fatal(err)
-		}
-		var list M
-		if err := json.Unmarshal(out.Bytes(), &list); err != nil {
-			t.Fatal(err)
-		}
-		foundService, foundCallback, foundImage := false, false, false
-		for _, item := range arr(list["items"]) {
-			r := obj(item)
-			switch str(r["kind"]) {
-			case "Route":
-				t.Fatal("internal install created an external route")
-			case "Service":
-				foundService = str(obj(r["metadata"])["name"]) == "cvebridge-webhook" && str(obj(r["metadata"])["namespace"]) == namespace
-			case "ConfigMap":
-				data := obj(r["data"])
-				foundCallback = str(data["MATTERMOST_DIALOG_URL"]) == "http://cvebridge-webhook."+namespace+".svc:8001/slash/cve/dialog"
-			case "Deployment":
-				pod := obj(obj(obj(r["spec"])["template"])["spec"])
-				foundImage = str(obj(arr(pod["containers"])[0])["image"]) == OpenShiftRegistry+"/"+namespace+"/cvebridge:latest"
-			}
-		}
-		if !foundService || !foundCallback || !foundImage {
-			t.Fatal("internal service, callback or registry reference missing", namespace)
-		}
-	}
-}
-
-func TestWebhookAddressRejectsWrongServiceAndConflictingSettings(t *testing.T) {
-	for _, address := range []string{
-		"http://cvebridge-webhook.other.svc:8001", "http://cvebridge-webhook.cvebridge.svc:8065",
-		"https://cvebridge-webhook.cvebridge.svc:8001", "http://cvebridge-webhook.cvebridge.svc:8001/path",
-		"http://cvebridge-webhook.cvebridge.svc:8001?", "http://bad.test",
-	} {
-		env := testEnv()
-		delete(env, "WEBHOOK_PUBLIC_URL")
-		env["WEBHOOK_URL"] = address
-		if err := Render(&bytes.Buffer{}, env, "deployment"); err == nil {
-			t.Errorf("accepted unreachable or invalid callback %s", address)
-		}
-	}
-	env := testEnv()
-	env["WEBHOOK_URL"] = "http://cvebridge-webhook.cvebridge.svc:8001"
-	if err := Render(&bytes.Buffer{}, env, "deployment"); err == nil {
-		t.Fatal("conflicting old and new webhook addresses accepted")
-	}
-}
 func TestReportBoundsAndMentions(t *testing.T) {
 	r := M{"kind": "scan", "rows": []any{M{"cve": "CVE-2026-12345", "component": "@channel <script>", "cvss": 9.8}}, "database": M{"state": "unknown"}}
 	text := encode(ResultMessage(r))
@@ -593,28 +468,6 @@ func TestManualDeniedIdentityNeverScans(t *testing.T) {
 	}
 }
 
-func TestCABundleCannotCopyPrivateKeysToConfigMap(t *testing.T) {
-	server := httptest.NewTLSServer(http.NotFoundHandler())
-	defer server.Close()
-	cert := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: server.Certificate().Raw})
-	path := filepath.Join(t.TempDir(), "ca.pem")
-	if e := os.WriteFile(path, cert, 0600); e != nil {
-		t.Fatal(e)
-	}
-	env := testEnv()
-	env["STACKROX_CA_FILE"] = path
-	if e := Render(&bytes.Buffer{}, env, "deployment"); e != nil {
-		t.Fatal(e)
-	}
-	cert = append(cert, pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: []byte("private-data")})...)
-	if e := os.WriteFile(path, cert, 0600); e != nil {
-		t.Fatal(e)
-	}
-	if e := Render(&bytes.Buffer{}, env, "deployment"); e == nil {
-		t.Fatal("private key copied into public certificate ConfigMap")
-	}
-}
-
 func TestInvalidCVSSDoesNotCreateCriticalAlert(t *testing.T) {
 	f := newFixture(t)
 	f.App.S.C.Env["CVE_ALERT_FIRST_REPORT"] = "true"
@@ -638,77 +491,6 @@ func shortEnv() map[string]string {
 	return m
 }
 
-func TestShortEnvProducesInternalRegistryDeployment(t *testing.T) {
-	m := shortEnv()
-	m["IMAGE_TAG"] = "go-abcd123"
-	var out bytes.Buffer
-	if e := Render(&out, m, "deployment"); e != nil {
-		t.Fatal(e)
-	}
-	var list M
-	if e := json.Unmarshal(out.Bytes(), &list); e != nil {
-		t.Fatal(e)
-	}
-	var config M
-	found := false
-	for _, v := range arr(list["items"]) {
-		r := obj(v)
-		switch str(r["kind"]) {
-		case "Deployment":
-			pod := obj(obj(obj(r["spec"])["template"])["spec"])
-			container := obj(arr(pod["containers"])[0])
-			if str(container["image"]) != OpenShiftRegistry+"/security-bot/cvebridge:go-abcd123" {
-				t.Fatal(container["image"])
-			}
-			if len(arr(pod["imagePullSecrets"])) != 0 {
-				t.Fatal("unexpected external registry credentials")
-			}
-			found = true
-		case "ConfigMap":
-			if str(obj(r["metadata"])["name"]) == "cvebridge-config" {
-				config = obj(r["data"])
-			}
-		}
-	}
-	if !found {
-		t.Fatal("missing deployment")
-	}
-	values := map[string]string{}
-	for k, v := range config {
-		values[k] = str(v)
-	}
-	c, e := NewConfig(values)
-	if e != nil {
-		t.Fatal(e)
-	}
-	if !same(c.Scopes[channelID], []string{"team-a", "team-b"}) || !same(c.ScheduleScopes[channelID], c.Scopes[channelID]) {
-		t.Fatal(c.Scopes, c.ScheduleScopes)
-	}
-	if c.Get("SCHEDULE_SERVICE_USER", "") != "system:serviceaccount:security-bot:cvebridge-reporter" {
-		t.Fatal("namespace was not propagated")
-	}
-	if _, ok := m["MATTERMOST_CHANNEL_SCOPES"]; ok {
-		t.Fatal("caller configuration mutated")
-	}
-}
-
-func TestShortEnvStillRequiresApprovedIdentitiesAndCredentials(t *testing.T) {
-	for _, key := range []string{"MATTERMOST_KUBE_USER_MAP", "STACKROX_TOKEN", "MATTERMOST_BOT_TOKEN", "MATTERMOST_COMMAND_TOKEN"} {
-		m := shortEnv()
-		delete(m, key)
-		if e := Render(&bytes.Buffer{}, m, "deployment"); e == nil {
-			t.Errorf("missing %s was silently inferred", key)
-		}
-	}
-	for _, ns := range []string{"*", "team-a,../secret", ""} {
-		m := shortEnv()
-		m["SCAN_NAMESPACES"] = ns
-		if _, e := NewConfig(m); e == nil {
-			t.Errorf("invalid namespace set accepted: %s", ns)
-		}
-	}
-}
-
 func TestAdvancedScopesRemainExplicit(t *testing.T) {
 	m := shortEnv()
 	m["MATTERMOST_CHANNEL_SCOPES"] = encode(map[string][]string{channelID: {"team-a"}})
@@ -719,10 +501,6 @@ func TestAdvancedScopesRemainExplicit(t *testing.T) {
 	}
 	if len(c.ScheduleScopes) != 0 || !same(c.Scopes[channelID], []string{"team-a"}) {
 		t.Fatal("explicit policy was overwritten")
-	}
-	m["APP_IMAGE"] = OpenShiftRegistry + "/other-project/cvebridge:v1"
-	if e := Render(&bytes.Buffer{}, m, "deployment"); e == nil {
-		t.Fatal("internal image from another namespace accepted")
 	}
 }
 

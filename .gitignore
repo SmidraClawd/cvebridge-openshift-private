@@ -1,9 +1,8 @@
 .local/
 .env
 .env.*
-!.env.example
-/deploy/local/
-/deploy/app/secret.yaml
+/deploy/*
+!/deploy/README.md
 /bin/
 /cvebridge
 *.sqlite3
@@ -14,5 +13,4 @@ __pycache__/
 *.pyc
 .venv/
 .DS_Store
-
 /certs/

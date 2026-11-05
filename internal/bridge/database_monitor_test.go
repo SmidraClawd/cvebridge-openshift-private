@@ -1,7 +1,6 @@
 package bridge
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"net/http"
@@ -246,7 +245,7 @@ func TestDatabaseMonitorRestrictsDestination(t *testing.T) {
 	}
 }
 
-func TestDatabaseMonitorConfigAndRender(t *testing.T) {
+func TestDatabaseMonitorConfig(t *testing.T) {
 	for _, value := range []string{"wrong", "CHANGE_ME_CHANNEL_ID", "@channel"} {
 		env := testEnv()
 		env["DATABASE_MONITOR_CHANNEL_ID"] = value
@@ -260,28 +259,8 @@ func TestDatabaseMonitorConfigAndRender(t *testing.T) {
 		t.Fatal("invalid monitor component accepted")
 	}
 	env["STACKROX_SCANNER_COMPONENT"] = "SCANNER_V4"
-	env["STATE_EXISTING_PVC"] = "existing-state"
-	var out bytes.Buffer
-	if e := Render(&out, env, "deployment"); e != nil {
+	if _, e := NewConfig(env); e != nil {
 		t.Fatal(e)
-	}
-	var list M
-	if e := json.Unmarshal(out.Bytes(), &list); e != nil {
-		t.Fatal(e)
-	}
-	found := false
-	for _, v := range arr(list["items"]) {
-		r := obj(v)
-		if str(r["kind"]) == "ConfigMap" && str(obj(r["metadata"])["name"]) == "cvebridge-config" {
-			d := obj(r["data"])
-			found = str(d["DATABASE_MONITOR_CHANNEL_ID"]) == opsID
-			if strings.Contains(str(d["MATTERMOST_CHANNEL_SCOPES"]), opsID) {
-				t.Fatal("ops destination must not gain namespace reporting permission")
-			}
-		}
-	}
-	if !found {
-		t.Fatal("monitor setting was not rendered to the pod configuration")
 	}
 }
 

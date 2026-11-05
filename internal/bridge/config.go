@@ -1,13 +1,11 @@
 package bridge
 
 import (
-	"bufio"
 	"crypto/rand"
 	"crypto/subtle"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"io"
 	"math"
 	"net/url"
 	"os"
@@ -112,36 +110,6 @@ func validUser(s string) bool {
 		}
 	}
 	return true
-}
-
-// ReadEnv reads data, never shell code. Dollar signs and backticks stay literal.
-func ReadEnv(r io.Reader) (map[string]string, error) {
-	out := map[string]string{}
-	scan := bufio.NewScanner(r)
-	scan.Buffer(make([]byte, 4096), 1024*1024)
-	for line := 1; scan.Scan(); line++ {
-		s := strings.TrimSpace(scan.Text())
-		if s == "" || strings.HasPrefix(s, "#") {
-			continue
-		}
-		k, v, ok := strings.Cut(s, "=")
-		k = strings.TrimSpace(k)
-		v = strings.TrimSpace(v)
-		if !ok || !regexp.MustCompile(`^[A-Z][A-Z0-9_]*$`).MatchString(k) {
-			return nil, fmt.Errorf("invalid env field at line %d", line)
-		}
-		if _, exists := out[k]; exists {
-			return nil, fmt.Errorf("duplicate env field %s", k)
-		}
-		if len(v) > 0 && (v[0] == '\'' || v[0] == '"') {
-			if len(v) < 2 || v[len(v)-1] != v[0] {
-				return nil, fmt.Errorf("unclosed quote at line %d", line)
-			}
-			v = v[1 : len(v)-1]
-		}
-		out[k] = v
-	}
-	return out, scan.Err()
 }
 
 type Config struct {
@@ -279,8 +247,6 @@ func NewConfig(m map[string]string) (Config, error) {
 	return c, nil
 }
 
-const OpenShiftRegistry = "image-registry.openshift-image-registry.svc:5000"
-
 // configurationDefaults expands the short installation form without inventing
 // identities, grants or credentials. Explicit advanced settings take priority.
 func configurationDefaults(input map[string]string) (map[string]string, error) {
@@ -347,26 +313,4 @@ func configurationDefaults(input map[string]string) (map[string]string, error) {
 		}
 	}
 	return m, nil
-}
-
-func deploymentImage(c Config) (string, error) {
-	image := c.Get("APP_IMAGE", "")
-	if image == "" {
-		tag := c.Get("IMAGE_TAG", "latest")
-		if !regexp.MustCompile(`^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$`).MatchString(tag) {
-			return "", fmt.Errorf("invalid IMAGE_TAG")
-		}
-		image = OpenShiftRegistry + "/" + c.Get("NAMESPACE", "cvebridge") + "/cvebridge:" + tag
-	}
-	if !Image.MatchString(image) || placeholder(image) || (!strings.Contains(image, "@sha256:") && !strings.Contains(image[strings.LastIndex(image, "/")+1:], ":")) {
-		return "", fmt.Errorf("APP_IMAGE must include a valid version tag or digest")
-	}
-	if strings.HasPrefix(image, OpenShiftRegistry+"/") {
-		path := strings.TrimPrefix(image, OpenShiftRegistry+"/")
-		parts := strings.Split(path, "/")
-		if len(parts) != 2 || parts[0] != c.Get("NAMESPACE", "cvebridge") {
-			return "", fmt.Errorf("internal registry image must use NAMESPACE/image:tag")
-		}
-	}
-	return image, nil
 }
