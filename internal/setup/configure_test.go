@@ -112,7 +112,7 @@ func TestReadySetupWritesConsistentYAMLAndKeepsCredentialsPrivate(t *testing.T) 
 		t.Fatal("unexpected user mapping")
 	}
 	fullImage := image(t, dir)
-	if !strings.HasPrefix(fullImage, registry) || !strings.Contains(output, `IMAGE="$REGISTRY/image-security/cvebridge:$TAG"`) || !strings.Contains(output, `podman push "$IMAGE"`) {
+	if fullImage != registry+"latest" || !strings.Contains(output, "TAG=latest") || !strings.Contains(output, `IMAGE="$REGISTRY/image-security/cvebridge:$TAG"`) || !strings.Contains(output, `podman push "$IMAGE"`) {
 		t.Fatal("build/tag/push and deployment must share one registry image", output)
 	}
 	for _, filename := range []string{"configmap.yaml", "secret.yaml", "z-deployment.yaml", "service.yaml", "serviceaccount.yaml", "trusted-ca.yaml", "route.yaml"} {
@@ -122,6 +122,9 @@ func TestReadySetupWritesConsistentYAMLAndKeepsCredentialsPrivate(t *testing.T) 
 		}
 	}
 	pod := mapping(mapping(mapping(object(t, dir, "z-deployment.yaml")["spec"])["template"])["spec"])
+	if mapping(list(pod["containers"])[0])["imagePullPolicy"] != "Always" {
+		t.Fatal("latest must resolve the current registry image at each container start")
+	}
 	if pod["automountServiceAccountToken"] != false || mapping(object(t, dir, "serviceaccount.yaml"))["automountServiceAccountToken"] != false {
 		t.Fatal("operations must not need a Kubernetes API token")
 	}
@@ -162,7 +165,7 @@ func TestEmptyDraftCanResumeAndDoesNotLeaveRunnableYAML(t *testing.T) {
 	}
 }
 
-func TestReconfigureKeepsTagAndSecretsUnlessNewTagIsRequested(t *testing.T) {
+func TestReconfigureKeepsLatestAndSecretsAndPreparesRequestedRollout(t *testing.T) {
 	dir := project(t)
 	if output, err := run(t, dir, answers()); err != nil {
 		t.Fatal(err, output)
@@ -189,17 +192,68 @@ func TestReconfigureKeepsTagAndSecretsUnlessNewTagIsRequested(t *testing.T) {
 	if output, err := run(t, dir, nil, "--check"); err != nil || strings.Contains(output, "acs-literal") {
 		t.Fatal(err, output)
 	}
+	beforeUpdate := revision(t, dir)
 	if err := os.Remove(filepath.Join(dir, "deploy/z-deployment.yaml")); err != nil {
 		t.Fatal(err)
 	}
 	if output, err := run(t, dir, nil, "--check"); err == nil || !strings.Contains(output, "behöver uppdateras") {
 		t.Fatal("missing YAML was marked ready", output)
 	}
-	if output, err := run(t, dir, nil, "--new-tag"); err != nil {
+	secretBefore, _ := os.ReadFile(filepath.Join(dir, "deploy/secret.yaml"))
+	configBefore, _ := os.ReadFile(filepath.Join(dir, "deploy/configmap.yaml"))
+	if output, err := run(t, dir, nil, "--update-image"); err != nil || !strings.Contains(output, "Inga frågor behövs") {
 		t.Fatal(err, output)
 	}
-	if image(t, dir) == before {
-		t.Fatal("new program version needs a new automatic tag")
+	if image(t, dir) != before || revision(t, dir) == beforeUpdate {
+		t.Fatal("an image update must change the pod template while keeping :latest")
+	}
+	secretAfter, _ := os.ReadFile(filepath.Join(dir, "deploy/secret.yaml"))
+	configAfter, _ := os.ReadFile(filepath.Join(dir, "deploy/configmap.yaml"))
+	if string(secretBefore) != string(secretAfter) || string(configBefore) != string(configAfter) {
+		t.Fatal("preparing a latest rollout changed company settings")
+	}
+	beforeAlias := revision(t, dir)
+	if output, err := run(t, dir, nil, "--new-tag"); err != nil || image(t, dir) != before || revision(t, dir) == beforeAlias {
+		t.Fatal("legacy --new-tag must prepare a rollout with the same latest tag", err, output)
+	}
+}
+
+func TestExistingVersionedSetupMigratesToLatestWithoutReenteringValues(t *testing.T) {
+	dir := project(t)
+	if output, err := run(t, dir, answers()); err != nil {
+		t.Fatal(err, output)
+	}
+	statePath := filepath.Join(dir, ".local/setup.json")
+	data, _ := os.ReadFile(statePath)
+	var state map[string]any
+	_ = json.Unmarshal(data, &state)
+	state["tag"] = "20261106-092027-2870"
+	data, _ = json.Marshal(state)
+	_ = os.WriteFile(statePath, data, 0600)
+	deploymentPath := filepath.Join(dir, "deploy/z-deployment.yaml")
+	deployment, _ := os.ReadFile(deploymentPath)
+	oldDeployment := strings.ReplaceAll(strings.ReplaceAll(string(deployment), ":latest", ":20261106-092027-2870"), `"Always"`, `"IfNotPresent"`)
+	_ = os.WriteFile(deploymentPath, []byte(oldDeployment), 0600)
+	secretBefore, _ := os.ReadFile(filepath.Join(dir, "deploy/secret.yaml"))
+	// Check identifies the necessary migration without modifying either file.
+	if output, err := run(t, dir, nil, "--check"); err == nil || !strings.Contains(output, "behöver uppdateras") {
+		t.Fatal("old versioned deployment was marked ready", output)
+	}
+	unchanged, _ := os.ReadFile(deploymentPath)
+	if string(unchanged) != oldDeployment {
+		t.Fatal("check changed the existing Deployment")
+	}
+	if output, err := run(t, dir, nil); err != nil || !strings.Contains(output, "Inga frågor behövs") {
+		t.Fatal("migration asked for already-saved company values", err, output)
+	}
+	data, _ = os.ReadFile(statePath)
+	_ = json.Unmarshal(data, &state)
+	secretAfter, _ := os.ReadFile(filepath.Join(dir, "deploy/secret.yaml"))
+	if state["tag"] != "latest" || image(t, dir) != registry+"latest" || string(secretBefore) != string(secretAfter) {
+		t.Fatal("latest migration changed company credentials or retained a versioned image")
+	}
+	if output, err := run(t, dir, nil, "--check"); err != nil {
+		t.Fatal(err, output)
 	}
 }
 

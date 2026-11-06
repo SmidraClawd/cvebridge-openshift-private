@@ -5,7 +5,6 @@ command -v python3 >/dev/null || { echo 'Python 3 saknas. Installera python3 i U
 CVE_SETUP_ROOT=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 exec python3 -c "$(cat <<'PY'
 import argparse
-import datetime
 import getpass
 import json
 import os
@@ -158,7 +157,7 @@ def manifests(s):
     }
     labels = {'app.kubernetes.io/name': 'cvebridge'}
     container = {
-        'name': 'bot', 'image': image(s), 'imagePullPolicy': 'IfNotPresent',
+        'name': 'bot', 'image': image(s), 'imagePullPolicy': 'Always',
         'ports': [{'name': 'webhook', 'containerPort': 8001}],
         'envFrom': [{'configMapRef': {'name': 'cvebridge-config'}}, {'secretRef': {'name': 'cvebridge-tokens'}}],
         'env': [{'name': 'NAMESPACE', 'valueFrom': {'fieldRef': {'fieldPath': 'metadata.namespace'}}}],
@@ -250,7 +249,7 @@ def main():
     parser = argparse.ArgumentParser(prog='./configure.sh', description='Förbered CVEBridge lokalt. Bygg, push och apply kör du själv.')
     options = parser.add_mutually_exclusive_group()
     options.add_argument('--check', action='store_true', help='Visa vad som saknas, utan att ändra filer.')
-    options.add_argument('--new-tag', action='store_true', help='Skapa ny imagetagg för en ny programversion.')
+    options.add_argument('--update-image', '--new-tag', dest='update_image', action='store_true', help='Förbered omstart vid apply för en ny image med samma :latest-tagg.')
     options.add_argument('--edit', action='store_true', help='Ändra sparade uppgifter. Utan flagga frågas bara tomma fält.')
     args = parser.parse_args()
     if LOCAL.is_symlink() or DEPLOY.is_symlink():
@@ -284,8 +283,8 @@ def main():
         raise ValueError('Utkastets imagetagg är ogiltig. Filen har inte skrivits över.')
     if 'revision' in s and (not isinstance(s['revision'], str) or not re.fullmatch(r'[a-f0-9]{32}', s['revision'])):
         raise ValueError('Utkastets konfigurationsrevision är ogiltig. Filen har inte skrivits över.')
-    if not s.get('tag') or args.new_tag:
-        s['tag'] = datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%d-%H%M%S-') + secrets.token_hex(2)
+    # Migrate existing saved versions to the fixed tag without changing answers.
+    s['tag'] = 'latest'
     if args.check:
         ready = status(s)
         if ready:
@@ -320,7 +319,7 @@ def main():
                 print(str(err))
     if LOCAL.is_symlink() or DEPLOY.is_symlink():
         raise ValueError('Konfigurationsmapparna får inte vara symboliska länkar.')
-    if not s.get('revision') or previous != [s[key] for key, _, _, _ in FIELDS]:
+    if not s.get('revision') or previous != [s[key] for key, _, _, _ in FIELDS] or args.update_image:
         # An opaque revision triggers rollout without publishing a secret hash.
         s['revision'] = secrets.token_hex(16)
     LOCAL.mkdir(exist_ok=True, mode=0o700)

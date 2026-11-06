@@ -24,7 +24,7 @@ Kommandona använder terminalvariabeln **`REGISTRY`**, med `$REGISTRY` när vär
 ska användas. Standardvärdet är klustrets interna registry:
 
 ```text
-image-registry.openshift-image-registry.svc:5000/image-security/cvebridge:<automatisk-tagg>
+image-registry.openshift-image-registry.svc:5000/image-security/cvebridge:latest
 ```
 
 Variabelnamnet skrivs med stora bokstäver; värdet är serveradressen, utan
@@ -83,7 +83,7 @@ Kör från projektmappen:
 Första gången frågar skriptet efter namespace, PVC, projektlista, ACS,
 Mattermost och tokens. Nästa gång läser det `.local/setup.json` och **frågar
 bara efter tomma fält**. Är allt redan ifyllt ställs inga frågor.
-Det uppdaterar filerna i din befintliga `deploy/`-mapp och använder samma tagg
+Det uppdaterar filerna i din befintliga `deploy/`-mapp och använder taggen `latest`
 i kommandona och Deployment. Formuläradressen räknas ut från botens Route.
 
 Vill du välja en annan registry, ange den före skriptet. Värdet sparas och
@@ -142,12 +142,12 @@ föras in i skriptet en gång; behåll en lokal kopia av dina YAML-filer tills d
 ## 3. Bygg programmet lokalt med Go
 
 Kör efter `./configure.sh`. Go på din Ubuntu bygger den färdiga körfilen
-`bin/cvebridge`. Raderna nedan läser registry, tagg och namespace från dina
-sparade svar. `$IMAGE` blir samma image som används i Deployment:
+`bin/cvebridge`. Raderna nedan läser registry och namespace från dina
+sparade svar och sätter `TAG=latest`. `$IMAGE` blir samma image som i Deployment:
 
 ```sh
 REGISTRY=$(python3 -c 'import json; print(json.load(open(".local/setup.json"))["registry"])')
-TAG=$(python3 -c 'import json; print(json.load(open(".local/setup.json"))["tag"])')
+TAG=latest
 NAMESPACE=$(python3 -c 'import json; print(json.load(open(".local/setup.json"))["namespace"])')
 LOCAL_IMAGE="localhost/cvebridge:$TAG"
 IMAGE="$REGISTRY/image-security/cvebridge:$TAG"
@@ -266,10 +266,22 @@ Skriptet markerar ändringen i Deployment så poden startas om automatiskt vid a
 Ingen ny image behövs. När enbart klustrets CA-paket förnyas används
 `oc rollout restart deployment/cvebridge -n image-security` för att läsa in den nya filen.
 
-**Ny programversion:** kör `./configure.sh --new-tag`. Skriptet behåller sparade
-uppgifter och frågar bara om något saknas. Använd de nya bygg- och pushkommandona
-med `$REGISTRY`, `$TAG` och `$IMAGE` och applicera mappen igen. Scheman och larmstatus ligger kvar
-på samma PVC. Kör en replika; lagringen behöver fungerande SQLite-fillåsning.
+**Ny programversion med `latest`:** kör först:
+
+```sh
+./configure.sh --update-image
+```
+
+Skriptet behåller sparade uppgifter och frågar bara om något saknas. Bygg om med
+Go och Podman och pusha `$IMAGE`, som alltid slutar med `:latest`. **Vänta tills
+pushen är klar och applicera sedan `deploy/`.** Skriptet har markerat en omstart
+i Deployment så att apply skapar en ny pod, även när imageadressen är densamma.
+
+Deployment använder `imagePullPolicy: Always`. Vid den nya podstarten kontrolleras
+vilken image `latest` pekar på i registryn. En push ensam startar inte om en redan
+körande pod. `--new-tag` fungerar fortfarande som alias för `--update-image`.
+Scheman och larmstatus ligger kvar på samma PVC. Kör en replika; lagringen
+behöver fungerande SQLite-fillåsning.
 
 ## Felsök StackRox i podloggarna
 
@@ -317,13 +329,13 @@ Sätt `LOG_LEVEL=debug` på samma sätt för att aktivera igen.
 **Om du bara ser `Mattermost listener`:** den raden visar att mottagaren för
 Mattermost-kommandon startar. Den nya versionen ska även skriva `monitor_startup`
 utan att du kör något kommando. Saknas den raden, kontrollera att du har byggt om
-Go-körfilen, paketerat och pushat en image med **ny tagg** och ändrat `image:`
-i din befintliga Deployment. Att bara kopiera källkod eller starta om den gamla
-imagen ger inte den nya loggningen.
+Go-körfilen, paketerat och pushat `:latest` och därefter applicerat en uppdatering
+förberedd med `./configure.sh --update-image`. Att bara kopiera källkod ger inte
+den nya loggningen i en redan körande pod.
 
 **Uppdatera via ZIP:** kopiera delarna i tabellen under steg 1 och behåll
-`deploy/` och `.local/`. Kör `./configure.sh --new-tag`; ifyllda uppgifter
-hoppas över och befintliga installationsfiler uppdateras med den nya taggen.
+`deploy/` och `.local/`. Kör `./configure.sh --update-image`; ifyllda uppgifter
+hoppas över och befintliga installationsfiler förbereds för en ny `:latest`-image.
 Följ sedan skriptets Go-, Podman-, push- och apply-kommandon.
 
 ## Verifiering
@@ -340,5 +352,6 @@ nätverket avstängt, följt av kontroll av körfil, datamapp och containerns st
 ·
 [Slash-kommandon i Mattermost](https://docs.mattermost.com/developers/integrate/slash-commands/custom)
 · [Podman push](https://docs.podman.io/en/latest/markdown/podman-push.1.html)
+· [Kubernetes image pull policy](https://kubernetes.io/docs/concepts/containers/images/#image-pull-policy)
 · [OpenShift registry](https://docs.redhat.com/en/documentation/openshift_container_platform/4.20/html/registry/accessing-the-registry)
 · [OpenShift CA-paket](https://docs.redhat.com/en/documentation/openshift_container_platform/4.20/html-single/configuring_network_settings/configuring_network_settings#certificate-injection-using-operators)
