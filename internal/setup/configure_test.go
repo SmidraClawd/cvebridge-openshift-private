@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strings"
 	"testing"
@@ -112,7 +113,7 @@ func TestReadySetupWritesConsistentYAMLAndKeepsCredentialsPrivate(t *testing.T) 
 		t.Fatal("unexpected user mapping")
 	}
 	fullImage := image(t, dir)
-	if fullImage != registry+"latest" || !strings.Contains(output, "TAG=latest") || !strings.Contains(output, `IMAGE="$REGISTRY/image-security/cvebridge:$TAG"`) || !strings.Contains(output, `podman push "$IMAGE"`) {
+	if fullImage != registry+"latest" || !strings.Contains(output, `podman tag localhost/cvebridge:latest "$REGISTRY/image-security/cvebridge:latest"`) || !strings.Contains(output, `podman push "$REGISTRY/image-security/cvebridge:latest"`) {
 		t.Fatal("build/tag/push and deployment must share one registry image", output)
 	}
 	for _, filename := range []string{"configmap.yaml", "secret.yaml", "z-deployment.yaml", "service.yaml", "serviceaccount.yaml", "trusted-ca.yaml", "route.yaml"} {
@@ -307,8 +308,13 @@ func TestRegistryVariableIsSavedAndUsedByPrintedShellCommands(t *testing.T) {
 	if !strings.HasPrefix(fullImage, "registry.example.test:5000/image-security/cvebridge:") {
 		t.Fatal("Deployment must use the selected registry", fullImage)
 	}
-	// Execute the printed variable/command block with fake tools, proving that
-	// Bash expands the dollar variables to the same target as the Deployment.
+	// Execute the printed block with fake tools, proving that the only user
+	// variable, REGISTRY, expands to the same target as the Deployment.
+	for _, variable := range regexp.MustCompile(`\$[A-Za-z_][A-Za-z0-9_]*`).FindAllString(output, -1) {
+		if variable != "$REGISTRY" {
+			t.Fatal("only REGISTRY should need variable expansion", variable)
+		}
+	}
 	tools := filepath.Join(dir, "tools")
 	if err := os.Mkdir(tools, 0700); err != nil {
 		t.Fatal(err)
@@ -332,7 +338,7 @@ elif tool == 'podman' and sys.argv[1] == 'login':
 	}
 	var lines []string
 	for _, line := range strings.Split(output, "\n") {
-		for _, prefix := range []string{"REGISTRY=", "TAG=", "NAMESPACE=", "LOCAL_IMAGE=", "IMAGE=", "mkdir ", "GOPROXY=", "chmod ", "podman ", "oc "} {
+		for _, prefix := range []string{"REGISTRY=", "mkdir ", "GOPROXY=", "chmod ", "podman ", "oc "} {
 			if strings.HasPrefix(line, prefix) {
 				lines = append(lines, line)
 				break

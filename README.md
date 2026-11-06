@@ -142,19 +142,15 @@ föras in i skriptet en gång; behåll en lokal kopia av dina YAML-filer tills d
 ## 3. Bygg programmet lokalt med Go
 
 Kör efter `./configure.sh`. Go på din Ubuntu bygger den färdiga körfilen
-`bin/cvebridge`. Raderna nedan läser registry och namespace från dina
-sparade svar och sätter `TAG=latest`. `$IMAGE` blir samma image som i Deployment:
+`bin/cvebridge`. Endast registryadressen är en variabel: `$REGISTRY`.
+Imagen heter `cvebridge` och taggen skrivs direkt som `latest`:
 
 ```sh
 REGISTRY=$(python3 -c 'import json; print(json.load(open(".local/setup.json"))["registry"])')
-TAG=latest
-NAMESPACE=$(python3 -c 'import json; print(json.load(open(".local/setup.json"))["namespace"])')
-LOCAL_IMAGE="localhost/cvebridge:$TAG"
-IMAGE="$REGISTRY/image-security/cvebridge:$TAG"
 mkdir -p bin/rootfs/data
 GOPROXY=off GOTOOLCHAIN=local CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
   go build -mod=vendor -trimpath \
-  -ldflags="-s -w -X main.version=$TAG" \
+  -ldflags="-s -w -X main.version=latest" \
   -o bin/cvebridge ./cmd/cvebridge
 chmod 0755 bin/cvebridge
 chmod 0770 bin/rootfs/data
@@ -174,10 +170,10 @@ Dockerfile paketerar den färdiga körfilen. Den bygger ingen Go-kod och hämtar
 ingen byggimage. Kör med taggen från steg 3:
 
 ```sh
-podman build --platform linux/amd64 -f Dockerfile -t "$LOCAL_IMAGE" .
-podman tag "$LOCAL_IMAGE" "$IMAGE"
+podman build --platform linux/amd64 -f Dockerfile -t localhost/cvebridge:latest .
+podman tag localhost/cvebridge:latest "$REGISTRY/image-security/cvebridge:latest"
 oc whoami -t | podman login "$REGISTRY" --username cvebridge --password-stdin
-podman push "$IMAGE"
+podman push "$REGISTRY/image-security/cvebridge:latest"
 ```
 
 `podman tag` ger imagen registryadressen. `podman login` använder din befintliga
@@ -189,8 +185,8 @@ och företagsinställningar följer inte med. Saknas `bin/cvebridge`, kör steg 
 Om Dockerfile fortfarande hämtar en Go-image eller kör `go mod download`,
 hämta uppdateringen med `git pull --ff-only` och använd Dockerfile därifrån.
 
-Skriptet skriver också ut färdiga kommandon med `REGISTRY`, `TAG` och
-`NAMESPACE` ifyllda och använder `$REGISTRY`, `$TAG` och `$IMAGE`. Du kan
+Skriptet skriver också ut färdiga kommandon med `$REGISTRY` som enda variabel.
+Image, tagg och namespace skrivs direkt i kommandona med rätt värden. Du kan
 kopiera dem som alternativ till steg 3–4. Det kör inget av kommandona åt dig.
 
 ## 5. Starta boten i OpenShift
@@ -202,12 +198,14 @@ Kontrollera att konfigurationen är komplett:
 ```
 
 När kontrollen är godkänd och imagen är pushad, applicera hela mappen och
-kontrollera att boten startar. Namespace läses från dina sparade svar:
+kontrollera att boten startar. Här används standardprojektet `image-security`;
+byt det i kontrollkommandona om boten körs i ett annat namespace. Skriptets
+utskrivna kommandon har redan ditt sparade namespace:
 
 ```sh
 oc apply -f deploy/
-oc rollout status deployment/cvebridge -n "$NAMESPACE"
-oc logs deployment/cvebridge -n "$NAMESPACE" -c bot --tail=50
+oc rollout status deployment/cvebridge -n image-security
+oc logs deployment/cvebridge -n image-security -c bot --tail=50
 ```
 
 Alla YAML-filer har redan rätt namespace. `deploy/` innehåller ConfigMap, Secret, Deployment,
@@ -222,7 +220,7 @@ CA:n som utfärdat Mattermosts och ACS certifikat måste ingå i klusterpaketet.
 Kontrollera att CA-paketet har fyllts i; kommandot ska visa `DATA: 1`:
 
 ```sh
-oc get configmap cvebridge-trusted-ca -n "$NAMESPACE"
+oc get configmap cvebridge-trusted-ca -n image-security
 ```
 
 Botens ServiceAccount behöver ingen Kubernetes-API-token eller personlig RBAC.
@@ -273,7 +271,7 @@ Ingen ny image behövs. När enbart klustrets CA-paket förnyas används
 ```
 
 Skriptet behåller sparade uppgifter och frågar bara om något saknas. Bygg om med
-Go och Podman och pusha `$IMAGE`, som alltid slutar med `:latest`. **Vänta tills
+Go och Podman och pusha `$REGISTRY/image-security/cvebridge:latest`. **Vänta tills
 pushen är klar och applicera sedan `deploy/`.** Skriptet har markerat en omstart
 i Deployment så att apply skapar en ny pod, även när imageadressen är densamma.
 
