@@ -21,7 +21,7 @@ ROOT = Path(sys.argv.pop(1))
 LOCAL = ROOT / '.local'
 STATE = LOCAL / 'setup.json'
 DEPLOY = ROOT / 'deploy'
-REGISTRY = 'image-registry.openshift-image-registry.svc:5000'
+DEFAULT_REGISTRY = 'image-registry.openshift-image-registry.svc:5000'
 IMAGE_PROJECT = 'image-security'
 FILES = ('configmap.yaml', 'secret.yaml', 'deployment.yaml', 'z-deployment.yaml', 'service.yaml',
          'serviceaccount.yaml', 'trusted-ca.yaml', 'route.yaml', 'image-puller.yaml')
@@ -84,6 +84,16 @@ def normalize(key, value):
             raise ValueError('Ange ett Route-värdnamn, exempelvis cvebridge.apps.labb.foretaget.se.')
     return value
 
+def registry(value):
+    # REGISTRY is a host[:port], never a URL, image path or shell expression.
+    value = value.strip().lower()
+    u = urlsplit('//' + value)
+    if (not u.hostname or u.username is not None or u.password is not None
+            or u.path or u.query or u.fragment or u.port == 0
+            or not all(valid_name(part) for part in u.hostname.split('.'))):
+        raise ValueError('REGISTRY ska vara ett värdnamn med eventuell port, utan https:// eller imagesökväg.')
+    return value
+
 def write_private(path, text):
     path.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.NamedTemporaryFile('w', encoding='utf-8', dir=path.parent, delete=False) as f:
@@ -131,7 +141,7 @@ def resource(kind, name, namespace, **extra):
             'metadata': {'name': name, 'namespace': namespace}, **extra}
 
 def image(settings):
-    return f'{REGISTRY}/{IMAGE_PROJECT}/cvebridge:{settings["tag"]}'
+    return f'{settings["registry"]}/{IMAGE_PROJECT}/cvebridge:{settings["tag"]}'
 
 def manifests(s):
     ns = s['namespace']
@@ -210,20 +220,24 @@ def status(s):
     return not missing
 
 def commands(s, ready):
-    local = 'localhost/cvebridge:' + s['tag']
     print('\nKör själv i projektmappen, efter din vanliga oc login:')
     print('Go 1.27.3 behöver vara installerat. Kommandona bygger för Linux/amd64 (Intel/AMD).')
+    print('REGISTRY=' + shlex.quote(s['registry']))
+    print('TAG=' + shlex.quote(s['tag']))
+    print('NAMESPACE=' + shlex.quote(s['namespace']))
+    print('LOCAL_IMAGE="localhost/cvebridge:$TAG"')
+    print('IMAGE="$REGISTRY/' + IMAGE_PROJECT + '/cvebridge:$TAG"')
     print('mkdir -p bin/rootfs/data')
-    print('GOPROXY=off GOTOOLCHAIN=local CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -mod=vendor -trimpath -ldflags=' + shlex.quote('-s -w -X main.version=' + s['tag']) + ' -o bin/cvebridge ./cmd/cvebridge')
+    print('GOPROXY=off GOTOOLCHAIN=local CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -mod=vendor -trimpath -ldflags="-s -w -X main.version=$TAG" -o bin/cvebridge ./cmd/cvebridge')
     print('chmod 0755 bin/cvebridge')
     print('chmod 0770 bin/rootfs/data')
-    print('podman build --platform linux/amd64 -f Dockerfile -t ' + shlex.quote(local) + ' .')
-    print('podman tag ' + shlex.quote(local) + ' ' + shlex.quote(image(s)))
-    print('oc whoami -t | podman login ' + REGISTRY + ' --username cvebridge --password-stdin')
-    print('podman push ' + shlex.quote(image(s)))
+    print('podman build --platform linux/amd64 -f Dockerfile -t "$LOCAL_IMAGE" .')
+    print('podman tag "$LOCAL_IMAGE" "$IMAGE"')
+    print('oc whoami -t | podman login "$REGISTRY" --username cvebridge --password-stdin')
+    print('podman push "$IMAGE"')
     if ready:
         print('oc apply -f deploy/')
-        print('oc rollout status deployment/cvebridge -n ' + shlex.quote(s['namespace']))
+        print('oc rollout status deployment/cvebridge -n "$NAMESPACE"')
     else:
         print('Bygget kan köras redan nu. Fyll utkastet innan du applicerar YAML.')
     print('\nUbuntu-maskinen behöver nå registryts interna DNS/adress och lita på dess CA.')
@@ -237,6 +251,7 @@ def main():
     options = parser.add_mutually_exclusive_group()
     options.add_argument('--check', action='store_true', help='Visa vad som saknas, utan att ändra filer.')
     options.add_argument('--new-tag', action='store_true', help='Skapa ny imagetagg för en ny programversion.')
+    options.add_argument('--edit', action='store_true', help='Ändra sparade uppgifter. Utan flagga frågas bara tomma fält.')
     args = parser.parse_args()
     if LOCAL.is_symlink() or DEPLOY.is_symlink():
         raise ValueError('Konfigurationsmapparna får inte vara symboliska länkar.')
@@ -253,6 +268,11 @@ def main():
                 raise ValueError()
         except (ValueError, OSError):
             raise ValueError('Det sparade utkastet kunde inte läsas. Filen har inte skrivits över.')
+    existing = bool(s)
+    try:
+        s['registry'] = registry(os.environ.get('REGISTRY', s.get('registry', DEFAULT_REGISTRY)))
+    except (ValueError, TypeError, AttributeError):
+        raise ValueError('Ogiltig REGISTRY. Ange värdnamn och eventuell port, utan https:// eller imagesökväg. Inga filer har ändrats.')
     for key, _, default, _ in FIELDS:
         try:
             s[key] = normalize(key, s.get(key, default))
@@ -277,12 +297,18 @@ def main():
                     return 1
         return 0 if ready else 1
     print('CVEBridge · lokal konfiguration')
-    print('Enter = behåll sparat värde, - = rensa. Tomt nytt fält sparas som utkast.')
-    print('Registry: ' + REGISTRY + '/' + IMAGE_PROJECT + '/cvebridge')
+    print('Enter = behåll värde eller lämna tomt. Använd --edit för att ändra sparade svar; där rensar - ett värde.')
+    print('Registry: ' + s['registry'] + '/' + IMAGE_PROJECT + '/cvebridge')
     print('Namespace och befintlig PVC ska redan finnas i OpenShift.\n')
+    if existing and not args.edit:
+        print('Sparade värden återanvänds. Bara tomma fält efterfrågas.')
+        if all(s[key] for key, _, _, _ in FIELDS):
+            print('Alla uppgifter finns redan. Inga frågor behövs.')
     previous = [s[key] for key, _, _, _ in FIELDS]
     for key, label, _, sensitive in FIELDS:
         current = s.get(key, '')
+        if existing and current and not args.edit:
+            continue
         hint = ' [sparad]' if sensitive and current else (' [' + current + ']' if current else '')
         while True:
             prompt = label + hint + ': '
@@ -306,7 +332,11 @@ def main():
     for filename in FILES:
         path = DEPLOY / filename
         if filename in rendered:
-            write_private(path, '# Genererad av configure.sh. Kör skriptet igen för ändringar.\n' + yaml(rendered[filename]))
+            text = '# Genererad av configure.sh. Kör skriptet igen för ändringar.\n' + yaml(rendered[filename])
+            if path.is_symlink() or not path.exists() or path.read_text(encoding='utf-8') != text:
+                write_private(path, text)
+            else:
+                path.chmod(0o600)
         elif path.exists() or path.is_symlink():
             path.unlink()
     status(s)

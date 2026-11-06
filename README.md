@@ -10,8 +10,9 @@ hämta → ./configure.sh → Go bygger lokalt → Podman paketerar → tagga/pu
 
 ## Förbered
 
-Ubuntu/Linux med **Go 1.27.3, Git, Bash, Python 3, Podman och `oc`**. Projektet och en befintlig
-PVC ska finnas i OpenShift. Standardprojektet är **`image-security`**; PVC:n
+Ubuntu/Linux med **Go 1.27.3, Bash, Python 3, Podman och `oc`**. Git behövs bara
+om du klonar; ZIP fungerar också. Projektet och en befintlig PVC ska finnas i
+OpenShift. Standardprojektet är **`image-security`**; PVC:n
 måste finnas i samma projekt som boten.
 
 Installera Go från företagets godkända källa eller följ
@@ -19,16 +20,17 @@ Installera Go från företagets godkända källa eller följ
 Kommandona nedan bygger för **Linux/amd64**, alltså klusternoder med Intel/AMD.
 För ARM64-noder används `GOARCH=arm64` och `--platform linux/arm64` i stället.
 
-Registryadressen är fast i detta flöde:
+Kommandona använder terminalvariabeln **`REGISTRY`**, med `$REGISTRY` när värdet
+ska användas. Standardvärdet är klustrets interna registry:
 
 ```text
 image-registry.openshift-image-registry.svc:5000/image-security/cvebridge:<automatisk-tagg>
 ```
 
-Ubuntu-maskinen måste kunna nå denna interna DNS/adress och lita på registryts
-CA. Det här flödet använder samma interna adress för taggning, push och Deployment.
-En vanlig dator utanför klustrets nät kan behöva nätverks-/DNS-åtkomst ordnad av
-plattformsteamet för att nå just den adressen.
+Variabelnamnet skrivs med stora bokstäver; värdet är serveradressen, utan
+`https://` eller imagesökväg. Ubuntu-maskinen och klustret behöver kunna nå
+den valda registryn och lita på dess CA. Samma registry används för taggning,
+push och Deployment. För standardadressen behöver Ubuntu nå klustrets interna DNS.
 
 ## 1. Hämta projektet och logga in
 
@@ -39,11 +41,25 @@ git clone https://github.com/SmidraClawd/cvebridge-openshift-private.git
 cd cvebridge-openshift-private
 ```
 
-Har du redan projektet, öppna terminalen i projektmappen och hämta uppdateringen:
+Har du redan projektet via Git kan du uppdatera med:
 
 ```sh
 git pull --ff-only
 ```
+
+**Använder du ZIP?** Packa upp den nya ZIP-filen separat. För den senaste
+logg- och skriptuppdateringen behöver du bara kopiera:
+
+| Del | Kopiera till samma plats i ditt befintliga projekt |
+| --- | --- |
+| Boten | `internal/bridge/` — innehåller loggändringarna. |
+| Installationsskriptet | `configure.sh` i projektets rot. |
+| Guiden | `README.md` i projektets rot. |
+| Tester, om du kör `go test` | `internal/setup/configure_test.go`. |
+
+Behåll din **`deploy/`-mapp och den dolda `.local/`-mappen**. Där finns dina
+ifyllda YAML-filer och sparade svar. Du behöver inte kopiera `vendor/`,
+Dockerfile eller andra mappar för denna uppdatering.
 
 I OpenShift-konsolen: klicka på ditt användarnamn → **Copy login command**.
 Kör inloggningskommandot i terminalen. Kontrollera sedan kontot och PVC-namnet:
@@ -64,9 +80,22 @@ Kör från projektmappen:
 ./configure.sh
 ```
 
-Skriptet frågar efter namespace, PVC, projektlista, ACS, Mattermost och tokens.
-Det skapar samma imagetagg i alla kommandon och Deployment. Formuläradressen
-räknas ut från botens Route-värdnamn.
+Första gången frågar skriptet efter namespace, PVC, projektlista, ACS,
+Mattermost och tokens. Nästa gång läser det `.local/setup.json` och **frågar
+bara efter tomma fält**. Är allt redan ifyllt ställs inga frågor.
+Det uppdaterar filerna i din befintliga `deploy/`-mapp och använder samma tagg
+i kommandona och Deployment. Formuläradressen räknas ut från botens Route.
+
+Vill du välja en annan registry, ange den före skriptet. Värdet sparas och
+behöver inte anges igen:
+
+```sh
+export REGISTRY="image-registry.openshift-image-registry.svc:5000"
+./configure.sh
+```
+
+Byt bara serveradressen ovan om ni använder en annan registry. Den ska vara
+nåbar även från klustret eftersom Deployment använder samma adress.
 
 | Fråga | Var du hittar värdet |
 | --- | --- |
@@ -89,8 +118,9 @@ Administration samt **Write** på Image. ACS-ansvarig godkänner rättigheterna.
 för CVE-databasens status. Skriptet använder samma ID som driftkanalen, så du
 behöver inget extra värde. Tomt eller saknat fält stänger av automatisk bevakning.
 
-**Tomma svar:** Enter behåller ett sparat värde; ett nytt tomt fält lämnas till
-senare. Skriv `-` för att rensa ett tidigare svar. Tokens visas aldrig i terminalen.
+**Tomma svar:** Enter lämnar ett saknat värde till senare. Redan ifyllda fält
+hoppas över. För att ändra ett sparat svar, kör `./configure.sh --edit`.
+I det läget behåller Enter värdet och `-` rensar det. Tokens visas aldrig.
 
 Saknas obligatoriska uppgifter sparas ett **utkast** och inga installations-YAML
 skapas. Du kan ändå bygga imagen. Saknas bara `/cve`-token eller Route kan boten
@@ -104,20 +134,27 @@ Kör skriptet igen för att komplettera:
 
 Svar, inklusive tokens, sparas lokalt i `.local/setup.json`. Den filen och
 alla genererade YAML-filer är git-ignorerade och får filrättighet `0600`.
-Det finns ingen `.env`-fil i installationsflödet. Har du fyllt gamla YAML-filer
-från en tidigare version, behåll en lokal kopia av dem tills du matat in svaren.
+Det finns ingen `.env`-fil i installationsflödet. Sparade skriptsvar är källan
+när YAML-filerna återskapas. Behåll därför `.local/` när du uppdaterar via ZIP.
+Har du bara manuellt ifyllda YAML-filer och inga sparade svar behöver uppgifterna
+föras in i skriptet en gång; behåll en lokal kopia av dina YAML-filer tills dess.
 
 ## 3. Bygg programmet lokalt med Go
 
 Kör efter `./configure.sh`. Go på din Ubuntu bygger den färdiga körfilen
-`bin/cvebridge`. Första raden läser samma tagg som används i Deployment:
+`bin/cvebridge`. Raderna nedan läser registry, tagg och namespace från dina
+sparade svar. `$IMAGE` blir samma image som används i Deployment:
 
 ```sh
-CVEBRIDGE_TAG=$(python3 -c 'import json; print(json.load(open(".local/setup.json"))["tag"])')
+REGISTRY=$(python3 -c 'import json; print(json.load(open(".local/setup.json"))["registry"])')
+TAG=$(python3 -c 'import json; print(json.load(open(".local/setup.json"))["tag"])')
+NAMESPACE=$(python3 -c 'import json; print(json.load(open(".local/setup.json"))["namespace"])')
+LOCAL_IMAGE="localhost/cvebridge:$TAG"
+IMAGE="$REGISTRY/image-security/cvebridge:$TAG"
 mkdir -p bin/rootfs/data
 GOPROXY=off GOTOOLCHAIN=local CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
   go build -mod=vendor -trimpath \
-  -ldflags="-s -w -X main.version=$CVEBRIDGE_TAG" \
+  -ldflags="-s -w -X main.version=$TAG" \
   -o bin/cvebridge ./cmd/cvebridge
 chmod 0755 bin/cvebridge
 chmod 0770 bin/rootfs/data
@@ -137,11 +174,10 @@ Dockerfile paketerar den färdiga körfilen. Den bygger ingen Go-kod och hämtar
 ingen byggimage. Kör med taggen från steg 3:
 
 ```sh
-podman build --platform linux/amd64 -f Dockerfile -t "localhost/cvebridge:$CVEBRIDGE_TAG" .
-CVEBRIDGE_IMAGE="image-registry.openshift-image-registry.svc:5000/image-security/cvebridge:$CVEBRIDGE_TAG"
-podman tag "localhost/cvebridge:$CVEBRIDGE_TAG" "$CVEBRIDGE_IMAGE"
-oc whoami -t | podman login image-registry.openshift-image-registry.svc:5000 --username cvebridge --password-stdin
-podman push "$CVEBRIDGE_IMAGE"
+podman build --platform linux/amd64 -f Dockerfile -t "$LOCAL_IMAGE" .
+podman tag "$LOCAL_IMAGE" "$IMAGE"
+oc whoami -t | podman login "$REGISTRY" --username cvebridge --password-stdin
+podman push "$IMAGE"
 ```
 
 `podman tag` ger imagen registryadressen. `podman login` använder din befintliga
@@ -153,7 +189,8 @@ och företagsinställningar följer inte med. Saknas `bin/cvebridge`, kör steg 
 Om Dockerfile fortfarande hämtar en Go-image eller kör `go mod download`,
 hämta uppdateringen med `git pull --ff-only` och använd Dockerfile därifrån.
 
-Skriptet skriver också ut färdiga kommandon med taggen redan ifylld. Du kan
+Skriptet skriver också ut färdiga kommandon med `REGISTRY`, `TAG` och
+`NAMESPACE` ifyllda och använder `$REGISTRY`, `$TAG` och `$IMAGE`. Du kan
 kopiera dem som alternativ till steg 3–4. Det kör inget av kommandona åt dig.
 
 ## 5. Starta boten i OpenShift
@@ -168,10 +205,9 @@ När kontrollen är godkänd och imagen är pushad, applicera hela mappen och
 kontrollera att boten startar. Namespace läses från dina sparade svar:
 
 ```sh
-CVEBRIDGE_NAMESPACE=$(python3 -c 'import json; print(json.load(open(".local/setup.json"))["namespace"])')
 oc apply -f deploy/
-oc rollout status deployment/cvebridge -n "$CVEBRIDGE_NAMESPACE"
-oc logs deployment/cvebridge -n "$CVEBRIDGE_NAMESPACE" -c bot --tail=50
+oc rollout status deployment/cvebridge -n "$NAMESPACE"
+oc logs deployment/cvebridge -n "$NAMESPACE" -c bot --tail=50
 ```
 
 Alla YAML-filer har redan rätt namespace. `deploy/` innehåller ConfigMap, Secret, Deployment,
@@ -186,7 +222,7 @@ CA:n som utfärdat Mattermosts och ACS certifikat måste ingå i klusterpaketet.
 Kontrollera att CA-paketet har fyllts i; kommandot ska visa `DATA: 1`:
 
 ```sh
-oc get configmap cvebridge-trusted-ca -n "$CVEBRIDGE_NAMESPACE"
+oc get configmap cvebridge-trusted-ca -n "$NAMESPACE"
 ```
 
 Botens ServiceAccount behöver ingen Kubernetes-API-token eller personlig RBAC.
@@ -216,8 +252,11 @@ utgångsläge utan akut ping; nya kritiska fynd kan sedan ge en engångsping.
 
 ## Ändringar senare
 
-**Bara nya inställningar eller tokens:** kör `./configure.sh` igen, behåll taggen,
-och kör sedan:
+**Fyll i det som saknas:** kör `./configure.sh`. Sparade värden behålls,
+bara tomma fält efterfrågas och den befintliga `deploy/`-mappen uppdateras.
+
+**Ändra en befintlig inställning eller token:** kör `./configure.sh --edit`.
+Behåll taggen och kör sedan:
 
 ```sh
 oc apply -f deploy/
@@ -227,8 +266,9 @@ Skriptet markerar ändringen i Deployment så poden startas om automatiskt vid a
 Ingen ny image behövs. När enbart klustrets CA-paket förnyas används
 `oc rollout restart deployment/cvebridge -n image-security` för att läsa in den nya filen.
 
-**Ny programversion:** kör `./configure.sh --new-tag`, använd de nya bygg- och
-pushkommandona och applicera mappen igen. Scheman och larmstatus ligger kvar
+**Ny programversion:** kör `./configure.sh --new-tag`. Skriptet behåller sparade
+uppgifter och frågar bara om något saknas. Använd de nya bygg- och pushkommandona
+med `$REGISTRY`, `$TAG` och `$IMAGE` och applicera mappen igen. Scheman och larmstatus ligger kvar
 på samma PVC. Kör en replika; lagringen behöver fungerande SQLite-fillåsning.
 
 ## Felsök StackRox i podloggarna
@@ -281,12 +321,10 @@ Go-körfilen, paketerat och pushat en image med **ny tagg** och ändrat `image:`
 i din befintliga Deployment. Att bara kopiera källkod eller starta om den gamla
 imagen ger inte den nya loggningen.
 
-**Uppdatera via ZIP:** packa upp den nya ZIP-filen separat och kopiera dess
-`internal/bridge/` över samma mapp i ditt befintliga projekt. Då följer alla
-sammanhängande kodändringar med. Behåll din ifyllda ConfigMap, Secret, Deployment
-och den dolda `.local/`-mappen. För denna logguppdatering behöver du inte fylla i
-skriptets frågor igen: bygg om med Go och Podman, pusha med en ny tagg och byt
-bara `image:` i din befintliga Deployment. Applicera sedan just Deployment-filen.
+**Uppdatera via ZIP:** kopiera delarna i tabellen under steg 1 och behåll
+`deploy/` och `.local/`. Kör `./configure.sh --new-tag`; ifyllda uppgifter
+hoppas över och befintliga installationsfiler uppdateras med den nya taggen.
+Följ sedan skriptets Go-, Podman-, push- och apply-kommandon.
 
 ## Verifiering
 
@@ -301,5 +339,6 @@ nätverket avstängt, följt av kontroll av körfil, datamapp och containerns st
 [Go-paket från vendor](https://go.dev/ref/mod#vendoring)
 ·
 [Slash-kommandon i Mattermost](https://docs.mattermost.com/developers/integrate/slash-commands/custom)
+· [Podman push](https://docs.podman.io/en/latest/markdown/podman-push.1.html)
 · [OpenShift registry](https://docs.redhat.com/en/documentation/openshift_container_platform/4.20/html/registry/accessing-the-registry)
 · [OpenShift CA-paket](https://docs.redhat.com/en/documentation/openshift_container_platform/4.20/html-single/configuring_network_settings/configuring_network_settings#certificate-injection-using-operators)
