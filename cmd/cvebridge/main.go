@@ -24,6 +24,7 @@ func main() {
 			log.Fatal("usage: cvebridge [version]")
 		}
 	}
+	log.Printf("HELLO CVEBridge | version=%s | startup=source-build-v1", version)
 	c, e := bridge.ConfigFromEnv()
 	if e != nil {
 		log.Fatal(e)

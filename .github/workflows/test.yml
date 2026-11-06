@@ -17,11 +17,6 @@ jobs:
           go-version: '1.27.3'
       - run: go test -mod=vendor -race ./...
       - run: go vet -mod=vendor ./...
-      - name: Build Linux executable locally
-        run: |
-          mkdir -p bin/rootfs/data
-          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -mod=vendor -trimpath -ldflags="-s -w -X main.version=ci" -o bin/cvebridge ./cmd/cvebridge
-          chmod 0755 bin/cvebridge
-          chmod 0770 bin/rootfs/data
-      - run: docker build --platform linux/amd64 --network=none -t cvebridge:ci .
+      - name: Build executable and image from source
+        run: docker build --platform linux/amd64 --network=none -t cvebridge:ci .
       - run: docker run --rm cvebridge:ci version

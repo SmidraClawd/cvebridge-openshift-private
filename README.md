@@ -5,20 +5,19 @@ Boten frågar ACS Central direkt. Driftmedlemmarna behöver inga personliga
 OpenShift-konton eller användarmappningar. Scheman och larmstatus sparas på PVC.
 
 ```text
-hämta → ./configure.sh → Go bygger lokalt → Podman paketerar → tagga/pusha → oc apply → testa
+hämta → ./configure.sh → Podman bygger kod och image → tagga/pusha → oc apply → HELLO i loggen
 ```
 
 ## Förbered
 
-Ubuntu/Linux med **Go 1.27.3, Bash, Python 3, Podman och `oc`**. Git behövs bara
+Ubuntu/Linux med **Bash, Python 3, Podman och `oc`**. Git behövs bara
 om du klonar; ZIP fungerar också. Projektet och en befintlig PVC ska finnas i
 OpenShift. Standardprojektet är **`image-security`**; PVC:n
 måste finnas i samma projekt som boten.
 
-Installera Go från företagets godkända källa eller följ
-[Gos installationsguide](https://go.dev/doc/install). Kontrollera med `go version`.
+Go finns i byggimagen; du behöver inte installera Go på datorn för att bygga boten.
 Kommandona nedan bygger för **Linux/amd64**, alltså klusternoder med Intel/AMD.
-För ARM64-noder används `GOARCH=arm64` och `--platform linux/arm64` i stället.
+För ARM64-noder används `--platform linux/arm64` i stället.
 
 Kommandona använder terminalvariabeln **`REGISTRY`**, med `$REGISTRY` när värdet
 ska användas. Standardvärdet är klustrets interna registry:
@@ -48,18 +47,21 @@ git pull --ff-only
 ```
 
 **Använder du ZIP?** Packa upp den nya ZIP-filen separat. För den senaste
-logg- och skriptuppdateringen behöver du bara kopiera:
+bygg- och logguppdateringen behöver du kopiera:
 
 | Del | Kopiera till samma plats i ditt befintliga projekt |
 | --- | --- |
 | Boten | `internal/bridge/` — innehåller loggändringarna. |
+| Uppstartsmeddelandet | `cmd/cvebridge/main.go` — skriver `HELLO` direkt vid start. |
+| Bygget | `Dockerfile` och den dolda filen `.dockerignore` — kopiera båda. |
 | Installationsskriptet | `configure.sh` i projektets rot. |
 | Guiden | `README.md` i projektets rot. |
 | Tester, om du kör `go test` | `internal/setup/configure_test.go`. |
 
 Behåll din **`deploy/`-mapp och den dolda `.local/`-mappen**. Där finns dina
-ifyllda YAML-filer och sparade svar. Du behöver inte kopiera `vendor/`,
-Dockerfile eller andra mappar för denna uppdatering.
+ifyllda YAML-filer och sparade svar. Behåll också `vendor/`, `go.mod` och
+`go.sum` från projektet. Saknas `vendor/`, hämta hela privata ZIP-paketet och
+behåll dina lokala inställningar när du kopierar in koden.
 
 I OpenShift-konsolen: klicka på ditt användarnamn → **Copy login command**.
 Kör inloggningskommandot i terminalen. Kontrollera sedan kontot och PVC-namnet:
@@ -139,38 +141,32 @@ när YAML-filerna återskapas. Behåll därför `.local/` när du uppdaterar via
 Har du bara manuellt ifyllda YAML-filer och inga sparade svar behöver uppgifterna
 föras in i skriptet en gång; behåll en lokal kopia av dina YAML-filer tills dess.
 
-## 3. Bygg programmet lokalt med Go
+## 3. Bygg boten med Podman
 
-Kör efter `./configure.sh`. Go på din Ubuntu bygger den färdiga körfilen
-`bin/cvebridge`. Endast registryadressen är en variabel: `$REGISTRY`.
-Imagen heter `cvebridge` och taggen skrivs direkt som `latest`:
+Kör efter `./configure.sh`. Endast registryadressen är en variabel: `$REGISTRY`.
+Dockerfile bygger Go-programmet från aktuell källkod och paketerar det i imagen.
+Du behöver inget separat `go build` och ingen fil från `bin/` används.
 
 ```sh
 REGISTRY=$(python3 -c 'import json; print(json.load(open(".local/setup.json"))["registry"])')
-mkdir -p bin/rootfs/data
-GOPROXY=off GOTOOLCHAIN=local CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
-  go build -mod=vendor -trimpath \
-  -ldflags="-s -w -X main.version=latest" \
-  -o bin/cvebridge ./cmd/cvebridge
-chmod 0755 bin/cvebridge
-chmod 0770 bin/rootfs/data
+podman build --network=none --platform linux/amd64 -f Dockerfile -t localhost/cvebridge:latest .
 ```
 
-Go-paketen följer med projektet i `vendor/`. Go läser dem lokalt utan att hämta
-paket eller en annan Go-version från internet. Ingen certifikatkontroll stängs av.
-`bin/rootfs/data` blir den tomma lagringsplatsen `/data` i imagen. PVC:n monteras
-på `/data` i OpenShift.
+Go-paketen följer med i `vendor/`. Kompileringen använder `-mod=vendor`,
+`GOPROXY=off` och nätverket är avstängt med `--network=none`. Det hindrar
+Go från att ladda ner paket under bygget, inklusive `go-humanize`.
 
-Om Go saknas eller är för gammalt, installera Go 1.27.3 innan du fortsätter.
-Vänta tills Go-bygget är klart utan fel. Kör om detta steg efter kodändringar.
+Första gången kan Podman behöva hämta `docker.io/library/golang:1.27.3`.
+För helt frånkopplat bygge måste den byggimagen redan finnas lokalt, hämtad
+från företagets godkända källa. `--network=none` gäller byggstegen, inte hämtningen
+av byggimagen. Certifikatkontrollen är kvar för registry, Mattermost och ACS.
+Vänta tills bygget är klart utan fel innan du fortsätter.
 
-## 4. Paketera med Podman, tagga och pusha
+## 4. Tagga och pusha
 
-Dockerfile paketerar den färdiga körfilen. Den bygger ingen Go-kod och hämtar
-ingen byggimage. Kör med taggen från steg 3:
+Imagen från steg 3 heter `localhost/cvebridge:latest`. Tagga och pusha den:
 
 ```sh
-podman build --platform linux/amd64 -f Dockerfile -t localhost/cvebridge:latest .
 podman tag localhost/cvebridge:latest "$REGISTRY/image-security/cvebridge:latest"
 oc whoami -t | podman login "$REGISTRY" --username cvebridge --password-stdin
 podman push "$REGISTRY/image-security/cvebridge:latest"
@@ -180,10 +176,9 @@ podman push "$REGISTRY/image-security/cvebridge:latest"
 OpenShift-inloggning. `podman push` laddar upp imagen till `image-security`.
 Vänta tills pushen är klar utan fel innan du applicerar YAML-filerna.
 
-Imagen innehåller körfilen och den tomma datamappen. Källkod, `vendor/`, tokens
-och företagsinställningar följer inte med. Saknas `bin/cvebridge`, kör steg 3 först.
-Om Dockerfile fortfarande hämtar en Go-image eller kör `go mod download`,
-hämta uppdateringen med `git pull --ff-only` och använd Dockerfile därifrån.
+Den slutliga imagen innehåller bara körfilen och den tomma datamappen `/data`.
+Go-byggimagen, källkod, `vendor/`, tokens och företagsinställningar följer inte
+med till den slutliga imagen. PVC:n monteras på `/data` i OpenShift.
 
 Skriptet skriver också ut färdiga kommandon med `$REGISTRY` som enda variabel.
 Image, tagg och namespace skrivs direkt i kommandona med rätt värden. Du kan
@@ -271,7 +266,7 @@ Ingen ny image behövs. När enbart klustrets CA-paket förnyas används
 ```
 
 Skriptet behåller sparade uppgifter och frågar bara om något saknas. Bygg om med
-Go och Podman och pusha `$REGISTRY/image-security/cvebridge:latest`. **Vänta tills
+Podman och pusha `$REGISTRY/image-security/cvebridge:latest`. **Vänta tills
 pushen är klar och applicera sedan `deploy/`.** Skriptet har markerat en omstart
 i Deployment så att apply skapar en ny pod, även när imageadressen är densamma.
 
@@ -282,6 +277,16 @@ Scheman och larmstatus ligger kvar på samma PVC. Kör en replika; lagringen
 behöver fungerande SQLite-fillåsning.
 
 ## Felsök StackRox i podloggarna
+
+Direkt vid processens start ska du se:
+
+```text
+HELLO CVEBridge | version=latest-<källkods-id> | startup=source-build-v1
+```
+
+ID:t beräknas från koden i bygget. Det visar vilken byggd version som körs,
+även när imagetaggen alltid är `latest`. `HELLO` visar att programmet har startat;
+ACS-anslutningens resultat kommer i bevakningens loggar nedan.
 
 Med `DATABASE_MONITOR_CHANNEL_ID` ifyllt kontrollerar boten CVE-databasens ålder
 via ACS API **direkt vid uppstart och sedan varje timme**. Den ansluter inte till
@@ -324,17 +329,25 @@ Certifikat-, DNS- och timeoutfel får separata `error_kind`-värden.
 Du kan stänga av debug med `oc set env deployment/cvebridge LOG_LEVEL=info -n image-security`.
 Sätt `LOG_LEVEL=debug` på samma sätt för att aktivera igen.
 
-**Om du bara ser `Mattermost listener`:** den raden visar att mottagaren för
-Mattermost-kommandon startar. Den nya versionen ska även skriva `monitor_startup`
-utan att du kör något kommando. Saknas den raden, kontrollera att du har byggt om
-Go-körfilen, paketerat och pushat `:latest` och därefter applicerat en uppdatering
-förberedd med `./configure.sh --update-image`. Att bara kopiera källkod ger inte
-den nya loggningen i en redan körande pod.
+**Om du bara ser `Mattermost listener`:** den nya versionen ska även skriva
+`HELLO CVEBridge` och `monitor_startup` utan något kommando från Mattermost.
+Kontrollera att du kopierat den nya koden, Dockerfile och `.dockerignore`, byggt
+och pushat `:latest` och därefter applicerat uppdateringen som förbereddes med
+`./configure.sh --update-image`.
+
+Jämför bygg-ID lokalt och i poden:
+
+```sh
+podman run --rm localhost/cvebridge:latest version
+oc exec deployment/cvebridge -n image-security -c bot -- /cvebridge version
+```
+
+Efter en lyckad uppdatering ska båda visa samma `latest-...`-ID.
 
 **Uppdatera via ZIP:** kopiera delarna i tabellen under steg 1 och behåll
 `deploy/` och `.local/`. Kör `./configure.sh --update-image`; ifyllda uppgifter
 hoppas över och befintliga installationsfiler förbereds för en ny `:latest`-image.
-Följ sedan skriptets Go-, Podman-, push- och apply-kommandon.
+Följ sedan skriptets Podman-, push- och apply-kommandon.
 
 ## Verifiering
 
@@ -342,11 +355,13 @@ Go-tester, skriptets utkast/återupptagning, hemliga värden, YAML-struktur,
 konsekvent registry/tagg och HTTPS-flödet testas lokalt. Företagets faktiska
 registry, OpenShift CA-injektion, Mattermost/ACS och PVC behöver verifieras i labbet.
 `/healthz` visar bara att botprocessen svarar. Byggen här använder Docker eftersom
-Podman saknas i testmiljön; samma Dockerfile används av båda. Go-bygget testas
-med tom modulcache och paketnedladdning avstängd. Paketeringen testas med
-nätverket avstängt, följt av kontroll av körfil, datamapp och containerns start.
+Podman saknas i testmiljön; samma Dockerfile används av båda. Bygget testas
+från källkod med nätverket avstängt och utan en lokal `bin/cvebridge` som källa.
+Vi kontrollerar bygg-ID, `HELLO`, datamapp, lagringsskrivning och att källkod
+och företagsinställningar inte hamnar i den slutliga imagen.
 
 [Go-paket från vendor](https://go.dev/ref/mod#vendoring)
+· [Dockerfile med byggsteg](https://docs.docker.com/build/building/multi-stage/)
 ·
 [Slash-kommandon i Mattermost](https://docs.mattermost.com/developers/integrate/slash-commands/custom)
 · [Podman push](https://docs.podman.io/en/latest/markdown/podman-push.1.html)

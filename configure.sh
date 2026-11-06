@@ -220,13 +220,10 @@ def status(s):
 
 def commands(s, ready):
     print('\nKör själv i projektmappen, efter din vanliga oc login:')
-    print('Go 1.27.3 behöver vara installerat. Kommandona bygger för Linux/amd64 (Intel/AMD).')
+    print('Podman bygger Go-koden och imagen från källkod + vendor. Ingen separat Go-byggning behövs.')
+    print('Första gången kan Go-byggimagen behöva hämtas; själva kompileringen körs utan nätverk.')
     print('REGISTRY=' + shlex.quote(s['registry']))
-    print('mkdir -p bin/rootfs/data')
-    print('GOPROXY=off GOTOOLCHAIN=local CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -mod=vendor -trimpath -ldflags="-s -w -X main.version=latest" -o bin/cvebridge ./cmd/cvebridge')
-    print('chmod 0755 bin/cvebridge')
-    print('chmod 0770 bin/rootfs/data')
-    print('podman build --platform linux/amd64 -f Dockerfile -t localhost/cvebridge:latest .')
+    print('podman build --network=none --platform linux/amd64 -f Dockerfile -t localhost/cvebridge:latest .')
     print('podman tag localhost/cvebridge:latest "$REGISTRY/' + IMAGE_PROJECT + '/cvebridge:latest"')
     print('oc whoami -t | podman login "$REGISTRY" --username cvebridge --password-stdin')
     print('podman push "$REGISTRY/' + IMAGE_PROJECT + '/cvebridge:latest"')

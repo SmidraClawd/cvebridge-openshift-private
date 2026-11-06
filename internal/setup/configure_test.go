@@ -132,6 +132,9 @@ func TestReadySetupWritesConsistentYAMLAndKeepsCredentialsPrivate(t *testing.T) 
 	if !strings.Contains(output, "oc apply -f deploy/") {
 		t.Fatal("missing single apply command")
 	}
+	if !strings.Contains(output, "podman build --network=none") || strings.Contains(output, "go build ") || strings.Contains(output, "mkdir -p bin/") {
+		t.Fatal("Podman must compile the source without a separate local Go build", output)
+	}
 	state, _ := os.Stat(filepath.Join(dir, ".local/setup.json"))
 	if state.Mode().Perm() != 0600 {
 		t.Fatal("draft containing credentials must have mode 0600")
@@ -324,21 +327,19 @@ import json, os, pathlib, sys
 tool = pathlib.Path(sys.argv[0]).name
 with open(os.environ['CVE_COMMAND_LOG'], 'a') as f:
     f.write(json.dumps([tool] + sys.argv[1:]) + '\n')
-if tool == 'go':
-    pathlib.Path('bin/cvebridge').touch()
-elif tool == 'oc' and sys.argv[1:3] == ['whoami', '-t']:
+if tool == 'oc' and sys.argv[1:3] == ['whoami', '-t']:
     print('test-only-login-token')
 elif tool == 'podman' and sys.argv[1] == 'login':
     assert sys.stdin.read().strip() == 'test-only-login-token'
 `
-	for _, name := range []string{"go", "podman", "oc"} {
+	for _, name := range []string{"podman", "oc"} {
 		if err := os.WriteFile(filepath.Join(tools, name), []byte(logger), 0700); err != nil {
 			t.Fatal(err)
 		}
 	}
 	var lines []string
 	for _, line := range strings.Split(output, "\n") {
-		for _, prefix := range []string{"REGISTRY=", "mkdir ", "GOPROXY=", "chmod ", "podman ", "oc "} {
+		for _, prefix := range []string{"REGISTRY=", "podman ", "oc "} {
 			if strings.HasPrefix(line, prefix) {
 				lines = append(lines, line)
 				break
