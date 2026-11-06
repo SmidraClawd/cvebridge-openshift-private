@@ -85,6 +85,10 @@ räknas ut från botens Route-värdnamn.
 ACS-tokenen behöver **Read** på Deployment, Image, Cluster, Namespace och
 Administration samt **Write** på Image. ACS-ansvarig godkänner rättigheterna.
 
+`DATABASE_MONITOR_CHANNEL_ID` i den genererade ConfigMap är Mattermost-kanalen
+för CVE-databasens status. Skriptet använder samma ID som driftkanalen, så du
+behöver inget extra värde. Tomt eller saknat fält stänger av automatisk bevakning.
+
 **Tomma svar:** Enter behåller ett sparat värde; ett nytt tomt fält lämnas till
 senare. Skriv `-` för att rensa ett tidigare svar. Tokens visas aldrig i terminalen.
 
@@ -229,13 +233,32 @@ på samma PVC. Kör en replika; lagringen behöver fungerande SQLite-fillåsning
 
 ## Felsök StackRox i podloggarna
 
+Med `DATABASE_MONITOR_CHANNEL_ID` ifyllt kontrollerar boten CVE-databasens ålder
+via ACS API **direkt vid uppstart och sedan varje timme**. Den ansluter inte till
+ACS:s databas. En ny Mattermost-post skickas vid första kontrollen, ändrat läge
+eller när 24 timmar gått sedan föregående post. Sparad status på PVC:n gör att
+en omstart med samma status normalt inte ger en extra post.
+
+Uppstarten och varje automatisk kontroll ger `[ACS INFO]` i podloggen,
+även med `LOG_LEVEL=info`:
+
+| Händelse i loggen | Betydelse |
+| --- | --- |
+| `monitor_startup` | Visar om bevakningen är aktiverad, om ACS-token finns och om debug är på. `enabled:false` förklarar vilket fält som saknas. |
+| `monitor_acs_start` | Kontrollen av CVE-databasens ålder börjar. |
+| `monitor_acs_complete` | ACS-resultat: `recent`, `stale` eller `unknown`, med orsak vid fel, exempelvis HTTP 403. |
+| `monitor_post_sent` | Mattermost har bekräftat statusmeddelandet. |
+| `monitor_post_skipped` | Oförändrad status har redan skickats inom 24 timmar. ACS har ändå kontrollerats. |
+| `monitor_check_failed` | Visar om kontrollen stoppade vid lokal lagring, kontroll av driftkanalen eller publicering i Mattermost. |
+| `monitor_retry_scheduled` | Ett nytt försök görs efter cirka fem minuter. |
+
 Den privata boten skriver felsökningsloggar med prefixet `[ACS DEBUG]`.
 Du ser API-adress utan queryvärden, GET/POST, HTTP-kod, svarstyp, tidsåtgång
 och namnet på tokeninställningen. Skanningen loggar även antal poddar/images
 och varför ett skanningsresultat inte kunde användas. Tokens, headers för
 autentisering och innehållet i anrop eller svar skrivs inte ut.
 
-Kör loggkommandot och starta sedan en skanning i Mattermost:
+Visa loggar efter uppstart, eller följ dem medan du startar en skanning i Mattermost:
 
 ```sh
 oc logs -f deployment/cvebridge -n image-security -c bot --tail=100
@@ -250,6 +273,20 @@ loggen vilket anrop som nekades och vilken behörighet du ska kontrollera.
 Certifikat-, DNS- och timeoutfel får separata `error_kind`-värden.
 Du kan stänga av debug med `oc set env deployment/cvebridge LOG_LEVEL=info -n image-security`.
 Sätt `LOG_LEVEL=debug` på samma sätt för att aktivera igen.
+
+**Om du bara ser `Mattermost listener`:** den raden visar att mottagaren för
+Mattermost-kommandon startar. Den nya versionen ska även skriva `monitor_startup`
+utan att du kör något kommando. Saknas den raden, kontrollera att du har byggt om
+Go-körfilen, paketerat och pushat en image med **ny tagg** och ändrat `image:`
+i din befintliga Deployment. Att bara kopiera källkod eller starta om den gamla
+imagen ger inte den nya loggningen.
+
+**Uppdatera via ZIP:** packa upp den nya ZIP-filen separat och kopiera dess
+`internal/bridge/` över samma mapp i ditt befintliga projekt. Då följer alla
+sammanhängande kodändringar med. Behåll din ifyllda ConfigMap, Secret, Deployment
+och den dolda `.local/`-mappen. För denna logguppdatering behöver du inte fylla i
+skriptets frågor igen: bygg om med Go och Podman, pusha med en ny tagg och byt
+bara `image:` i din befintliga Deployment. Applicera sedan just Deployment-filen.
 
 ## Verifiering
 

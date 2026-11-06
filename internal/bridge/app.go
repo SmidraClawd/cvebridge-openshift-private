@@ -34,6 +34,7 @@ func (a *App) Wake() {
 	}
 }
 func (a *App) Loop() {
+	a.S.logMonitorStartup()
 	ticker := time.NewTicker(15 * time.Second)
 	defer ticker.Stop()
 	a.Wake()

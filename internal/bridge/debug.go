@@ -11,10 +11,11 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 )
 
-// Debugging is enabled for the private operations bot. Requests, credentials,
-// response bodies and URL query values are never dumped to the logs.
+// Debugging is enabled for the private operations bot. Monitor lifecycle logs
+// remain visible at info level. Credentials, bodies and URL queries are omitted.
 func (s *Services) acsDebugEnabled() bool {
 	return strings.EqualFold(s.C.Get("LOG_LEVEL", "debug"), "debug")
 }
@@ -23,6 +24,32 @@ func (s *Services) acsDebug(event string, fields M) {
 	if !s.acsDebugEnabled() {
 		return
 	}
+	s.acsLog("DEBUG", event, fields)
+}
+
+func (s *Services) acsInfo(event string, fields M) {
+	s.acsLog("INFO", event, fields)
+}
+
+func (s *Services) logMonitorStartup() {
+	enabled := s.C.Get("DATABASE_MONITOR_CHANNEL_ID", "") != ""
+	fields := M{
+		"enabled": enabled, "debug_enabled": s.acsDebugEnabled(),
+		"component":               s.C.Get("STACKROX_SCANNER_COMPONENT", "SCANNER"),
+		"acs_configured":          s.C.Get("STACKROX_URL", "") != "",
+		"status_token_configured": s.C.Get("STACKROX_STATUS_TOKEN", "") != "",
+		"check_interval_minutes":  int(databaseCheckInterval / time.Minute),
+		"next_check":              "immediate",
+	}
+	if !enabled {
+		fields["next_check"] = "disabled"
+		fields["reason"] = "missing_monitor_channel"
+		fields["hint"] = "Ange DATABASE_MONITOR_CHANNEL_ID i ConfigMap. Använd driftkanalens Mattermost-ID."
+	}
+	s.acsInfo("monitor_startup", fields)
+}
+
+func (s *Services) acsLog(level, event string, fields M) {
 	redact := func(value string) string {
 		for key, secret := range s.C.Env {
 			key = strings.ToUpper(key)
@@ -60,7 +87,7 @@ func (s *Services) acsDebug(event string, fields M) {
 	if logger == nil {
 		logger = log.Default()
 	}
-	logger.Printf("[ACS DEBUG] %s", encoded)
+	logger.Printf("[ACS %s] %s", level, encoded)
 }
 
 func acsEndpoint(address string) string {

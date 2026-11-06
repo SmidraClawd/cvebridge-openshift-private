@@ -6,7 +6,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"log"
 	"strings"
 	"time"
 )
@@ -33,8 +32,7 @@ func (a *App) startDatabaseMonitor(now time.Time) {
 		ctx, cancel := context.WithTimeout(a.ctx, 2*time.Minute)
 		defer cancel()
 		if e := a.checkDatabaseMonitor(ctx, now); e != nil {
-			// Do not print URLs, credentials, upstream bodies or SQL errors.
-			log.Print("database monitor check or delivery failed; retrying in 5 minutes")
+			a.S.acsInfo("monitor_retry_scheduled", M{"retry_after_minutes": int(databaseRetryInterval / time.Minute)})
 			a.monitorNext = time.Now().Add(databaseRetryInterval)
 		}
 	}()
@@ -70,11 +68,23 @@ func (s *Services) databaseMonitorDestination(ctx context.Context, ch string) er
 // Only successful deliveries advance the persisted notification state. This
 // survives pod restarts on the same PVC. Like other posts, a crash between the
 // Mattermost acknowledgement and the SQLite commit can cause a duplicate.
-func (a *App) checkDatabaseMonitor(ctx context.Context, now time.Time) error {
+func (a *App) checkDatabaseMonitor(ctx context.Context, now time.Time) (err error) {
 	ch := a.S.C.Get("DATABASE_MONITOR_CHANNEL_ID", "")
 	if ch == "" {
 		return nil
 	}
+	a.S.acsInfo("monitor_check_start", M{"component": a.S.C.Get("STACKROX_SCANNER_COMPONENT", "SCANNER")})
+	stage := "state_read"
+	defer func() {
+		if err != nil {
+			reason := "state_unavailable"
+			if stage != "state_read" && stage != "state_write" {
+				// Mattermost errors are already sanitized by the API wrapper.
+				reason = message(err)
+			}
+			a.S.acsInfo("monitor_check_failed", M{"stage": stage, "reason": reason})
+		}
+	}()
 	identity := []string{strings.TrimRight(a.S.C.Get("STACKROX_URL", ""), "/"), a.S.C.Get("STACKROX_SCANNER_COMPONENT", "SCANNER"), ch}
 	key := fmt.Sprintf("%x", sha256.Sum256([]byte(encode(identity))))
 	var previous string
@@ -88,23 +98,39 @@ func (a *App) checkDatabaseMonitor(ctx context.Context, now time.Time) error {
 		return problem(503, "Databasbevakningens sparade status är ogiltig.")
 	}
 	// Leave time to deliver an unknown-status alert even if Central hangs.
+	a.S.acsInfo("monitor_acs_start", M{
+		"endpoint":                acsEndpoint(strings.TrimRight(a.S.C.Get("STACKROX_URL", ""), "/") + "/v1/integrationhealth/vulndefinitions"),
+		"component":               a.S.C.Get("STACKROX_SCANNER_COMPONENT", "SCANNER"),
+		"status_token_configured": a.S.C.Get("STACKROX_STATUS_TOKEN", "") != "",
+	})
 	probe, cancel := context.WithTimeout(ctx, 75*time.Second)
 	result := a.S.databaseStatusAt(probe, now)
 	cancel()
 	state := str(result["state"])
+	a.S.acsInfo("monitor_acs_complete", M{"state": state, "reason": str(result["reason"]), "last_updated": str(result["lastUpdated"])})
 	last := time.Unix(notified, 0)
 	if !initial && state == previous && !now.Before(last) && now.Sub(last) < databaseReportInterval {
+		a.S.acsInfo("monitor_post_skipped", M{"state": state, "reason": "unchanged_within_24_hours"})
 		return nil
 	}
+	stage = "mattermost_destination"
+	a.S.acsInfo("monitor_destination_check_start", M{})
 	if e = a.S.databaseMonitorDestination(ctx, ch); e != nil {
 		return e
 	}
 	result["kind"] = "database_monitor"
 	result["recovered"] = !initial && previous != "recent" && state == "recent"
+	stage = "mattermost_post"
+	a.S.acsInfo("monitor_post_start", M{"state": state})
 	if _, e = a.S.Post(ctx, ch, result); e != nil {
 		return e
 	}
+	a.S.acsInfo("monitor_post_sent", M{"state": state})
+	stage = "state_write"
 	_, e = a.Store.DB.ExecContext(ctx, `INSERT INTO database_monitor (monitor_key,state,notified_at) VALUES (?,?,?) ON CONFLICT(monitor_key) DO UPDATE SET state=excluded.state,notified_at=excluded.notified_at`, key, state, now.Unix())
+	if e == nil {
+		a.S.acsInfo("monitor_check_complete", M{"state": state, "next_check_after_minutes": int(databaseCheckInterval / time.Minute)})
+	}
 	return e
 }
 

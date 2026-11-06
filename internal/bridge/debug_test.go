@@ -10,8 +10,10 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 )
 
 func debugEntries(t *testing.T, output *bytes.Buffer) []M {
@@ -19,12 +21,157 @@ func debugEntries(t *testing.T, output *bytes.Buffer) []M {
 	var entries []M
 	for _, line := range strings.Split(strings.TrimSpace(output.String()), "\n") {
 		var entry M
-		if err := json.Unmarshal([]byte(strings.TrimPrefix(line, "[ACS DEBUG] ")), &entry); err != nil {
+		_, body, ok := strings.Cut(line, "] ")
+		if !ok {
+			t.Fatal("invalid log prefix", line)
+		}
+		if err := json.Unmarshal([]byte(body), &entry); err != nil {
 			t.Fatal("invalid debug log", err)
 		}
 		entries = append(entries, entry)
 	}
 	return entries
+}
+
+// A log event lets startup tests wait for actual loop work without forcing a
+// tick, sleeping for the hourly interval, or reading a buffer concurrently.
+type monitorLogCapture struct {
+	mu     sync.Mutex
+	output bytes.Buffer
+	event  string
+	done   chan struct{}
+}
+
+func (c *monitorLogCapture) Write(p []byte) (int, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	n, err := c.output.Write(p)
+	if strings.Contains(string(p), `"event":"`+c.event+`"`) {
+		select {
+		case c.done <- struct{}{}:
+		default:
+		}
+	}
+	return n, err
+}
+
+func runMonitorLoop(t *testing.T, f *monitorFixture, event string) *bytes.Buffer {
+	t.Helper()
+	capture := &monitorLogCapture{event: event, done: make(chan struct{}, 1)}
+	f.app.S.debugLogger = log.New(capture, "", 0)
+	ctx, cancel := context.WithCancel(context.Background())
+	f.app.ctx = ctx
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		f.app.Loop()
+	}()
+	defer func() {
+		cancel()
+		<-done
+		f.app.Wait()
+	}()
+	select {
+	case <-capture.done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("startup did not reach", event)
+	}
+	// Stop the loop and wait for the monitor before inspecting logs or fixtures.
+	cancel()
+	<-done
+	f.app.Wait()
+	return &capture.output
+}
+
+func TestDatabaseMonitorStartupChecksImmediatelyAndLogsAtInfo(t *testing.T) {
+	for _, code := range []int{200, 403} {
+		t.Run(http.StatusText(code), func(t *testing.T) {
+			f := newMonitorFixture(t)
+			f.stamp, f.statusCode = time.Now().UTC().Add(-time.Hour).Format(time.RFC3339), code
+			f.app.S.C.Env["LOG_LEVEL"] = "info"
+			output := runMonitorLoop(t, f, "monitor_check_complete")
+			if f.checks != 1 || len(f.posts) != 1 {
+				t.Fatal("startup must check ACS once and deliver without a slash command", f.checks, len(f.posts))
+			}
+			entries := debugEntries(t, output)
+			startup := entries[0]
+			if str(startup["event"]) != "monitor_startup" || !boolean(startup["enabled"]) || boolean(startup["debug_enabled"]) || str(startup["next_check"]) != "immediate" {
+				t.Fatal("startup must explain monitor enablement even with debug disabled", output.String())
+			}
+			for _, event := range []string{"monitor_check_start", "monitor_acs_start", "monitor_acs_complete", "monitor_post_sent", "monitor_check_complete"} {
+				if !strings.Contains(output.String(), `"event":"`+event+`"`) {
+					t.Fatal("missing startup diagnostic", event, output.String())
+				}
+			}
+			if code == 403 && (!strings.Contains(output.String(), "HTTP 403") || !strings.Contains(output.String(), `"state":"unknown"`)) {
+				t.Fatal("an ACS denial must be visible at info level", output.String())
+			}
+			if strings.Contains(output.String(), "[ACS DEBUG]") {
+				t.Fatal("info logging must not enable request debug")
+			}
+			for key, value := range f.app.S.C.Env {
+				if strings.Contains(key, "TOKEN") && value != "" && strings.Contains(output.String(), value) {
+					t.Fatal("startup log revealed a credential")
+				}
+			}
+		})
+	}
+}
+
+func TestDatabaseMonitorStartupExplainsDisabledMonitorWithoutContactingACS(t *testing.T) {
+	f := newMonitorFixture(t)
+	f.app.S.C.Env["DATABASE_MONITOR_CHANNEL_ID"] = ""
+	f.app.S.C.Env["LOG_LEVEL"] = "info"
+	output := runMonitorLoop(t, f, "monitor_startup")
+	if f.checks != 0 || len(f.posts) != 0 || !strings.Contains(output.String(), `"enabled":false`) || !strings.Contains(output.String(), "DATABASE_MONITOR_CHANNEL_ID") {
+		t.Fatal("disabled monitor must explain the missing setting without making requests", output.String())
+	}
+}
+
+func TestDatabaseMonitorRestartLogsCheckAndSuppressedPost(t *testing.T) {
+	f := newMonitorFixture(t)
+	now := time.Now().UTC()
+	f.stamp = now.Add(-time.Hour).Format(time.RFC3339)
+	if err := f.app.checkDatabaseMonitor(context.Background(), now); err != nil {
+		t.Fatal(err)
+	}
+	// A new process uses the notification state already saved on the PVC.
+	f.app = NewApp(context.Background(), f.app.S, f.app.Store)
+	output := runMonitorLoop(t, f, "monitor_post_skipped")
+	if f.checks != 2 || len(f.posts) != 1 || !strings.Contains(output.String(), "unchanged_within_24_hours") || !strings.Contains(output.String(), "monitor_acs_complete") {
+		t.Fatal("restart must recheck ACS, retain deduplication and explain why no post is sent", output.String())
+	}
+}
+
+func TestDatabaseMonitorLogsFailureStageAndRetry(t *testing.T) {
+	for _, tt := range []struct {
+		stage  string
+		mutate func(*monitorFixture)
+	}{
+		{"state_read", func(f *monitorFixture) { _ = f.app.Store.Close() }},
+		{"mattermost_destination", func(f *monitorFixture) { f.public = true }},
+		{"mattermost_post", func(f *monitorFixture) { f.postCode = 403 }},
+	} {
+		t.Run(tt.stage, func(t *testing.T) {
+			f := newMonitorFixture(t)
+			f.stamp = time.Now().UTC().Format(time.RFC3339)
+			f.app.S.C.Env["LOG_LEVEL"] = "info"
+			tt.mutate(f)
+			var output bytes.Buffer
+			f.app.S.debugLogger = log.New(&output, "", 0)
+			f.app.startDatabaseMonitor(time.Now())
+			f.app.Wait()
+			if !strings.Contains(output.String(), `"stage":"`+tt.stage+`"`) || !strings.Contains(output.String(), `"event":"monitor_retry_scheduled"`) {
+				t.Fatal("monitor failure must identify its stage and retry", output.String())
+			}
+			if tt.stage == "state_read" && (strings.Contains(output.String(), "sql:") || strings.Contains(output.String(), "state.sqlite3")) {
+				t.Fatal("storage errors must not dump SQL details")
+			}
+			if tt.stage == "mattermost_post" && !strings.Contains(output.String(), "HTTP 403") {
+				t.Fatal("Mattermost delivery denial must be visible", output.String())
+			}
+		})
+	}
 }
 
 func TestACSDebugShowsActualHTTPFailureWithoutLeakingCredentialsOrBodies(t *testing.T) {
