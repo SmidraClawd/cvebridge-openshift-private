@@ -1,0 +1,15 @@
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: cvebridge-webhook
+  namespace: image-security
+spec:
+  path: /slash/cve
+  to:
+    kind: Service
+    name: cvebridge-webhook
+  port:
+    targetPort: 8001
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect

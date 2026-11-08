@@ -8,6 +8,9 @@ OpenShift-konton eller användarmappningar. Scheman och larmstatus sparas på PV
 [uppdatera befintlig installation](#uppdatera-befintlig-installation).
 Aktivera sedan kommandon och scheman med [steg 6](#6-aktivera-cve-och-scheman-i-mattermost).
 
+**Redigerar du ConfigMap och Secret manuellt?** Steg 6 visar även det flödet,
+utan skript. En färdig [Route-fil](route.yaml) finns i projektets rot.
+
 ```text
 hämta → ./configure.sh → Podman bygger kod och image → tagga/pusha → oc apply → HELLO i loggen
 ```
@@ -60,6 +63,7 @@ bygg- och logguppdateringen behöver du kopiera:
 | Bygget | `Dockerfile` och den dolda filen `.dockerignore` — kopiera båda. |
 | Installationsskriptet | `configure.sh` i projektets rot. |
 | Guiden | `README.md` i projektets rot. |
+| Manuell Route | `route.yaml` i projektets rot. Kopiera därifrån till `deploy/route.yaml` när Route saknas. |
 | Tester, om du kör `go test` | `internal/setup/configure_test.go`. |
 
 Behåll din **`deploy/`-mapp och den dolda `.local/`-mappen**. Där finns dina
@@ -245,8 +249,33 @@ oc get route cvebridge-webhook -n image-security
 Kopiera värdet under **HOST/PORT**. Exempel: `cvebridge.apps.labb.foretaget.se`.
 Kommandots adress blir då `https://cvebridge.apps.labb.foretaget.se/slash/cve`.
 Det är **botens adress**, inte Mattermosts adress. Skriptet skriver också ut
-den kompletta adressen. Saknas Route: kör `./configure.sh`, fyll i ett godkänt
-Route-värdnamn och kör `oc apply -f deploy/`.
+den kompletta adressen.
+
+**Finns bara Service `cvebridge-webhook`, men ingen Route?** Kopiera den färdiga
+filen från projektets rot till din befintliga `deploy/`-mapp och applicera den:
+
+```sh
+cp route.yaml deploy/route.yaml
+oc apply -f deploy/route.yaml
+oc get route cvebridge-webhook -n image-security
+```
+
+Filen använder namespace `image-security` och projektets standardport `8001`.
+Byt namespace i filen om boten körs någon annanstans. OpenShift väljer värdnamnet
+automatiskt eftersom filen inte anger `spec.host`. En ny Route kräver inget
+nytt imagebygge eller någon omstart av boten.
+
+Testa routen utan att skicka en token eller skapa något Mattermost-meddelande:
+
+```sh
+curl -i -X POST "https://$(oc get route cvebridge-webhook -n image-security -o jsonpath='{.spec.host}')/slash/cve"
+```
+
+Förväntat svar är **HTTP 401** och JSON-texten
+`{"error":"Kommandot kunde inte verifieras."}`. Just detta svar bekräftar
+att anropet nådde botens kommandokontroll. Testet saknar avsiktligt token.
+Routen leder bara `/slash/cve` och dess undersökvägar; testa inte `/healthz`
+genom denna Route.
 
 Mattermost-servern måste kunna nå den adressen via HTTPS och lita på dess CA.
 Boten behöver samtidigt kunna nå Mattermost och ACS Central. En fungerande
@@ -256,32 +285,55 @@ godkänna botens specifika värdnamn bland tillåtna interna integrationsmål.
 
 ### B. Registrera kommandot
 
-1. I Mattermost: **Integrations → Slash Commands → Add Slash Command**.
-2. Fyll i **Title:** `CVEBridge` och **Command Trigger Word:** `cve`, utan `/`.
-3. Välj **Request Method:** `POST`.
-4. Ange **Request URL:** botens fullständiga adress från A, med `/slash/cve`.
-5. Slå gärna på **Autocomplete** så kommandot syns när någon skriver `/`.
-6. Spara och kopiera kommandots **Token**.
+Gå till samma Mattermost-team som driftkanalen och öppna
+**Integrations → Slash Commands → Add Slash Command**. Fyll i alla fält:
+
+| Fält | Ange |
+| --- | --- |
+| Title | `CVEBridge` |
+| Description | `Databasstatus, sensorkontakt och imageskanning för driften.` |
+| Command Trigger Word | `cve`, utan `/` |
+| Request URL | `https://DITT-ROUTE-VARDNAMN/slash/cve`, med värdnamnet från A |
+| Request Method | `POST` |
+| Response Username | Lämna tomt. |
+| Response Icon | Lämna tomt. |
+| Autocomplete | Kryssa i. |
+| Autocomplete Hint | `help, status, sensor, scan [namespace], report [namespace], schedule` |
+| Autocomplete Description | `Kontrollera ACS-status, skanna images och skapa scheman.` |
+
+De två sista fälten visas efter att Autocomplete har kryssats i. Lämna en eventuell
+valfri OAuth-koppling utan koppling. Klicka **Save** och kopiera **Token** på
+bekräftelsesidan. Det är ett enda kommando, `cve`, som hanterar samtliga funktioner.
 
 Saknas menyn eller rätten att skapa kommandot behöver Mattermost-ansvarig
 registrera det eller tillåta det för dig. Driftmedlemmar behöver inte vara
 administratörer för att använda ett registrerat kommando.
 
-### C. Spara tokenen i botens inställningar
+### C. Spara token och formuläradress manuellt
 
-På Ubuntu, från projektmappen:
+Öppna dina befintliga YAML-filer. Behåll övriga värden och tokens.
+
+1. I `deploy/secret.yaml`: lägg till eller uppdatera `MATTERMOST_COMMAND_TOKEN`
+   under `stringData` med tokenen från B. Ändra inte botens eller ACS token.
+2. I `deploy/configmap.yaml`: ange `MATTERMOST_DIALOG_URL` under `data`.
+   Värdet är `https://DITT-ROUTE-VARDNAMN/slash/cve/dialog`, med samma värdnamn som A.
+3. Kör från projektmappen:
 
 ```sh
-./configure.sh
 oc apply -f deploy/
+oc rollout restart deployment/cvebridge -n image-security
 oc rollout status deployment/cvebridge -n image-security
 ```
 
-Skriptet frågar bara efter saknade värden. Klistra in tokenen vid **Token för
-/cve**. Har ett tidigare värde sparats, använd `./configure.sh --edit` och
-tryck Enter på allt som ska behållas. Uppdateringen lägger tokenen i Secret
-och markerar en omstart. Om imagen redan är uppdaterad behövs inget nytt bygge
-för en tokenändring. Dela inte tokenen i kanalen eller chatten.
+Omstarten läser in de ändrade värdena. Ingen `.env`, skriptkörning eller nytt
+imagebygge behövs för dessa inställningsändringar. Dela inte tokenen i kanalen
+eller chatten. Routen behöver vara nåbar även från Mattermost-servern.
+
+**Om du använder skriptet i stället:** kör `./configure.sh` för saknade värden
+eller `./configure.sh --edit` för ändrade värden, sedan `oc apply -f deploy/`.
+Skriptet genererar filerna från `.local/setup.json`, inte från manuella YAML-ändringar.
+Det skapar bara en Route när ett Route-värdnamn finns sparat; det kan ta bort en
+manuellt skapad `deploy/route.yaml` lokalt om det sparade Route-värdnamnet är tomt.
 
 ### D. Testa manuellt i den privata driftkanalen
 
@@ -325,8 +377,8 @@ skanningsschemat; du behöver inte skapa ett schema för statusmeddelanden.
 
 Du behöver inte börja om eller fylla i företagets värden igen om `.local/` finns kvar.
 
-1. Packa upp den nya ZIP-filen separat. Kopiera **`internal/bridge/`, `configure.sh`
-   och `README.md`** till motsvarande plats i ditt projekt. Kopiera även
+1. Packa upp den nya ZIP-filen separat. Kopiera **`internal/bridge/`, `configure.sh`,
+   `route.yaml` och `README.md`** till motsvarande plats i ditt projekt. Kopiera även
    `internal/setup/` om du kör tester. Om du inte redan har källkodsbygget med
    HELLO, kopiera också `Dockerfile`, `.dockerignore` och `cmd/cvebridge/main.go`.
 2. Behåll **`.local/`, `deploy/`, `vendor/`, `go.mod`, `go.sum` och din PVC**.
