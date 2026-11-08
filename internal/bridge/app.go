@@ -22,6 +22,8 @@ type App struct {
 	tasks       sync.WaitGroup
 	monitor     sync.Mutex
 	monitorNext time.Time
+	sensor      sync.Mutex
+	sensorNext  time.Time
 }
 
 func NewApp(ctx context.Context, s *Services, store *Store) *App {
@@ -35,6 +37,7 @@ func (a *App) Wake() {
 }
 func (a *App) Loop() {
 	a.S.logMonitorStartup()
+	a.S.logSensorMonitorStartup()
 	ticker := time.NewTicker(15 * time.Second)
 	defer ticker.Stop()
 	a.Wake()
@@ -52,6 +55,7 @@ func (a *App) Loop() {
 func (a *App) Wait() { a.tasks.Wait() }
 func (a *App) tick() {
 	a.startDatabaseMonitor(time.Now())
+	a.startSensorMonitor(time.Now())
 	if e := a.Store.ClaimDue(timestamp()); e != nil {
 		log.Print("scheduler state unavailable")
 		return
@@ -111,6 +115,8 @@ func (a *App) execute(ch, owner, command string, ns []string, run *Run) {
 			result, err = a.S.Scan(ctx, ns, authorize, command == "scan", run != nil)
 		case "status":
 			result = a.S.DatabaseStatus(ctx)
+		case "sensor":
+			result = a.S.sensorStatusAt(ctx, time.Now())
 		default:
 			result, err = a.S.Lookup(ctx, command, ns, authorize)
 		}
@@ -259,14 +265,14 @@ func (a *App) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	command := strings.ToLower(args[0])
-	if command != "scan" && command != "report" && command != "status" && command != "schedule" {
+	if command != "scan" && command != "report" && command != "status" && command != "sensor" && command != "schedule" {
 		command = strings.ToUpper(args[0])
 		if !CVE.MatchString(command) {
 			reply(w, ErrorMessage(problem(400, "Använd /cve help för giltiga kommandon.")))
 			return
 		}
 	}
-	if len(args) > 2 || ((command == "status" || command == "schedule") && len(args) != 1) {
+	if len(args) > 2 || ((command == "status" || command == "sensor" || command == "schedule") && len(args) != 1) {
 		reply(w, ErrorMessage(problem(400, "Kontrollera argumenten med /cve help.")))
 		return
 	}

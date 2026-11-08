@@ -19,19 +19,22 @@ type monitorTransport func(*http.Request) (*http.Response, error)
 func (f monitorTransport) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
 
 type monitorFixture struct {
-	mu          sync.Mutex
-	stamp       string
-	statusCode  int
-	postCode    int
-	badAck      bool
-	public      bool
-	deleted     bool
-	wrongMember bool
-	adminBot    bool
-	checks      int
-	posts       []M
-	server      *httptest.Server
-	app         *App
+	mu           sync.Mutex
+	stamp        string
+	statusCode   int
+	postCode     int
+	badAck       bool
+	public       bool
+	deleted      bool
+	wrongMember  bool
+	adminBot     bool
+	checks       int
+	sensorChecks int
+	sensorCode   int
+	sensorReply  M
+	posts        []M
+	server       *httptest.Server
+	app          *App
 }
 
 func newMonitorFixture(t *testing.T) *monitorFixture {
@@ -43,6 +46,17 @@ func newMonitorFixture(t *testing.T) *monitorFixture {
 		w.Header().Set("Content-Type", "application/json")
 		write := func(m any) { _ = json.NewEncoder(w).Encode(m) }
 		switch r.URL.Path {
+		case "/v1/clusters/cluster-123":
+			f.sensorChecks++
+			if r.Method != "GET" || r.Header.Get("Authorization") != "Bearer rox-read" || r.URL.RawQuery != "" {
+				t.Error("sensor monitoring must read only the configured cluster with the read credential")
+			}
+			code := f.sensorCode
+			if code == 0 {
+				code = 200
+			}
+			w.WriteHeader(code)
+			write(f.sensorReply)
 		case "/v1/integrationhealth/vulndefinitions":
 			f.checks++
 			if r.Method != "GET" || r.URL.Query().Get("component") != "SCANNER_V4" || r.Header.Get("Authorization") != "Bearer rox-status" {

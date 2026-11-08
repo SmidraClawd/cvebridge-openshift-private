@@ -159,6 +159,7 @@ func OpenStore(path string) (*Store, error) {
 		`CREATE TABLE IF NOT EXISTS native_dialogs (id TEXT PRIMARY KEY,created REAL,owner TEXT,channel TEXT,snapshot TEXT,claimed INTEGER NOT NULL DEFAULT 0)`,
 		`CREATE TABLE IF NOT EXISTS cve_seen (channel_id TEXT,cluster_id TEXT,cve TEXT,reported_at REAL,PRIMARY KEY(channel_id,cluster_id,cve))`,
 		`CREATE TABLE IF NOT EXISTS database_monitor (monitor_key TEXT PRIMARY KEY,state TEXT NOT NULL,notified_at INTEGER NOT NULL)`,
+		`CREATE TABLE IF NOT EXISTS sensor_monitor (monitor_key TEXT PRIMARY KEY,state TEXT NOT NULL,notified_at INTEGER NOT NULL)`,
 		`CREATE TABLE IF NOT EXISTS cve_baselines (channel_id TEXT,cluster_id TEXT,namespace TEXT,created_at REAL,PRIMARY KEY(channel_id,cluster_id,namespace))`,
 		`UPDATE schedule_runs SET state='interrupted',error='Tjänsten startades om. Leveransen är inte bekräftad.',finished=unixepoch() WHERE state='running'`,
 	} {

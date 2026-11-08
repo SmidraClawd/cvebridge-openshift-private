@@ -112,6 +112,9 @@ func TestReadySetupWritesConsistentYAMLAndKeepsCredentialsPrivate(t *testing.T) 
 	if _, exists := cm["MATTERMOST_KUBE_USER_MAP"]; exists {
 		t.Fatal("unexpected user mapping")
 	}
+	if cm["SENSOR_MONITOR_ENABLED"] != "true" || cm["DATABASE_MONITOR_CHANNEL_ID"] != input[7] || cm["STACKROX_CLUSTER_ID"] != input[4] {
+		t.Fatal("sensor monitoring must reuse the existing cluster and ops channel without new prompts")
+	}
 	fullImage := image(t, dir)
 	if fullImage != registry+"latest" || !strings.Contains(output, `podman tag localhost/cvebridge:latest "$REGISTRY/image-security/cvebridge:latest"`) || !strings.Contains(output, `podman push "$REGISTRY/image-security/cvebridge:latest"`) {
 		t.Fatal("build/tag/push and deployment must share one registry image", output)

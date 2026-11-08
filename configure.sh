@@ -150,6 +150,7 @@ def manifests(s):
         'STACKROX_CLUSTER_ID': s['cluster_id'], 'MATTERMOST_CHANNEL_ID': s['channel_id'],
         'MATTERMOST_DIALOG_URL': f'https://{s["route_host"]}/slash/cve/dialog' if s['route_host'] else '',
         'DATABASE_MONITOR_CHANNEL_ID': s['channel_id'], 'DATABASE_MAX_AGE_HOURS': '24',
+        'SENSOR_MONITOR_ENABLED': 'true',
         'LISTEN_ADDR': ':8001', 'STATE_FILE': '/data/requests.sqlite3',
         'MATTERMOST_CA_FILE': '/ca/ca-bundle.crt', 'STACKROX_CA_FILE': '/ca/ca-bundle.crt',
         'STACKROX_SCANNER_COMPONENT': 'SCANNER_V4', 'SCHEDULE_DEFAULT_TIMEZONE': 'Europe/Stockholm',

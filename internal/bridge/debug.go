@@ -159,6 +159,8 @@ func acsHTTPHint(status int, path string) string {
 		return "Kontrollera Administration: Read på ACS-tokenens roll, samt eventuell proxy framför ACS."
 	case status == 403 && strings.HasPrefix(path, "/v1/images/scan"):
 		return "Kontrollera Image: Write och tokenens access scope, samt eventuell proxy framför ACS."
+	case status == 403 && strings.HasPrefix(path, "/v1/clusters/"):
+		return "Kontrollera Cluster: Read och att ACS-tokenens access scope omfattar valt kluster."
 	case status == 403:
 		return "Kontrollera ACS-tokenens läsrättigheter och access scope, samt eventuell proxy framför ACS."
 	case status == 404:

@@ -1,8 +1,12 @@
 # CVEBridge · driftbot för Mattermost
 
-Status, imageskanning, CVE-rapporter och schemaformulär i en privat driftkanal.
+Databasstatus, sensorkontakt, imageskanning och schemaformulär i en privat driftkanal.
 Boten frågar ACS Central direkt. Driftmedlemmarna behöver inga personliga
 OpenShift-konton eller användarmappningar. Scheman och larmstatus sparas på PVC.
+
+**Har du redan databasstatus i driftkanalen?** Följ stegen under
+[uppdatera befintlig installation](#uppdatera-befintlig-installation).
+Aktivera sedan kommandon och scheman med [steg 6](#6-aktivera-cve-och-scheman-i-mattermost).
 
 ```text
 hämta → ./configure.sh → Podman bygger kod och image → tagga/pusha → oc apply → HELLO i loggen
@@ -120,6 +124,11 @@ Administration samt **Write** på Image. ACS-ansvarig godkänner rättigheterna.
 för CVE-databasens status. Skriptet använder samma ID som driftkanalen, så du
 behöver inget extra värde. Tomt eller saknat fält stänger av automatisk bevakning.
 
+Skriptet lägger även in `SENSOR_MONITOR_ENABLED: "true"`. Sensorbevakningen
+använder **samma kanal, ACS-adress, ACS-token och kluster-ID**. Inga nya frågor
+eller tokens behövs. Kluster-ID ska peka på labbklustret som ni vill bevaka.
+Tokenen behöver **Cluster: Read** och access scope för det klustret.
+
 **Tomma svar:** Enter lämnar ett saknat värde till senare. Redan ifyllda fält
 hoppas över. För att ändra ett sparat svar, kör `./configure.sh --edit`.
 I det läget behåller Enter värdet och `-` rensar det. Tokens visas aldrig.
@@ -220,28 +229,161 @@ oc get configmap cvebridge-trusted-ca -n image-security
 
 Botens ServiceAccount behöver ingen Kubernetes-API-token eller personlig RBAC.
 
-## 6. Testa i Mattermost
+## 6. Aktivera /cve och scheman i Mattermost
 
-Bjud in boten till den privata driftkanalen. Registrera `/cve` under
-**Integrations → Slash Commands** med metoden **POST** och Request URL
-`https://BOTENS_ROUTE/slash/cve`. Skriptet visar den fullständiga adressen.
-Om du lämnade kommandotoken tom, kopiera tokenen från Mattermost och kör
-`./configure.sh` igen, följt av `oc apply -f deploy/`. Ingen ny image behövs.
+Detta görs en gång. Vanlig användning och schemaformuläret är sedan helt inne
+i Mattermost. Automatisk status behöver inte `/cve` för att fungera.
 
-Skriv sedan i driftkanalen:
+### A. Kontrollera botens adress
 
-```text
-/cve status
-/cve scan team-a
-/cve report team-a
-/cve schedule
+Visa botens Route i OpenShift:
+
+```sh
+oc get route cvebridge-webhook -n image-security
 ```
 
-Byt `team-a` mot ett projekt du angav. Alla kanalmedlemmar kan köra kommandon
-för projektlistan och ändra kanalens schema. Boten verifierar token, privat kanal,
-medlemskap och TLS. Daglig status för CVE-databasens ålder och larm vid ändrat
-läge går till samma driftkanal. Första kompletta CVE-rapporten skapar normalt ett
-utgångsläge utan akut ping; nya kritiska fynd kan sedan ge en engångsping.
+Kopiera värdet under **HOST/PORT**. Exempel: `cvebridge.apps.labb.foretaget.se`.
+Kommandots adress blir då `https://cvebridge.apps.labb.foretaget.se/slash/cve`.
+Det är **botens adress**, inte Mattermosts adress. Skriptet skriver också ut
+den kompletta adressen. Saknas Route: kör `./configure.sh`, fyll i ett godkänt
+Route-värdnamn och kör `oc apply -f deploy/`.
+
+Mattermost-servern måste kunna nå den adressen via HTTPS och lita på dess CA.
+Boten behöver samtidigt kunna nå Mattermost och ACS Central. En fungerande
+automatisk statusrapport bekräftar inte att anrop i motsatt riktning fungerar.
+Visar Mattermost-loggen `address forbidden` behöver Mattermost-ansvarig
+godkänna botens specifika värdnamn bland tillåtna interna integrationsmål.
+
+### B. Registrera kommandot
+
+1. I Mattermost: **Integrations → Slash Commands → Add Slash Command**.
+2. Fyll i **Title:** `CVEBridge` och **Command Trigger Word:** `cve`, utan `/`.
+3. Välj **Request Method:** `POST`.
+4. Ange **Request URL:** botens fullständiga adress från A, med `/slash/cve`.
+5. Slå gärna på **Autocomplete** så kommandot syns när någon skriver `/`.
+6. Spara och kopiera kommandots **Token**.
+
+Saknas menyn eller rätten att skapa kommandot behöver Mattermost-ansvarig
+registrera det eller tillåta det för dig. Driftmedlemmar behöver inte vara
+administratörer för att använda ett registrerat kommando.
+
+### C. Spara tokenen i botens inställningar
+
+På Ubuntu, från projektmappen:
+
+```sh
+./configure.sh
+oc apply -f deploy/
+oc rollout status deployment/cvebridge -n image-security
+```
+
+Skriptet frågar bara efter saknade värden. Klistra in tokenen vid **Token för
+/cve**. Har ett tidigare värde sparats, använd `./configure.sh --edit` och
+tryck Enter på allt som ska behållas. Uppdateringen lägger tokenen i Secret
+och markerar en omstart. Om imagen redan är uppdaterad behövs inget nytt bygge
+för en tokenändring. Dela inte tokenen i kanalen eller chatten.
+
+### D. Testa manuellt i den privata driftkanalen
+
+Bjud in boten och kör kommandona ett i taget:
+
+| Skriv | Förväntat resultat |
+| --- | --- |
+| `/cve help` | Hjälp med tillgängliga kommandon. |
+| `/cve status` | CVE-databasens uppdateringstid och ålder. |
+| `/cve sensor` | Senaste sensorkontakt för det konfigurerade klustret. |
+| `/cve scan team-a` | Ny imageskanning via ACS, rapport med Åtgärd och JSON-bilaga. |
+| `/cve report team-a` | Rapport från befintliga skanningsresultat. |
+
+Byt `team-a` mot ett projekt i din `SCAN_NAMESPACES`. Vänta på resultatet innan
+du startar nästa skanning. Alla driftkanalens medlemmar kan använda de godkända
+projekten. Första kompletta CVE-rapporten skapar normalt ett utgångsläge utan
+akut ping; senare nya kritiska fynd kan ge en engångsping.
+
+### E. Skapa ett schema i Mattermost
+
+1. Skriv `/cve schedule` i driftkanalen. Ett formulär öppnas i Mattermost.
+2. Välj exempelvis **måndag–fredag**, **08:00**, **Europe/Stockholm** och ert projekt.
+3. Välj **Ny skanning och rapport** eller **Rapport från befintliga fynd**.
+4. Välj **Aktiverat**, **Spara inställningar** och tryck **Utför**.
+5. Öppna `/cve schedule` igen och välj **Provkör sparat schema** för att testa nu.
+6. Kontrollera rapporten i kanalen. I samma formulär kan du pausa och visa körhistorik.
+
+Formulärets flervalsfält kräver Mattermost **11.0 eller senare**. Schemat och
+historiken ligger på PVC:n. Databas- och sensorbevakningen körs oberoende av
+skanningsschemat; du behöver inte skapa ett schema för statusmeddelanden.
+
+| Om något inte fungerar | Kontrollera |
+| --- | --- |
+| `/cve` hittas inte | Trigger `cve`, rätt Mattermost-team och att kommandot har sparats. Autocomplete styr bara förslagslistan. |
+| Kommandot kan inte nå boten | Mattermost-serverns nätverk/DNS till botens Route och att Request URL slutar med `/slash/cve`. |
+| Kommandot kunde inte verifieras | Token från just detta slash-kommando ska vara sparad som kommandotoken hos boten. |
+| Formuläret öppnas inte eller kan inte sparas | `MATTERMOST_DIALOG_URL` ska vara botens Route + `/slash/cve/dialog`; Mattermost behöver nå även den sökvägen. |
+| ACS svarar HTTP 403 | Kontrollera rättigheten för just anropet i podloggen: Administration: Read för databasstatus, Cluster: Read för sensor, Image: Write för ny skanning. |
+
+## Uppdatera befintlig installation
+
+Du behöver inte börja om eller fylla i företagets värden igen om `.local/` finns kvar.
+
+1. Packa upp den nya ZIP-filen separat. Kopiera **`internal/bridge/`, `configure.sh`
+   och `README.md`** till motsvarande plats i ditt projekt. Kopiera även
+   `internal/setup/` om du kör tester. Om du inte redan har källkodsbygget med
+   HELLO, kopiera också `Dockerfile`, `.dockerignore` och `cmd/cvebridge/main.go`.
+2. Behåll **`.local/`, `deploy/`, `vendor/`, `go.mod`, `go.sum` och din PVC**.
+3. Kör följande från projektmappen efter din vanliga `oc login`. Kommandona
+   nedan använder standardnamespace `image-security`; byt det om boten körs i
+   ett annat projekt. Använder ni annan registry, ändra endast värdet i `REGISTRY`.
+
+```sh
+export REGISTRY="image-registry.openshift-image-registry.svc:5000"
+./configure.sh --update-image
+./configure.sh --check
+podman build --network=none --platform linux/amd64 -f Dockerfile -t localhost/cvebridge:latest .
+podman tag localhost/cvebridge:latest "$REGISTRY/image-security/cvebridge:latest"
+oc whoami -t | podman login "$REGISTRY" --username cvebridge --password-stdin
+podman push "$REGISTRY/image-security/cvebridge:latest"
+oc apply -f deploy/
+oc rollout status deployment/cvebridge -n image-security
+oc logs deployment/cvebridge -n image-security -c bot --tail=100
+```
+
+Kör nästa kommando först när föregående lyckats. Vänta särskilt på lyckad push
+innan `oc apply`. Uppdateringen aktiverar sensorbevakningen automatiskt genom
+ConfigMap, utan nya frågor. Databasstatus och sparade scheman ligger kvar.
+Den nya tabellen för sensorstatus skapas automatiskt i befintlig SQLite-databas.
+
+Saknas sparade skriptsvar men du har manuellt ifyllda YAML-filer, läs först
+avsnittet om `.local/setup.json` under steg 2. Skriptet importerar inte YAML-värden.
+
+## Automatisk sensorbevakning
+
+Boten läser **det kluster som `STACKROX_CLUSTER_ID` pekar på** via ACS Central:
+
+```text
+Labbsensor → ACS Central ← CVEBridge → privat driftkanal
+```
+
+Kontroll görs vid start och sedan **var femte minut**. Är senaste registrerade
+sensorkontakten äldre än **tio minuter** skickas ett rött meddelande med kluster,
+senaste kontakttid och **Åtgärd: kontrollera Sensor-poden och nätverket till Central**.
+Med normal kontrolltakt upptäcks en sådan åldersgräns inom cirka 10–15 minuter
+från senaste kontakten. Det är Centrals uppgift om senaste kontakt som bedöms,
+inte ett direkt nätverkstest mot sensorn eller en kontroll av alla ACS-komponenter.
+
+När en färsk kontakttid åter syns kommer **Kontakt återställd**. Om ACS inte kan
+läsas, exempelvis HTTP 403 eller timeout, visas **Sensorkontakten kan inte verifieras**.
+Det betyder inte i sig att sensorn är nere. Kontrollera då anslutning, kluster-ID,
+tokenens **Cluster: Read** och access scope.
+
+Första kontrollen, ändrat läge och därefter högst en rapport per 24 timmar vid
+oförändrat läge skickas till samma driftkanal som databasstatus. Status lagras
+på PVC så en vanlig podomstart inte skickar samma larm igen. Meddelandena
+innehåller ingen `@channel`-ping. Ett misslyckat Mattermost-anrop försöks igen.
+Certifikats utgångsdatum bevakas inte.
+
+Manuell kontroll: `/cve sensor`. Automatiken kan stängas av genom att sätta
+`SENSOR_MONITOR_ENABLED: "false"` i ConfigMap och starta om boten. Skriptets
+genererade standard är `true`; en senare skriptkörning återskapar den standarden.
 
 ## Ändringar senare
 
@@ -306,6 +448,10 @@ Uppstarten och varje automatisk kontroll ger `[ACS INFO]` i podloggen,
 | `monitor_post_skipped` | Oförändrad status har redan skickats inom 24 timmar. ACS har ändå kontrollerats. |
 | `monitor_check_failed` | Visar om kontrollen stoppade vid lokal lagring, kontroll av driftkanalen eller publicering i Mattermost. |
 | `monitor_retry_scheduled` | Ett nytt försök görs efter cirka fem minuter. |
+| `sensor_monitor_startup` | Visar aktivering, kluster-ID och kontroll var femte minut. |
+| `sensor_monitor_acs_complete` | Sensorkontakt: `connected`, `missing` eller `unknown`, med orsak och senaste kontakt. |
+| `sensor_monitor_post_sent` / `sensor_monitor_post_skipped` | Ny sensorstatus levererad eller oförändrad status redan skickad. |
+| `sensor_monitor_check_failed` | Visar om lokal lagring, kanalverifiering eller Mattermost-publicering misslyckades. |
 
 Den privata boten skriver felsökningsloggar med prefixet `[ACS DEBUG]`.
 Du ser API-adress utan queryvärden, GET/POST, HTTP-kod, svarstyp, tidsåtgång
@@ -364,6 +510,10 @@ och företagsinställningar inte hamnar i den slutliga imagen.
 · [Dockerfile med byggsteg](https://docs.docker.com/build/building/multi-stage/)
 ·
 [Slash-kommandon i Mattermost](https://docs.mattermost.com/developers/integrate/slash-commands/custom)
+· [Formulär i Mattermost](https://docs.mattermost.com/developers/integrate/plugins/interactive-dialogs)
+· [Mattermost och interna integrationsadresser](https://docs.mattermost.com/developers/integrate/slash-commands)
+· [ACS kluster-API](https://github.com/stackrox/stackrox/blob/master/proto/api/v1/cluster_service.proto)
+· [ACS senaste sensorkontakt](https://github.com/stackrox/stackrox/blob/master/proto/storage/cluster.proto)
 · [Podman push](https://docs.podman.io/en/latest/markdown/podman-push.1.html)
 · [Kubernetes image pull policy](https://kubernetes.io/docs/concepts/containers/images/#image-pull-policy)
 · [OpenShift registry](https://docs.redhat.com/en/documentation/openshift_container_platform/4.20/html/registry/accessing-the-registry)
