@@ -4,6 +4,10 @@ Databasstatus, sensorkontakt, imageskanning och schemaformulär i en privat drif
 Boten frågar ACS Central direkt. Driftmedlemmarna behöver inga personliga
 OpenShift-konton eller användarmappningar. Scheman och larmstatus sparas på PVC.
 
+`/cve scan` och `/cve report` visar en kopierbar tabell med **namespace, image
+i drift, basimage, fynd och berörda appaket**. Inga Workload-kolumner,
+JSON-bilagor eller textblock läggs till skanningsrapporten.
+
 **Har du redan databasstatus i driftkanalen?** Följ stegen under
 [uppdatera befintlig installation](#uppdatera-befintlig-installation).
 Aktivera sedan kommandon och scheman med [steg 6](#6-aktivera-cve-och-scheman-i-mattermost).
@@ -62,7 +66,7 @@ bygg- och logguppdateringen behöver du kopiera:
 
 | Del | Kopiera till samma plats i ditt befintliga projekt |
 | --- | --- |
-| Boten | `internal/bridge/` — innehåller loggändringarna. |
+| Boten | `internal/bridge/` inklusive `testdata/` — innehåller imagetabellen och loggarna. |
 | Uppstartsmeddelandet | `cmd/cvebridge/main.go` — skriver `HELLO` direkt vid start. |
 | Bygget | `Dockerfile` och den dolda filen `.dockerignore` — kopiera båda. |
 | Installationsskriptet | `configure.sh` i projektets rot. |
@@ -357,13 +361,37 @@ Bjud in boten och kör kommandona ett i taget:
 | `/cve help` | Hjälp med tillgängliga kommandon. |
 | `/cve status` | CVE-databasens uppdateringstid och ålder. |
 | `/cve sensor` | Senaste sensorkontakt för det konfigurerade klustret. |
-| `/cve scan team-a` | Ny imageskanning via ACS, rapport med Åtgärd och JSON-bilaga. |
-| `/cve report team-a` | Rapport från befintliga skanningsresultat. |
+| `/cve scan` | Ny imageskanning av driftkanalens godkända namespaces, sedan imagetabellen. |
+| `/cve scan team-a` | Samma tabell för ett godkänt namespace. |
+| `/cve report` | Imagetabell från befintliga ACS-resultat för kanalens namespaces. |
+| `/cve report team-a` | Befintligt underlag för ett godkänt namespace, utan ny skanning. |
 
-Prioriterade fynd visar paketnamn, installerad version under **Ni har**, rättad
-version under **Rättad i (enligt ACS)** och berörd image. Om ACS saknar en
-versionsuppgift visas **Inte angivet av ACS**. Alla fynd och fullständiga
-detaljer finns i JSON-bilagan. Samma format används för `scan` och `report`.
+Tabellen använder vanlig Mattermost-text. Färgade rubriker används när servern
+har [inbyggd inline-LaTeX](https://docs.mattermost.com/end-user-guide/collaborate/format-messages#math-formulas)
+aktiverad, annars används vanliga rubriker automatiskt. Ingen plugin behövs.
+Du kan markera och kopiera en rad. Samma format används för manuella och
+schemalagda `scan`/`report`; större urval fortsätter i fler tabeller.
+
+| Kolumn | Innehåll |
+| --- | --- |
+| Namespace | OpenShift-projektet där imagen körs. |
+| Image i drift | Deployerad image och tagg. Underlaget hämtas med poddens digest. |
+| Basimage (ACS) | Basens namn och version när ACS kan verifiera lagermatchningen; annars **Ej verifierad**. |
+| Fynd i imagen | ACS egna kritiska, höga, övriga och ej bedömda fynd för hela imagen. Delvis eller saknat underlag markeras i cellen. |
+| Appens tillägg (fynd) | Alla identifierade tilläggspaket med fynd: paket, installerad version → fixversion enligt ACS. |
+
+En paketfixversion är **inte en ny image-tagg**. Boten gissar ingen ny basversion
+eller framtida minskning av fynd. Jämförelsen med en ombyggd kandidat i labbet
+var ett separat test. Utan ACS basimage-matchning kan paketens ursprung inte
+fastställas, och då visas **Ursprung ej verifierat**. ACS kan behöva konfigureras
+för basimage-detektering av plattformsteamet. Saknas en gemensam paketfix anger
+tabellen detta; versioner från olika CVE:er jämförs inte som vanlig text.
+
+Fynd räknas per paketversion/CVE inom imagen. Om samma image körs i flera
+namespaces visas den på varje berörd rad; summera inte dessa rader som unika
+fynd. Långa paketlistor fortsätter på fler rader utan ett godtyckligt toppurval.
+Nya kritiska CVE:er kan fortfarande ge en engångsping; övriga rapporter består
+bara av tabellen. En separat CVE-sökning behåller sin detaljerade JSON-bilaga.
 
 Byt `team-a` mot ett projekt i din `SCAN_NAMESPACES`. Vänta på resultatet innan
 du startar nästa skanning. Alla driftkanalens medlemmar kan använda de godkända
@@ -436,6 +464,19 @@ Kör nästa kommando först när föregående lyckats. Vänta särskilt på lyck
 innan `oc apply`. Uppdateringen aktiverar sensorbevakningen automatiskt genom
 ConfigMap, utan nya frågor. Databasstatus och sparade scheman ligger kvar.
 Den nya tabellen för sensorstatus skapas automatiskt i befintlig SQLite-databas.
+
+För **enbart imagetabellens uppdatering** behöver ZIP-användare kopiera
+`internal/bridge/` och `README.md`. Behåll era ifyllda YAML-filer, `.local/` och
+PVC. Bygg och pusha med kommandona ovan. Använder ni `latest` och er befintliga
+Deployment redan pekar rätt, starta därefter om den så den hämtar nya imagen:
+
+```sh
+oc rollout restart deployment/cvebridge -n image-security
+oc rollout status deployment/cvebridge -n image-security
+```
+
+Kör sedan `/cve scan` eller `/cve report` i driftkanalen. Inga nya ConfigMap-
+eller Secret-fält behövs för rapportformatet.
 
 Saknas sparade skriptsvar men du har manuellt ifyllda YAML-filer, läs först
 avsnittet om `.local/setup.json` under steg 2. Skriptet importerar inte YAML-värden.

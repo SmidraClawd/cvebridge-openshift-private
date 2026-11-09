@@ -387,7 +387,7 @@ func (s *Store) History(ch string) (string, error) {
 
 // Publish serializes first-seen detection and only records it after an
 // acknowledged post. Delivery has an unavoidable crash window; see operations.
-func (s *Store) Publish(ctx context.Context, svc *Services, ch string, r M) (string, error) {
+func (s *Store) Publish(ctx context.Context, svc *Services, ch string, r M, checks ...func() error) (string, error) {
 	s.PublishLock.Lock()
 	defer s.PublishLock.Unlock()
 	cluster := svc.C.Get("STACKROX_CLUSTER_ID", "")
@@ -451,7 +451,7 @@ func (s *Store) Publish(ctx context.Context, svc *Services, ch string, r M) (str
 		covered = covered || baseline[ns]
 	}
 	r["alertBaseline"] = !first && !covered
-	id, e := svc.Post(ctx, ch, r)
+	id, e := svc.Post(ctx, ch, r, checks...)
 	if e != nil {
 		return "", e
 	}

@@ -59,10 +59,12 @@ func ErrorMessage(err error) M {
 	return card("Förfrågan kunde inte slutföras", message(err), "**ACS · Kontrollera beställningen**", "#D97732")
 }
 func HelpMessage() M {
-	return card("Vad vill du göra?", "`/cve scan [namespace]` – ny skanning och rapport.\n`/cve report [namespace]` – befintligt underlag.\n`/cve CVE-2021-44228 [namespace]` – sök en CVE.\n`/cve schedule` – öppna schemaformuläret här.\n`/cve status` – CVE-databasens aktualitet.\n`/cve sensor` – valt klusters sensorkontakt med Central.\n\nKör i botens konfigurerade privata kanal. Skanningsrapporter får en JSON-bilaga.", "**ACS · Snabbhjälp**", "#438D9A")
+	return card("Vad vill du göra?", "`/cve scan [namespace]` – ny skanning och imagetabell.\n`/cve report [namespace]` – imagetabell från befintligt underlag.\n`/cve CVE-2021-44228 [namespace]` – sök en CVE.\n`/cve schedule` – öppna schemaformuläret här.\n`/cve status` – CVE-databasens aktualitet.\n`/cve sensor` – valt klusters sensorkontakt med Central.\n\nKör i botens konfigurerade privata kanal. Utan namespace används kanalens godkända projekt. Imagetabeller skickas utan JSON-bilaga.", "**ACS · Snabbhjälp**", "#438D9A")
 }
 func ResultMessage(r M) M {
 	switch str(r["kind"]) {
+	case "scan":
+		return imageReportMessages(r)[0]
 	case "database_monitor":
 		return databaseMonitorMessage(r)
 	case "sensor_monitor", "sensor_status":

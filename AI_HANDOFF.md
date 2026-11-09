@@ -32,10 +32,13 @@ direkt åtkomst till företagsmiljön.
   boten med befintligt `STACKROX_CLUSTER_ID` och målnamespace i skanningsanropet.
   Användaren bekräftade därefter fungerande skanning. Spara inställningen även
   i den lokala ConfigMap-YAML-filen.
-- **Versionsinformationen är tydligare i rapportkortet.** Prioriterade fynd
-  visar paket, `Ni har`, `Rättad i (enligt ACS)` och berörd image. Saknade
-  versionsuppgifter visas som `Inte angivet av ACS`. Det gäller både `scan`
-  och `report`; hela underlaget finns fortsatt i JSON-bilagan.
+- **Scan/report använder nu en kopierbar imagetabell.** Kolumnerna är namespace,
+  image i drift, verifierad basimage, ACS egna riskantal och berörda tilläggspaket
+  med installerad/fixversion. Workload-kolumn, JSON-bilaga och textblock är
+  borttagna från dessa rapporter. Långa urval fortsätter i fler tabeller.
+  Paketens ursprung kräver ACS `baseImageInfo` och giltiga historiklagerindex;
+  saknad eller tvetydig basmatchning visas som okänd. Boten hittar inte på en
+  uppdaterad basimage-tagg eller resultatet av en framtida ombyggnad.
 - **Sensor-kommandot behöver läsåtkomst till klustret.** Det använder
   `STACKROX_TOKEN` och `GET /v1/clusters/{id}`. Vid nekad åtkomst kontrolleras
   `Cluster: Read` och access scope. Ett lyckat sensorresultat har inte
@@ -91,6 +94,7 @@ Läs främst dessa filer i det aktuella OpenShift-repot:
 | `internal/bridge/dialog.go` | Inbyggda Mattermost-formulär för scheman. |
 | `internal/bridge/state.go` | SQLite, scheman, körhistorik och larmstatus. |
 | `internal/bridge/report.go` | Mattermost-kort, Åtgärd och rapportformat. |
+| `internal/bridge/image_report.go` | Native imagetabeller, ACS baslager, riskantal och tilläggspaket. |
 | `internal/bridge/debug.go` | Sanerade ACS-loggar. |
 | `configure.sh` | Lokal Bash/Python-konfigurator och generering av manifest. |
 | `route.yaml` | Manuell OpenShift Route-mall. |
@@ -129,8 +133,8 @@ Aktuella funktioner i OpenShift-koden:
 - Sensorstatus: när aktiverad kontrolleras senaste kontakttid i Central var
   femte minut. Äldre än tio minuter ger saknad kontakt inom tidsgränsen.
   API-fel ger okänd status, inte ett bevis på att sensorn är nere.
-- Manuell imageskanning, befintliga fynd, CVE-sökning och kompakta svenska
-  rapportkort med prioriterade fynd, **Åtgärd** och JSON-bilaga.
+- Manuell imageskanning och befintliga fynd visas som svenska imagetabeller
+  utan bilagor. Separat CVE-sökning behåller ett detaljerat kort och JSON-bilaga.
 - Schemaformulär i Mattermost för dagar, tider, namespaces, körning/rapport,
   aktivering, paus och körhistorik. Formulärens multiselect kräver Mattermost 11+.
 - SQLite på `/data/requests.sqlite3` via PVC. Den rensas inte dagligen.

@@ -13,6 +13,7 @@ import (
 type Target struct {
 	Namespace  string `json:"namespace"`
 	Deployment string `json:"deployment"`
+	Image      string `json:"image,omitempty"`
 }
 type InventoryImage struct {
 	Digest, Name string
@@ -112,7 +113,13 @@ func (s *Services) Inventory(ctx context.Context, namespaces []string, scheduled
 						entry = &InventoryImage{Digest: digest, Name: repo + "@" + digest}
 						images[digest] = entry
 					}
-					target := Target{ns, str(dep["name"])}
+					// Keep the deployed tag for display, while scanning the immutable
+					// runtime digest. A rolling deployment may reference a newer image.
+					display := repo + "@" + digest
+					if str(obj(containers[ref[0]]["image"])["id"]) == digest {
+						display = full
+					}
+					target := Target{Namespace: ns, Deployment: str(dep["name"]), Image: display}
 					exists := false
 					for _, t := range entry.Targets {
 						if t == target {
@@ -199,18 +206,24 @@ func (s *Services) Scan(ctx context.Context, namespaces []string, authorize func
 	}
 	s.acsDebug("inventory_complete", M{"pods": inv.Pods, "images": len(inv.Images), "missing_images": inv.Missing})
 	rows := []any{}
+	images := []any{}
 	errors := []any{}
 	warnings := []any{}
 	scanTimes := []any{}
 	failed, scanned, components, partial := 0, 0, 0, 0
 	truncated := false
 	for number, entry := range inv.Images {
+		summary := M{"imageId": entry.Digest, "image": entry.Name, "targets": reportTargets(entry), "status": "failed"}
+		images = append(images, summary)
 		s.acsDebug("image_start", M{"image": entry.Name, "number": number + 1, "total_images": len(inv.Images)})
 		if e := authorize(); e != nil {
 			return nil, e
 		}
 		if time.Since(start) > 30*time.Minute {
 			failed += len(inv.Images) - number
+			for _, remaining := range inv.Images[number+1:] {
+				images = append(images, M{"imageId": remaining.Digest, "image": remaining.Name, "targets": reportTargets(remaining), "status": "failed"})
+			}
 			errors = append(errors, M{"reason": "Körningens tidsgräns nåddes"})
 			break
 		}
@@ -268,6 +281,7 @@ func (s *Services) Scan(ctx context.Context, namespaces []string, authorize func
 			}
 			warnings = append(warnings, M{"image": entry.Name, "scanNotes": sn})
 		}
+		addImageSummary(summary, image, len(sn) > 0 || has(notes, "MISSING_METADATA") || len(parts) == 0)
 		for _, p := range parts {
 			part := obj(p)
 			for _, v := range arr(part["vulns"]) {
@@ -281,7 +295,7 @@ func (s *Services) Scan(ctx context.Context, namespaces []string, authorize func
 					continue
 				}
 				for _, t := range entry.Targets {
-					rows = append(rows, M{"namespace": t.Namespace, "deployment": t.Deployment, "image": entry.Name, "imageId": entry.Digest, "component": str(part["name"]), "version": str(part["version"]), "source": str(part["source"]), "location": str(part["location"]), "cve": cve, "fixedBy": str(vuln["fixedBy"]), "cvss": num(vuln["cvss"])})
+					rows = append(rows, M{"namespace": t.Namespace, "deployment": t.Deployment, "image": entry.Name, "imageId": entry.Digest, "component": str(part["name"]), "version": str(part["version"]), "source": str(part["source"]), "location": str(part["location"]), "cve": cve, "fixedBy": str(vuln["fixedBy"]), "cvss": num(vuln["cvss"]), "severity": str(vuln["severity"])})
 				}
 			}
 		}
@@ -294,7 +308,7 @@ func (s *Services) Scan(ctx context.Context, namespaces []string, authorize func
 		mode = "scan"
 	}
 	s.acsDebug("scan_complete", M{"mode": mode, "scanned_images": scanned, "failed_images": failed, "partial_images": partial, "duration_ms": time.Since(start).Milliseconds()})
-	return M{"kind": "scan", "mode": mode, "namespaces": namespaces, "rows": rows, "scannedImages": scanned, "totalImages": len(inv.Images), "failedImages": failed, "unscannedImages": inv.Missing, "partialImages": partial, "pods": inv.Pods, "components": components, "errors": errors, "warnings": warnings, "truncated": truncated, "scanTimes": scanTimes, "database": s.DatabaseStatus(ctx), "finishedAt": time.Now().UTC().Format(time.RFC3339), "durationSeconds": int(time.Since(start).Seconds())}, nil
+	return M{"kind": "scan", "mode": mode, "namespaces": namespaces, "rows": rows, "images": images, "scannedImages": scanned, "totalImages": len(inv.Images), "failedImages": failed, "unscannedImages": inv.Missing, "partialImages": partial, "pods": inv.Pods, "components": components, "errors": errors, "warnings": warnings, "truncated": truncated, "scanTimes": scanTimes, "database": s.DatabaseStatus(ctx), "finishedAt": time.Now().UTC().Format(time.RFC3339), "durationSeconds": int(time.Since(start).Seconds())}, nil
 }
 func (s *Services) Lookup(ctx context.Context, cve string, ns []string, authorize func() error) (M, error) {
 	// Use the same live pod inventory and immutable digests as a scan. No new scan

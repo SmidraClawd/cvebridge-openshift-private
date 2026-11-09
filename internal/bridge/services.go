@@ -387,24 +387,52 @@ func (s *Services) Upload(ctx context.Context, ch string, result M) ([]string, e
 	}
 	return []string{str(obj(files[0])["id"])}, nil
 }
-func (s *Services) Post(ctx context.Context, ch string, result M) (string, error) {
-	card := ResultMessage(result)
-	post := M{"channel_id": ch, "message": card["text"], "props": M{"attachments": card["attachments"]}}
-	if _, ok := result["newCves"]; ok {
-		obj(post["props"])["cvebridge_new_cves"] = result["newCves"]
-		obj(post["props"])["cvebridge_alert_cves"] = result["alertCves"]
+func (s *Services) Post(ctx context.Context, ch string, result M, checks ...func() error) (string, error) {
+	var messages []M
+	isTable := str(result["kind"]) == "scan"
+	if isTable {
+		// Inline LaTeX is optional in Mattermost. Plain Markdown headers keep
+		// the table readable without a server setting or a plugin.
+		client, _ := s.MMRequest(ctx, "/api/v4/config/client?format=old", nil)
+		result["inlineLatex"] = str(client["EnableInlineLatex"]) == "true" || boolean(client["EnableInlineLatex"])
+		messages = imageReportMessages(result)
+	} else {
+		messages = []M{ResultMessage(result)}
 	}
-	if files := stringsOf(result["reportFileIds"]); len(files) > 0 {
-		post["file_ids"] = files
+	firstID := ""
+	for i, content := range messages {
+		for _, check := range checks {
+			if err := check(); err != nil {
+				return "", err
+			}
+		}
+		props := M{}
+		post := M{"channel_id": ch, "message": content["text"], "props": props}
+		if attachments := content["attachments"]; attachments != nil {
+			props["attachments"] = attachments
+		}
+		if isTable {
+			props["cvebridge_report_format"] = "images-v1"
+		}
+		if _, ok := result["newCves"]; ok && i == 0 {
+			props["cvebridge_new_cves"] = result["newCves"]
+			props["cvebridge_alert_cves"] = result["alertCves"]
+		}
+		if files := stringsOf(result["reportFileIds"]); len(files) > 0 && !isTable {
+			post["file_ids"] = files
+		}
+		r, e := s.MMRequest(ctx, "/api/v4/posts", post)
+		if e != nil {
+			return "", e
+		}
+		if !ID.MatchString(str(r["id"])) {
+			return "", problem(502, "Leveransen kunde inte bekräftas.")
+		}
+		if i == 0 {
+			firstID = str(r["id"])
+		}
 	}
-	r, e := s.MMRequest(ctx, "/api/v4/posts", post)
-	if e != nil {
-		return "", e
-	}
-	if !ID.MatchString(str(r["id"])) {
-		return "", problem(502, "Leveransen kunde inte bekräftas.")
-	}
-	return str(r["id"]), nil
+	return firstID, nil
 }
 func (s *Services) Notice(ctx context.Context, owner, ch, text string) {
 	_, _ = s.MMRequest(ctx, "/api/v4/posts/ephemeral", M{"user_id": owner, "post": M{"channel_id": ch, "message": text}})

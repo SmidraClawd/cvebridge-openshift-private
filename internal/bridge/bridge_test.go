@@ -45,6 +45,7 @@ type fixture struct {
 	Stale       bool
 	Denied      bool
 	ScanCalls   int
+	FileUploads int
 	SeenTokens  []string
 	BotResponse M
 }
@@ -97,6 +98,7 @@ func newFixture(t *testing.T) *fixture {
 			f.Posts = append(f.Posts, p)
 			write(M{"id": postID})
 		case path == "/api/v4/files":
+			f.FileUploads++
 			write(M{"file_infos": []M{{"id": strings.Repeat("f", 26)}}})
 		case path == "/v1/pods":
 			ns := "team-a"
@@ -337,6 +339,13 @@ func TestManualCommandEntirelyInMattermost(t *testing.T) {
 	if f.ScanCalls != 1 {
 		t.Fatal("scan not executed")
 	}
+	post := f.Posts[0]
+	if f.FileUploads != 0 || len(stringsOf(post["file_ids"])) != 0 || obj(post["props"])["attachments"] != nil {
+		t.Fatal("image report must be native text without JSON or attachment cards", post)
+	}
+	if !strings.Contains(str(post["message"]), "registry.acme.test/api:latest") || !strings.Contains(str(post["message"]), "team-a") {
+		t.Fatal("image report lost the deployed tag or namespace", post)
+	}
 }
 func TestPublicListenerRejectsForgedIdentityAndOversizedInput(t *testing.T) {
 	f := newFixture(t)
@@ -365,13 +374,15 @@ func TestPublicListenerRejectsForgedIdentityAndOversizedInput(t *testing.T) {
 	}
 }
 func TestReportBoundsAndMentions(t *testing.T) {
-	r := M{"kind": "scan", "rows": []any{M{"cve": "CVE-2026-12345", "component": "@channel <script>", "cvss": 9.8}}, "database": M{"state": "unknown"}}
+	summary := testImageSummary(t)
+	obj(arr(summary["applicationComponents"])[0])["name"] = "@channel <script> | package"
+	r := M{"kind": "scan", "images": []any{summary}}
 	text := encode(ResultMessage(r))
 	if strings.Contains(text, "@channel") {
 		t.Fatal("untrusted mention")
 	}
-	if !strings.Contains(text, "Åtgärd") {
-		t.Fatal("missing action")
+	if strings.Contains(text, "Åtgärd") || !strings.Contains(text, "＠channel") || !strings.HasPrefix(str(ResultMessage(r)["text"]), "| ") {
+		t.Fatal("expected only the sanitized image table")
 	}
 	r["alertCves"] = []string{"CVE-2026-12345"}
 	if !strings.Contains(encode(ResultMessage(r)), "@channel") {

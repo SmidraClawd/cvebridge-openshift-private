@@ -128,7 +128,7 @@ func (a *App) execute(ch, owner, command string, ns []string, run *Run) {
 		}
 		err = authorize()
 	}
-	if err == nil && (str(result["kind"]) == "scan" || str(result["kind"]) == "lookup") {
+	if err == nil && str(result["kind"]) == "lookup" {
 		var files []string
 		files, err = a.S.Upload(ctx, ch, result)
 		result["reportFileIds"] = files
@@ -139,7 +139,7 @@ func (a *App) execute(ch, owner, command string, ns []string, run *Run) {
 	var post string
 	if err == nil {
 		if str(result["kind"]) == "scan" {
-			post, err = a.Store.Publish(ctx, a.S, ch, result)
+			post, err = a.Store.Publish(ctx, a.S, ch, result, authorize)
 		} else {
 			post, err = a.S.Post(ctx, ch, result)
 		}

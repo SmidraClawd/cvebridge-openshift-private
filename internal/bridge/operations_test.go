@@ -72,6 +72,9 @@ func TestOperationsMembersRunStatusScanAndReportWithoutUserMapping(t *testing.T)
 	if f.ScanCalls != 1 {
 		t.Fatal("status or report unexpectedly triggered a fresh scan", f.ScanCalls)
 	}
+	if f.FileUploads != 0 {
+		t.Fatal("scan/report must not upload a JSON attachment")
+	}
 }
 
 func TestOperationsScheduleWorksWithoutReporterOrPersonalAccount(t *testing.T) {
