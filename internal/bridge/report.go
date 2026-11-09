@@ -170,14 +170,23 @@ func ResultMessage(r M) M {
 			details = append(details, "\n**Prioriterade fynd**")
 		}
 		shown[cve] = true
-		fix := "ingen fix angiven"
-		if str(row["fixedBy"]) != "" {
-			fix = "fix i underlaget " + inert(str(row["fixedBy"]), 24)
+		version := "Inte angivet av ACS"
+		if value := str(row["version"]); strings.TrimSpace(value) != "" {
+			version = inert(value, 128)
 		}
-		details = append(details, fmt.Sprintf("• %s · %g · %s · %s", inert(cve, 30), score(row), inert(str(row["component"]), 38), fix))
+		fix := "Inte angivet av ACS"
+		if value := str(row["fixedBy"]); strings.TrimSpace(value) != "" {
+			fix = inert(value, 128)
+		}
+		label, _ := risk(score(row))
+		finding := fmt.Sprintf("• %s · %s · %g/10\n**Paket:** %s\n**Ni har:** %s\n**Rättad i (enligt ACS):** %s", inert(cve, 30), label, score(row), inert(str(row["component"]), 80), version, fix)
+		if image := str(row["image"]); image != "" {
+			finding += "\n**Image:** " + inert(image, 180)
+		}
+		details = append(details, finding+"\n")
 	}
 	if len(rows) > 0 {
-		details = append(details, "\n**Åtgärd:** välj aktuell säker paketversion, bygg om och rulla ut. Skanna igen.")
+		details = append(details, "\n**Åtgärd:** uppdatera berörda paket eller basimages, bygg om och rulla ut. Följ upp med en ny rapport efter nästa ACS-skanning.")
 	} else {
 		details = append(details, "Inga matchande fynd i tillgängligt underlag. Det bevisar inte att miljön är fri från sårbarheter.")
 	}

@@ -4,6 +4,53 @@ Uppdaterad 2026-11-09. Kopiera texten nedan till den AI som ska hjälpa till.
 Uppgifter om företagsmiljön är användarens observationer; den har inte kunnat
 inspekteras direkt härifrån. Värdnamn, tokens och företagskonfiguration ingår inte.
 
+## Senast verifierade läge
+
+Följande resultat från 2026-11-09 ersätter den tidigare kontrollpunkten längre
+ned. Klusterresultaten har rapporterats av användaren, inte verifierats genom
+direkt åtkomst till företagsmiljön.
+
+- **Mattermost-kommandon fungerar.** Både en separat testapp och CVEBridge fick
+  först HTTP 302 till samma HTTPS-adress. Att ändra respektive Routes
+  `insecureEdgeTerminationPolicy` från `Redirect` till `Allow` gav fungerande
+  curl-anrop och Mattermost-kommandon. Det är förenligt med TLS-avslut framför
+  OpenShift-routern, men den exakta nätverkstopologin har inte verifierats.
+  `Allow` tillåter även HTTP till routen; Mattermost använder fortsatt HTTPS.
+  Behåll miljöns fungerande val i den lokala Route-YAML-filen. Ändra inte
+  projektets TLS-standard för andra miljöer utifrån detta resultat.
+- **Inventeringsfrågan är rättad.** ACS kan prefixmatcha okvoterade söktermer.
+  Frågan använder nu exakt matchning för både kluster-ID och namespace:
+  `Cluster ID:"..."+Namespace:"..."`. Ett regressionstest återskapar felet med
+  liknande namn. Kontrollen av svarets kluster och namespace finns kvar.
+  `inventory_scope_mismatch` loggar förväntade och mottagna värden vid avvikelse.
+- **Läsning och nya skanningar fungerar enligt användaren.** Tidigare 403 vid
+  `/v1/pods` respektive `/v1/images/scan` krävde kontroll av ACS-rollens
+  läsrättigheter respektive `Image: Read and Write` och dess access scope.
+  `/cve report` läser befintliga resultat. `/cve scan` begär en ny skanning.
+- **500 för intern registry löstes genom klustervalet.** Med
+  `STACKROX_DELEGATE_SCAN: "true"` i botens ConfigMap och en podomstart skickar
+  boten med befintligt `STACKROX_CLUSTER_ID` och målnamespace i skanningsanropet.
+  Användaren bekräftade därefter fungerande skanning. Spara inställningen även
+  i den lokala ConfigMap-YAML-filen.
+- **Versionsinformationen är tydligare i rapportkortet.** Prioriterade fynd
+  visar paket, `Ni har`, `Rättad i (enligt ACS)` och berörd image. Saknade
+  versionsuppgifter visas som `Inte angivet av ACS`. Det gäller både `scan`
+  och `report`; hela underlaget finns fortsatt i JSON-bilagan.
+- **Sensor-kommandot behöver läsåtkomst till klustret.** Det använder
+  `STACKROX_TOKEN` och `GET /v1/clusters/{id}`. Vid nekad åtkomst kontrolleras
+  `Cluster: Read` och access scope. Ett lyckat sensorresultat har inte
+  uttryckligen dokumenterats efter den senaste behörighetsfrågan.
+- **Kompakta färgtabeller är ett designförslag.** Användaren har Mattermost
+  11.10.1 och har fått exempelbilder med tabeller för images och paket.
+  Mattermost Blocks-tabellerna och automatisk upptäckt av alla namespaces är
+  ännu inte implementerade. `/cve scan` utan argument använder fortfarande
+  botens konfigurerade namespace-lista och kanalens befintliga behörighetsmodell.
+
+Boten körs i ett annat namespace än dokumentationens standardexempel
+`image-security`. Använd aktuellt botnamespace i alla `oc`-kommandon. Befintliga
+företagsmanifest, tokens och PVC ska bevaras. Följande avsnitt innehåller den
+tidigare överlämningen och historiska observationer.
+
 ---
 
 Du tar över felsökningen av **CVEBridge**, en Go-bot som kopplar ACS/StackRox
@@ -171,7 +218,7 @@ och genererar YAML. Det bygger, pushar eller installerar inte åt användaren.
 Skriptet importerar inte manuellt ändrade YAML-filer och kan skriva över dem
 med sparade värden. Användaren arbetar nu med de befintliga manifesten direkt.
 
-## 4. Problemet vi försöker lösa
+## 4. Det tidigare Mattermost-problemet
 
 **Automatiska statusmeddelanden från boten når Mattermost-kanalen. Men när jag
 kör `/cve help`, eller andra `/cve`-kommandon, får jag `Internal error`.**
@@ -218,7 +265,7 @@ HTTP 401
   varje inkommande HTTP-anrop. En tyst podlogg bevisar därför inte att inget anrop
   har nått handlern. Vilken image som faktiskt kör behöver också verifieras.
 
-## 5. Resultat som användaren redan rapporterat
+## 5. Observationer före Route-rättningen
 
 1. **Direkt test via Service-port-forward fungerade.**
 
@@ -299,7 +346,7 @@ HTTP 401
    deny-all-regel upphäver inte en annan matchande allow-regel. Ändra inte regler
    baserat enbart på deras namn.
 
-## 6. Exakt var felsökningen stannade
+## 6. Den tidigare kontrollpunkten före Route-rättningen
 
 Senaste föreslagna testet var att se om `openshift-ingress` faktiskt har den
 label som tillåtelseregeln väljer:
@@ -319,7 +366,7 @@ andra regler kan tillåta trafiken, eller 503 kan komma från en annan komponent
 Kontrollera faktisk IngressController, router-namespace och publiceringsstrategi
 om det behövs. Lägg inte blint labels på klusterägda namespace.
 
-## 7. Hjälp mig gå vidare metodiskt
+## 7. Metod vid eventuell fortsatt felsökning
 
 Läs koden och jämför sedan med minimala observationer från klustret. Föreslå
 ett litet, läsbart kommando i taget med exakt vad jag ska leta efter.
@@ -368,6 +415,7 @@ Primärkällor att använda vid behov:
 - https://kubernetes.io/docs/concepts/services-networking/network-policies/
 - https://mta.openssl.org/pipermail/openssl-users/2022-January/014814.html
 
-Börja med att sammanfatta vad som är verifierat och vad som är osäkert. Ge
-sedan nästa konkreta kontroll. Om du inte kan öppna GitHub, be om den bifogade
-källkodstexten eller ZIP-filen i stället för att låtsas ha läst koden.
+Utgå från det senaste verifierade läget överst. Vid ett nytt fel, sammanfatta
+vad som är verifierat och vad som är osäkert och ge sedan en konkret kontroll.
+Git-åtkomst till repot fungerade även när webbläsningen misslyckades. Kontrollera
+befintlig Git-åtkomst innan du ber användaren om en annan anslutning eller ZIP.

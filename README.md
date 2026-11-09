@@ -287,6 +287,15 @@ automatisk statusrapport bekräftar inte att anrop i motsatt riktning fungerar.
 Visar Mattermost-loggen `address forbidden` behöver Mattermost-ansvarig
 godkänna botens specifika värdnamn bland tillåtna interna integrationsmål.
 
+**HTTP 302 tillbaka till samma HTTPS-adress?** Kontrollera var HTTPS avslutas
+framför OpenShift-routern. Om en framförliggande lastbalanserare använder HTTP
+till routern kan Route-inställningen `Redirect` orsaka en ny omdirigering.
+I en sådan installation kan den befintliga routen behöva
+`insecureEdgeTerminationPolicy: Allow`, medan Mattermost fortsatt använder
+HTTPS-adressen. `Allow` tillåter även HTTP till routen. Anpassa valet till
+installationens TLS-upplägg och spara det i er lokala Route-YAML; projektets
+standardmall använder fortsatt `Redirect`.
+
 ### B. Registrera kommandot
 
 Gå till samma Mattermost-team som driftkanalen och öppna
@@ -351,6 +360,11 @@ Bjud in boten och kör kommandona ett i taget:
 | `/cve scan team-a` | Ny imageskanning via ACS, rapport med Åtgärd och JSON-bilaga. |
 | `/cve report team-a` | Rapport från befintliga skanningsresultat. |
 
+Prioriterade fynd visar paketnamn, installerad version under **Ni har**, rättad
+version under **Rättad i (enligt ACS)** och berörd image. Om ACS saknar en
+versionsuppgift visas **Inte angivet av ACS**. Alla fynd och fullständiga
+detaljer finns i JSON-bilagan. Samma format används för `scan` och `report`.
+
 Byt `team-a` mot ett projekt i din `SCAN_NAMESPACES`. Vänta på resultatet innan
 du startar nästa skanning. Alla driftkanalens medlemmar kan använda de godkända
 projekten. Första kompletta CVE-rapporten skapar normalt ett utgångsläge utan
@@ -376,6 +390,21 @@ skanningsschemat; du behöver inte skapa ett schema för statusmeddelanden.
 | Kommandot kunde inte verifieras | Token från just detta slash-kommando ska vara sparad som kommandotoken hos boten. |
 | Formuläret öppnas inte eller kan inte sparas | `MATTERMOST_DIALOG_URL` ska vara botens Route + `/slash/cve/dialog`; Mattermost behöver nå även den sökvägen. |
 | ACS svarar HTTP 403 | Kontrollera rättigheten för just anropet i podloggen: Administration: Read för databasstatus, Cluster: Read för sensor, Image: Write för ny skanning. |
+
+**API-skanning av images i ett klusterinternt registry:** när skanningen ska
+utföras med hjälp av det valda säkrade klustret, lägg till följande i er
+befintliga ConfigMap under `data`:
+
+```yaml
+STACKROX_DELEGATE_SCAN: "true"
+```
+
+Boten skickar då med `STACKROX_CLUSTER_ID` och bildens målnamespace i
+skanningsanropet till ACS. Kontrollera att kluster-ID avser rätt kluster och
+att dess skanner är tillgänglig. Applicera er befintliga ConfigMap och starta
+om botens Deployment för att läsa det nya miljövärdet. Spara värdet i er lokala
+YAML; det skapas inte automatiskt av konfiguratorn. Ett HTTP 500 i sig anger
+inte grundorsaken; kvarstår felet behöver ACS-skanningsfelet kontrolleras.
 
 ## Uppdatera befintlig installation
 

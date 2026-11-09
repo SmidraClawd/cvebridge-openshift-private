@@ -24,7 +24,9 @@ type Inventory struct {
 }
 
 func (s *Services) query(kind, ns string, offset int) string {
-	return "/v1/" + kind + "?" + url.Values{"query": {"Cluster ID:" + s.C.Get("STACKROX_CLUSTER_ID", "") + "+Namespace:" + ns}, "pagination.limit": {"100"}, "pagination.offset": {strconv.Itoa(offset)}}.Encode()
+	// Unquoted ACS terms also match prefixes, which the scope check rejects.
+	query := fmt.Sprintf("Cluster ID:%q+Namespace:%q", s.C.Get("STACKROX_CLUSTER_ID", ""), ns)
+	return "/v1/" + kind + "?" + url.Values{"query": {query}, "pagination.limit": {"100"}, "pagination.offset": {strconv.Itoa(offset)}}.Encode()
 }
 func (s *Services) scoped(r M, ns string) bool {
 	return str(r["namespace"]) == ns && str(r["clusterId"]) == s.C.Get("STACKROX_CLUSTER_ID", "")
@@ -45,6 +47,12 @@ func (s *Services) Inventory(ctx context.Context, namespaces []string, scheduled
 			for _, p := range pods {
 				pod := obj(p)
 				if !s.scoped(pod, ns) {
+					s.acsDebug("inventory_scope_mismatch", M{
+						"expected_namespace":  ns,
+						"actual_namespace":    str(pod["namespace"]),
+						"expected_cluster_id": s.C.Get("STACKROX_CLUSTER_ID", ""),
+						"actual_cluster_id":   str(pod["clusterId"]),
+					})
 					return inv, problem(502, "Inventeringen matchar inte godkänd omfattning.")
 				}
 				live := []M{}
