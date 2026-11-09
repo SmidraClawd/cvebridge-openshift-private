@@ -11,6 +11,10 @@ Aktivera sedan kommandon och scheman med [steg 6](#6-aktivera-cve-och-scheman-i-
 **Redigerar du ConfigMap och Secret manuellt?** Steg 6 visar även det flödet,
 utan skript. En färdig [Route-fil](route.yaml) finns i projektets rot.
 
+**Felsöker du inkommande Mattermost-kommandon?**
+[AI-överlämningen](AI_HANDOFF.md) samlar kodöversikt, rapporterade 503-/TLS-fel,
+genomförda kontroller och nästa kontroll. Företagsvärden och tokens ingår inte.
+
 ```text
 hämta → ./configure.sh → Podman bygger kod och image → tagga/pusha → oc apply → HELLO i loggen
 ```
