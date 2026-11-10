@@ -27,7 +27,7 @@ func normalizeCVEs(terms []string) ([]string, error) {
 	return cves, nil
 }
 
-func parseSlashCommand(text string) (string, []string, error) {
+func parseSlashCommand(text string, allowedNamespaces ...string) (string, []string, error) {
 	args := strings.Fields(text)
 	if len(args) == 0 || (len(args) == 1 && (strings.EqualFold(args[0], "help") || strings.EqualFold(args[0], "hjälp"))) {
 		return "help", nil, nil
@@ -54,7 +54,7 @@ func parseSlashCommand(text string) (string, []string, error) {
 	namespaces := []string{}
 	if len(terms) > 0 {
 		last := terms[len(terms)-1]
-		if !strings.HasPrefix(strings.ToUpper(last), "CVE-") && NS.MatchString(last) {
+		if NS.MatchString(last) && !CVE.MatchString(strings.ToUpper(last)) && (!strings.HasPrefix(strings.ToUpper(last), "CVE-") || has(allowedNamespaces, last)) {
 			namespaces = append(namespaces, last)
 			terms = terms[:len(terms)-1]
 		}

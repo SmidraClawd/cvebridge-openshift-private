@@ -251,7 +251,7 @@ func (a *App) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		reply(w, ErrorMessage(problem(400, "Använd /cve eller /acs.")))
 		return
 	}
-	command, ns, parseErr := parseSlashCommand(f.Get("text"))
+	command, ns, parseErr := parseSlashCommand(f.Get("text"), a.S.C.Scopes[f.Get("channel_id")]...)
 	if parseErr != nil {
 		reply(w, ErrorMessage(parseErr))
 		return

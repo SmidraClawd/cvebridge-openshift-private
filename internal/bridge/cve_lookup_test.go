@@ -40,6 +40,10 @@ func TestCVECommandsAcceptSingleMultipleAndScopedQueries(t *testing.T) {
 			t.Error("invalid query accepted:", text)
 		}
 	}
+	command, ns, err := parseSlashCommand("CVE-2025-47273 cve-tools", "cve-tools")
+	if err != nil || command != "CVE-2025-47273" || !same(ns, []string{"cve-tools"}) {
+		t.Fatal("an approved namespace starting with cve- must remain usable", command, ns, err)
+	}
 }
 
 func lookupFixture(t *testing.T) *fixture {
