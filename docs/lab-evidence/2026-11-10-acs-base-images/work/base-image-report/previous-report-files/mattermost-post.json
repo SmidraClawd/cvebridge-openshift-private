@@ -1,0 +1,18 @@
+{
+  "id": "jgkbp6eimtfcpeio7zecx14nxy",
+  "url": "http://localhost:18065/devsecops/pl/jgkbp6eimtfcpeio7zecx14nxy",
+  "counts": {
+    "critical": 4,
+    "high": 15,
+    "other": 37,
+    "unknown": 0
+  },
+  "scanTime": "2026-11-10T20:57:04.853046543Z",
+  "namespaces": [
+    "demo-team-a",
+    "demo-team-b"
+  ],
+  "baseDigest": "sha256:3f1ce1c415054488586812b63270daf89d97b4f23416e1288003816790eb08de",
+  "partial": true,
+  "latex": true
+}

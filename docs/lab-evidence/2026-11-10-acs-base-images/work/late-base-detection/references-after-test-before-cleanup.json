@@ -1,0 +1,31 @@
+{
+  "baseImageReferences": [
+    {
+      "id": "105e1a8c-800a-48b9-830c-4e11bfb5c569",
+      "baseImageRepoPath": "docker.io/library/python",
+      "baseImageTagPattern": "3.13.*-slim*",
+      "user": {
+        "id": "admin",
+        "name": "admin"
+      }
+    },
+    {
+      "id": "e4386535-539d-4726-85e2-ae3b2cf3eec0",
+      "baseImageRepoPath": "origin-registry.cvebridge-origin-test.svc:5000/late-base-20261110-4f8db88a/base-python-311",
+      "baseImageTagPattern": "3.11.0-slim",
+      "user": {
+        "id": "admin",
+        "name": "admin"
+      }
+    },
+    {
+      "id": "1c60e588-05bd-4716-b21f-5daf126d7b42",
+      "baseImageRepoPath": "registry.hub.docker.com/library/python",
+      "baseImageTagPattern": "3.1[01].0-slim",
+      "user": {
+        "id": "admin",
+        "name": "admin"
+      }
+    }
+  ]
+}

@@ -1,0 +1,46 @@
+{
+  "at": "2026-11-10T22:47:58.798869+00:00",
+  "label": "after-https-311-before-rescan",
+  "images": [
+    {
+      "id": "sha256:b8c05edf1e0d531fe0d65b9ce95e69001e16510c5d58f506c1690da6fb212e46",
+      "idV2": null,
+      "name": {
+        "registry": "origin-registry.cvebridge-origin-test.svc:5000",
+        "remote": "late-base-20261110-4f8db88a/app-python-311",
+        "tag": "",
+        "fullName": "origin-registry.cvebridge-origin-test.svc:5000/late-base-20261110-4f8db88a/app-python-311@sha256:b8c05edf1e0d531fe0d65b9ce95e69001e16510c5d58f506c1690da6fb212e46"
+      },
+      "baseMatches": [],
+      "scanTime": "2026-11-10T22:41:14.003010808Z",
+      "metadataLayers": [
+        "sha256:025c56f98b679f70b7a54241917e56da7b59ab9d2defecc6ebdb0bf2750484bb",
+        "sha256:778656c04542093db6d3b6e07bffbcf6ec4b24709276be7cdf177fcb3666663a",
+        "sha256:3275e90747232f394d7b8fc9a2b481e07a4454f13e17c356b1db22a9d3aa234a",
+        "sha256:9c14766361e2de1409b3695c1e1e5ca7eb92b0fb36995167de7f65a22ee1805c",
+        "sha256:5882f66f020b95daabdb82684a5a0d9c98cf961cf52870c6a8ce74d49eee2b23",
+        "sha256:d1c15af32b37e3ef8122b85983fc30dd6f19512ec83127b6e6614875f6817911"
+      ]
+    },
+    {
+      "id": "sha256:258e63485a21805bdbc2f35af1669bbdfbfbdb24d862b20aaac0a3c392c8811e",
+      "idV2": null,
+      "name": {
+        "registry": "origin-registry.cvebridge-origin-test.svc:5000",
+        "remote": "late-base-20261110-4f8db88a/app-python-310",
+        "tag": "",
+        "fullName": "origin-registry.cvebridge-origin-test.svc:5000/late-base-20261110-4f8db88a/app-python-310@sha256:258e63485a21805bdbc2f35af1669bbdfbfbdb24d862b20aaac0a3c392c8811e"
+      },
+      "baseMatches": [],
+      "scanTime": "2026-11-10T22:41:15.629698457Z",
+      "metadataLayers": [
+        "sha256:e5ae68f740265288a4888db98d2999a638fdcb6d725f427678814538d253aa4d",
+        "sha256:d4a99467e40c5f7df417e80af41be8672d48682d2d6c444365f6f0ef806ab09b",
+        "sha256:4c7920f0f9da78cf7fe18bed2fba29fd7412f1f2deed67564697ba709c9dc262",
+        "sha256:abfdb30fad1610e7cdf523a50e6fe99858c49bc03a0df7ac47868967dcb4c7bc",
+        "sha256:636dd546cfa0f59aed204e13308d8daf05bd36358eb7e2a5513bd6e2c1423741",
+        "sha256:bf893e6e2cf308a41838b93b9b292818fc6b0d8c34e449ab288251132113ebc9"
+      ]
+    }
+  ]
+}

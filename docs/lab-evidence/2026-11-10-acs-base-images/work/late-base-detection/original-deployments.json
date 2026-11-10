@@ -1,0 +1,183 @@
+[
+  {
+    "namespace": "cvebridge-origin-test",
+    "name": "origin-registry",
+    "uid": "b81140fe-bd91-4541-9f75-f07a080dd0dc",
+    "generation": 1,
+    "images": [
+      "registry:3"
+    ]
+  },
+  {
+    "namespace": "cvebridge",
+    "name": "cvebridge",
+    "uid": "036642a3-5726-43d9-9455-ee9abd4f543f",
+    "generation": 32,
+    "images": [
+      "cvebridge:registry-20261101"
+    ]
+  },
+  {
+    "namespace": "cvebridge",
+    "name": "dex",
+    "uid": "294e8fc3-d1d6-4754-b8b1-0965a66954fc",
+    "generation": 1,
+    "images": [
+      "ghcr.io/dexidp/dex:v2.46.1"
+    ]
+  },
+  {
+    "namespace": "cvebridge",
+    "name": "mattermost",
+    "uid": "d1e66019-14af-4a28-ae77-b41ccc518d97",
+    "generation": 3,
+    "images": [
+      "mattermost/mattermost-team-edition:12.0.1"
+    ]
+  },
+  {
+    "namespace": "cvebridge",
+    "name": "postgres",
+    "uid": "18035bfd-6e39-462c-8126-92cd3beac23d",
+    "generation": 1,
+    "images": [
+      "postgres:17.6-alpine"
+    ]
+  },
+  {
+    "namespace": "demo-shared",
+    "name": "sample-app",
+    "uid": "dd32e8f8-5ec0-45ef-9d41-fba7e8688611",
+    "generation": 1,
+    "images": [
+      "python:3.11.0-slim"
+    ]
+  },
+  {
+    "namespace": "demo-team-a",
+    "name": "java-sample",
+    "uid": "eea92689-9515-4271-8463-9efe44e45d19",
+    "generation": 1,
+    "images": [
+      "ghcr.io/christophetd/log4shell-vulnerable-app@sha256:6f88430688108e512f7405ac3c73d47f5c370780b94182854ea2cddc6bd59929"
+    ]
+  },
+  {
+    "namespace": "demo-team-a",
+    "name": "preview-api",
+    "uid": "f00a07cb-8b94-401d-90ba-3b7857740f14",
+    "generation": 1,
+    "images": [
+      "origin-registry.cvebridge-origin-test.svc:5000/cvebridge-origin/app-python:v1"
+    ]
+  },
+  {
+    "namespace": "demo-team-a",
+    "name": "sample-app",
+    "uid": "ffbc9cab-1c16-4828-9427-4fd80a3753dc",
+    "generation": 1,
+    "images": [
+      "python:3.11.0-slim"
+    ]
+  },
+  {
+    "namespace": "demo-team-b",
+    "name": "preview-worker",
+    "uid": "dd19015b-896e-49ac-82ea-261953d68ff1",
+    "generation": 1,
+    "images": [
+      "origin-registry.cvebridge-origin-test.svc:5000/cvebridge-origin/app-python:v1"
+    ]
+  },
+  {
+    "namespace": "demo-team-b",
+    "name": "sample-app",
+    "uid": "1b0c80f7-bc43-40cb-afc5-80a3f4bff39b",
+    "generation": 1,
+    "images": [
+      "python:3.11.0-slim"
+    ]
+  },
+  {
+    "namespace": "kube-system",
+    "name": "coredns",
+    "uid": "acf097e9-6443-4aa8-bd9e-612ef2e5bb6c",
+    "generation": 1,
+    "images": [
+      "rancher/mirrored-coredns-coredns:1.14.7"
+    ]
+  },
+  {
+    "namespace": "kube-system",
+    "name": "local-path-provisioner",
+    "uid": "016d72a2-d7e0-4443-8830-e5d1492fe445",
+    "generation": 1,
+    "images": [
+      "rancher/local-path-provisioner:v0.0.37"
+    ]
+  },
+  {
+    "namespace": "stackrox",
+    "name": "admission-control",
+    "uid": "890540e5-84ec-4b0d-9142-965a8f831fd2",
+    "generation": 1,
+    "images": [
+      "quay.io/stackrox-io/main:4.11.6"
+    ]
+  },
+  {
+    "namespace": "stackrox",
+    "name": "central",
+    "uid": "759582d4-4f41-4c98-b126-7ba21c05c4a0",
+    "generation": 1,
+    "images": [
+      "quay.io/stackrox-io/main:4.11.6"
+    ]
+  },
+  {
+    "namespace": "stackrox",
+    "name": "central-db",
+    "uid": "76f0ff21-9530-415c-bbe8-35d778632115",
+    "generation": 1,
+    "images": [
+      "quay.io/stackrox-io/central-db:4.11.6",
+      "quay.io/stackrox-io/central-db:4.11.6"
+    ]
+  },
+  {
+    "namespace": "stackrox",
+    "name": "config-controller",
+    "uid": "8fa539b2-b50d-4ff6-aea9-3a7bd47f33ed",
+    "generation": 1,
+    "images": [
+      "quay.io/stackrox-io/main:4.11.6"
+    ]
+  },
+  {
+    "namespace": "stackrox",
+    "name": "scanner",
+    "uid": "1d4b7ab5-9792-4946-9c6c-5d20c1d3d753",
+    "generation": 2,
+    "images": [
+      "quay.io/stackrox-io/scanner:4.11.6"
+    ]
+  },
+  {
+    "namespace": "stackrox",
+    "name": "scanner-db",
+    "uid": "bfc3be8e-cff6-4371-ad9e-07d6cf85b42b",
+    "generation": 1,
+    "images": [
+      "quay.io/stackrox-io/scanner-db:4.11.6"
+    ]
+  },
+  {
+    "namespace": "stackrox",
+    "name": "sensor",
+    "uid": "140f391a-5572-4b8b-8714-c880d3463dfa",
+    "generation": 1,
+    "images": [
+      "quay.io/stackrox-io/main:4.11.6"
+    ]
+  }
+]

@@ -1,0 +1,606 @@
+{
+  "test": {
+    "runId": "late-base-20261110-4f8db88a",
+    "started": "2026-11-10T22:39:47.902558+00:00",
+    "cases": [
+      {
+        "tag": "3.10.0-slim",
+        "source": "docker.io/library/python@sha256:95bebb8af5996a5c2ad12526170fc599ff281bb823434b9f946335c35ebc5f2b",
+        "sourceDigest": "sha256:95bebb8af5996a5c2ad12526170fc599ff281bb823434b9f946335c35ebc5f2b",
+        "configDigest": "sha256:73b513f595267baaf7733a454aae6ed3e3fef5f03c3f0299a201797839f45cdd",
+        "created": "2021-12-03T00:38:14.593690512Z",
+        "sourceLayers": [
+          "sha256:e5ae68f740265288a4888db98d2999a638fdcb6d725f427678814538d253aa4d",
+          "sha256:d4a99467e40c5f7df417e80af41be8672d48682d2d6c444365f6f0ef806ab09b",
+          "sha256:4c7920f0f9da78cf7fe18bed2fba29fd7412f1f2deed67564697ba709c9dc262",
+          "sha256:abfdb30fad1610e7cdf523a50e6fe99858c49bc03a0df7ac47868967dcb4c7bc",
+          "sha256:636dd546cfa0f59aed204e13308d8daf05bd36358eb7e2a5513bd6e2c1423741"
+        ],
+        "minor": "3.10",
+        "baseRepo": "late-base-20261110-4f8db88a/base-python-310",
+        "appRepo": "late-base-20261110-4f8db88a/app-python-310",
+        "baseRegistryRepo": "origin-registry.cvebridge-origin-test.svc:5000/late-base-20261110-4f8db88a/base-python-310",
+        "baseTag": "3.10.0-slim",
+        "appTag": "v1",
+        "mirroredBase": {
+          "indexDigest": "sha256:95bebb8af5996a5c2ad12526170fc599ff281bb823434b9f946335c35ebc5f2b",
+          "manifestDigest": "sha256:95bebb8af5996a5c2ad12526170fc599ff281bb823434b9f946335c35ebc5f2b",
+          "configDigest": "sha256:73b513f595267baaf7733a454aae6ed3e3fef5f03c3f0299a201797839f45cdd",
+          "layers": [
+            "sha256:e5ae68f740265288a4888db98d2999a638fdcb6d725f427678814538d253aa4d",
+            "sha256:d4a99467e40c5f7df417e80af41be8672d48682d2d6c444365f6f0ef806ab09b",
+            "sha256:4c7920f0f9da78cf7fe18bed2fba29fd7412f1f2deed67564697ba709c9dc262",
+            "sha256:abfdb30fad1610e7cdf523a50e6fe99858c49bc03a0df7ac47868967dcb4c7bc",
+            "sha256:636dd546cfa0f59aed204e13308d8daf05bd36358eb7e2a5513bd6e2c1423741"
+          ]
+        },
+        "appBuildStarted": "2026-11-10T22:40:39.491247+00:00",
+        "appBuildFinished": "2026-11-10T22:40:42.624647+00:00",
+        "appPushed": "2026-11-10T22:40:42.903230+00:00",
+        "appManifest": {
+          "indexDigest": "sha256:258e63485a21805bdbc2f35af1669bbdfbfbdb24d862b20aaac0a3c392c8811e",
+          "manifestDigest": "sha256:258e63485a21805bdbc2f35af1669bbdfbfbdb24d862b20aaac0a3c392c8811e",
+          "configDigest": "sha256:ec66eec23c157d0a7dcb3a5d04a94a44898db4c6fd39683f70aaf62a34ca7bde",
+          "layers": [
+            "sha256:e5ae68f740265288a4888db98d2999a638fdcb6d725f427678814538d253aa4d",
+            "sha256:d4a99467e40c5f7df417e80af41be8672d48682d2d6c444365f6f0ef806ab09b",
+            "sha256:4c7920f0f9da78cf7fe18bed2fba29fd7412f1f2deed67564697ba709c9dc262",
+            "sha256:abfdb30fad1610e7cdf523a50e6fe99858c49bc03a0df7ac47868967dcb4c7bc",
+            "sha256:636dd546cfa0f59aed204e13308d8daf05bd36358eb7e2a5513bd6e2c1423741",
+            "sha256:bf893e6e2cf308a41838b93b9b292818fc6b0d8c34e449ab288251132113ebc9"
+          ]
+        },
+        "appScanReference": "origin-registry.cvebridge-origin-test.svc:5000/late-base-20261110-4f8db88a/app-python-310@sha256:258e63485a21805bdbc2f35af1669bbdfbfbdb24d862b20aaac0a3c392c8811e",
+        "startup": {
+          "python": "3.10.0",
+          "tls": "OpenSSL 1.1.1k  25 Mar 2021",
+          "purpose": "late base registration test"
+        },
+        "imagesPreparedAt": "2026-11-10T22:40:43.453302+00:00"
+      },
+      {
+        "tag": "3.11.0-slim",
+        "source": "docker.io/library/python@sha256:ff09e30b44097b761742f1c460f385046d3627c1cfdc5511e191b4274b416257",
+        "sourceDigest": "sha256:ff09e30b44097b761742f1c460f385046d3627c1cfdc5511e191b4274b416257",
+        "configDigest": "sha256:15faa1ce7d77d3884c0ef3348f17bb06d7a57b2c3b41de4fef63de982b4af8e1",
+        "created": "2022-12-06T13:36:06.005301113Z",
+        "sourceLayers": [
+          "sha256:025c56f98b679f70b7a54241917e56da7b59ab9d2defecc6ebdb0bf2750484bb",
+          "sha256:778656c04542093db6d3b6e07bffbcf6ec4b24709276be7cdf177fcb3666663a",
+          "sha256:3275e90747232f394d7b8fc9a2b481e07a4454f13e17c356b1db22a9d3aa234a",
+          "sha256:9c14766361e2de1409b3695c1e1e5ca7eb92b0fb36995167de7f65a22ee1805c",
+          "sha256:5882f66f020b95daabdb82684a5a0d9c98cf961cf52870c6a8ce74d49eee2b23"
+        ],
+        "minor": "3.11",
+        "baseRepo": "late-base-20261110-4f8db88a/base-python-311",
+        "appRepo": "late-base-20261110-4f8db88a/app-python-311",
+        "baseRegistryRepo": "origin-registry.cvebridge-origin-test.svc:5000/late-base-20261110-4f8db88a/base-python-311",
+        "baseTag": "3.11.0-slim",
+        "appTag": "v1",
+        "mirroredBase": {
+          "indexDigest": "sha256:ff09e30b44097b761742f1c460f385046d3627c1cfdc5511e191b4274b416257",
+          "manifestDigest": "sha256:ff09e30b44097b761742f1c460f385046d3627c1cfdc5511e191b4274b416257",
+          "configDigest": "sha256:15faa1ce7d77d3884c0ef3348f17bb06d7a57b2c3b41de4fef63de982b4af8e1",
+          "layers": [
+            "sha256:025c56f98b679f70b7a54241917e56da7b59ab9d2defecc6ebdb0bf2750484bb",
+            "sha256:778656c04542093db6d3b6e07bffbcf6ec4b24709276be7cdf177fcb3666663a",
+            "sha256:3275e90747232f394d7b8fc9a2b481e07a4454f13e17c356b1db22a9d3aa234a",
+            "sha256:9c14766361e2de1409b3695c1e1e5ca7eb92b0fb36995167de7f65a22ee1805c",
+            "sha256:5882f66f020b95daabdb82684a5a0d9c98cf961cf52870c6a8ce74d49eee2b23"
+          ]
+        },
+        "appBuildStarted": "2026-11-10T22:40:50.884533+00:00",
+        "appBuildFinished": "2026-11-10T22:40:53.660512+00:00",
+        "appPushed": "2026-11-10T22:40:53.910431+00:00",
+        "appManifest": {
+          "indexDigest": "sha256:b8c05edf1e0d531fe0d65b9ce95e69001e16510c5d58f506c1690da6fb212e46",
+          "manifestDigest": "sha256:b8c05edf1e0d531fe0d65b9ce95e69001e16510c5d58f506c1690da6fb212e46",
+          "configDigest": "sha256:eb2bdd2673f2b84e4e755f32fa2159903421bddf4222e2f714abb86faf91d15e",
+          "layers": [
+            "sha256:025c56f98b679f70b7a54241917e56da7b59ab9d2defecc6ebdb0bf2750484bb",
+            "sha256:778656c04542093db6d3b6e07bffbcf6ec4b24709276be7cdf177fcb3666663a",
+            "sha256:3275e90747232f394d7b8fc9a2b481e07a4454f13e17c356b1db22a9d3aa234a",
+            "sha256:9c14766361e2de1409b3695c1e1e5ca7eb92b0fb36995167de7f65a22ee1805c",
+            "sha256:5882f66f020b95daabdb82684a5a0d9c98cf961cf52870c6a8ce74d49eee2b23",
+            "sha256:d1c15af32b37e3ef8122b85983fc30dd6f19512ec83127b6e6614875f6817911"
+          ]
+        },
+        "appScanReference": "origin-registry.cvebridge-origin-test.svc:5000/late-base-20261110-4f8db88a/app-python-311@sha256:b8c05edf1e0d531fe0d65b9ce95e69001e16510c5d58f506c1690da6fb212e46",
+        "startup": {
+          "python": "3.11.0",
+          "tls": "OpenSSL 1.1.1n  15 Mar 2022",
+          "purpose": "late base registration test"
+        },
+        "imagesPreparedAt": "2026-11-10T22:40:54.414973+00:00",
+        "registrationRequestedAt": "2026-11-10T22:44:11.306446+00:00",
+        "registration": {
+          "id": "e4386535-539d-4726-85e2-ae3b2cf3eec0",
+          "baseImageRepoPath": "origin-registry.cvebridge-origin-test.svc:5000/late-base-20261110-4f8db88a/base-python-311",
+          "baseImageTagPattern": "3.11.0-slim",
+          "user": {
+            "id": "admin",
+            "name": "admin"
+          }
+        },
+        "registrationCompletedAt": "2026-11-10T22:44:11.396549+00:00"
+      }
+    ],
+    "allImagesPreparedAt": "2026-11-10T22:40:54.415219+00:00",
+    "baseline": [
+      {
+        "minor": "3.10",
+        "requestStarted": "2026-11-10T22:41:13.913479+00:00",
+        "responseReceived": "2026-11-10T22:41:15.653494+00:00",
+        "scanTime": "2026-11-10T22:41:15.629698457Z",
+        "appDigest": "sha256:258e63485a21805bdbc2f35af1669bbdfbfbdb24d862b20aaac0a3c392c8811e",
+        "appConfigDigest": "sha256:ec66eec23c157d0a7dcb3a5d04a94a44898db4c6fd39683f70aaf62a34ca7bde",
+        "baseMatches": [],
+        "scanNotes": [],
+        "metadataLayerCount": 6
+      },
+      {
+        "minor": "3.11",
+        "requestStarted": "2026-11-10T22:41:13.913851+00:00",
+        "responseReceived": "2026-11-10T22:41:14.038097+00:00",
+        "scanTime": "2026-11-10T22:41:14.003010808Z",
+        "appDigest": "sha256:b8c05edf1e0d531fe0d65b9ce95e69001e16510c5d58f506c1690da6fb212e46",
+        "appConfigDigest": "sha256:eb2bdd2673f2b84e4e755f32fa2159903421bddf4222e2f714abb86faf91d15e",
+        "baseMatches": [],
+        "scanNotes": [],
+        "metadataLayerCount": 6
+      }
+    ],
+    "baselineVerifiedAt": "2026-11-10T22:41:15.653813+00:00",
+    "testNamespace": "late-base-20261110-4f8db88a",
+    "workloadDeploymentStarted": "2026-11-10T22:42:14.356585+00:00",
+    "runningTestPods": [
+      {
+        "name": "app-python-310-5b5967fbcc-dxrcl",
+        "created": "2026-11-10T22:43:21Z",
+        "phase": "Running",
+        "images": [
+          "origin-registry.cvebridge-origin-test.svc:5000/late-base-20261110-4f8db88a/app-python-310@sha256:258e63485a21805bdbc2f35af1669bbdfbfbdb24d862b20aaac0a3c392c8811e"
+        ],
+        "imageIDs": [
+          "10.43.229.94:5000/late-base-20261110-4f8db88a/app-python-310@sha256:258e63485a21805bdbc2f35af1669bbdfbfbdb24d862b20aaac0a3c392c8811e"
+        ]
+      },
+      {
+        "name": "app-python-311-7559488f68-k5sj2",
+        "created": "2026-11-10T22:43:21Z",
+        "phase": "Running",
+        "images": [
+          "origin-registry.cvebridge-origin-test.svc:5000/late-base-20261110-4f8db88a/app-python-311@sha256:b8c05edf1e0d531fe0d65b9ce95e69001e16510c5d58f506c1690da6fb212e46"
+        ],
+        "imageIDs": [
+          "10.43.229.94:5000/late-base-20261110-4f8db88a/app-python-311@sha256:b8c05edf1e0d531fe0d65b9ce95e69001e16510c5d58f506c1690da6fb212e46"
+        ]
+      }
+    ],
+    "workloadsReadyAt": "2026-11-10T22:43:23.180185+00:00",
+    "preloadMethod": "Pulled existing HTTP registry through its ClusterIP into containerd; aliases preserve original manifest digest. No node DNS or registry trust configuration changed.",
+    "nativeBaselineVerifiedAt": "2026-11-10T22:44:11.135939+00:00",
+    "secureSourceVerification": [
+      {
+        "minor": "3.10",
+        "verifiedAt": "2026-11-10T22:47:20.141675+00:00",
+        "source": "registry.hub.docker.com/library/python:3.10.0-slim",
+        "manifestDigest": "sha256:95bebb8af5996a5c2ad12526170fc599ff281bb823434b9f946335c35ebc5f2b",
+        "configDigest": "sha256:73b513f595267baaf7733a454aae6ed3e3fef5f03c3f0299a201797839f45cdd",
+        "layers": [
+          "sha256:e5ae68f740265288a4888db98d2999a638fdcb6d725f427678814538d253aa4d",
+          "sha256:d4a99467e40c5f7df417e80af41be8672d48682d2d6c444365f6f0ef806ab09b",
+          "sha256:4c7920f0f9da78cf7fe18bed2fba29fd7412f1f2deed67564697ba709c9dc262",
+          "sha256:abfdb30fad1610e7cdf523a50e6fe99858c49bc03a0df7ac47868967dcb4c7bc",
+          "sha256:636dd546cfa0f59aed204e13308d8daf05bd36358eb7e2a5513bd6e2c1423741"
+        ]
+      },
+      {
+        "minor": "3.11",
+        "verifiedAt": "2026-11-10T22:47:20.171993+00:00",
+        "source": "registry.hub.docker.com/library/python:3.11.0-slim",
+        "manifestDigest": "sha256:ff09e30b44097b761742f1c460f385046d3627c1cfdc5511e191b4274b416257",
+        "configDigest": "sha256:15faa1ce7d77d3884c0ef3348f17bb06d7a57b2c3b41de4fef63de982b4af8e1",
+        "layers": [
+          "sha256:025c56f98b679f70b7a54241917e56da7b59ab9d2defecc6ebdb0bf2750484bb",
+          "sha256:778656c04542093db6d3b6e07bffbcf6ec4b24709276be7cdf177fcb3666663a",
+          "sha256:3275e90747232f394d7b8fc9a2b481e07a4454f13e17c356b1db22a9d3aa234a",
+          "sha256:9c14766361e2de1409b3695c1e1e5ca7eb92b0fb36995167de7f65a22ee1805c",
+          "sha256:5882f66f020b95daabdb82684a5a0d9c98cf961cf52870c6a8ce74d49eee2b23"
+        ]
+      }
+    ],
+    "secureIntegration": {
+      "id": "3dd574e9-5858-4898-a146-8bf449fa0821",
+      "name": "late-base-20261110-4f8db88a Docker Hub HTTPS test",
+      "endpoint": "https://registry.hub.docker.com"
+    },
+    "secureRegistrationRequestedAt": "2026-11-10T22:47:25.867302+00:00",
+    "secureReference": {
+      "id": "1c60e588-05bd-4716-b21f-5daf126d7b42",
+      "baseImageRepoPath": "registry.hub.docker.com/library/python",
+      "baseImageTagPattern": "3.11.0-slim",
+      "user": {
+        "id": "admin",
+        "name": "admin"
+      }
+    },
+    "secureRegistrationCompletedAt": "2026-11-10T22:47:25.966322+00:00",
+    "after-https-311": [
+      {
+        "minor": "3.10",
+        "requestStarted": "2026-11-10T22:48:00.797185+00:00",
+        "responseReceived": "2026-11-10T22:48:00.872889+00:00",
+        "scanTime": "2026-11-10T22:48:00.845822024Z",
+        "appDigest": "sha256:258e63485a21805bdbc2f35af1669bbdfbfbdb24d862b20aaac0a3c392c8811e",
+        "appConfigDigest": "sha256:ec66eec23c157d0a7dcb3a5d04a94a44898db4c6fd39683f70aaf62a34ca7bde",
+        "baseMatches": [],
+        "scanNotes": [],
+        "metadataLayerCount": 6
+      },
+      {
+        "minor": "3.11",
+        "requestStarted": "2026-11-10T22:48:00.797547+00:00",
+        "responseReceived": "2026-11-10T22:48:00.907151+00:00",
+        "scanTime": "2026-11-10T22:48:00.880547583Z",
+        "appDigest": "sha256:b8c05edf1e0d531fe0d65b9ce95e69001e16510c5d58f506c1690da6fb212e46",
+        "appConfigDigest": "sha256:eb2bdd2673f2b84e4e755f32fa2159903421bddf4222e2f714abb86faf91d15e",
+        "baseMatches": [
+          {
+            "baseImageId": "e664fe00-f8a5-555b-9242-018c12a48220",
+            "baseImageFullName": "registry.hub.docker.com/library/python:3.11.0-slim",
+            "baseImageDigest": "sha256:ff09e30b44097b761742f1c460f385046d3627c1cfdc5511e191b4274b416257",
+            "created": "2022-12-06T13:36:06.005301113Z",
+            "maxLayerIndex": 13
+          }
+        ],
+        "scanNotes": [],
+        "metadataLayerCount": 6
+      }
+    ],
+    "firstStageAssertionsPassedAt": "2026-11-10T22:48:07.765383+00:00",
+    "securePatternExpandedAt": "2026-11-10T22:48:07.893249+00:00",
+    "secureExpandedPattern": "3.1[01].0-slim",
+    "after-https-both": [
+      {
+        "minor": "3.10",
+        "requestStarted": "2026-11-10T22:48:55.190241+00:00",
+        "responseReceived": "2026-11-10T22:48:55.261266+00:00",
+        "scanTime": "2026-11-10T22:48:55.232789585Z",
+        "appDigest": "sha256:258e63485a21805bdbc2f35af1669bbdfbfbdb24d862b20aaac0a3c392c8811e",
+        "appConfigDigest": "sha256:ec66eec23c157d0a7dcb3a5d04a94a44898db4c6fd39683f70aaf62a34ca7bde",
+        "baseMatches": [
+          {
+            "baseImageId": "7dce7b78-6b6c-52fa-bfa5-ef76ab141593",
+            "baseImageFullName": "registry.hub.docker.com/library/python:3.10.0-slim",
+            "baseImageDigest": "sha256:95bebb8af5996a5c2ad12526170fc599ff281bb823434b9f946335c35ebc5f2b",
+            "created": "2021-12-03T00:38:14.593690512Z",
+            "maxLayerIndex": 13
+          }
+        ],
+        "scanNotes": [],
+        "metadataLayerCount": 6
+      },
+      {
+        "minor": "3.11",
+        "requestStarted": "2026-11-10T22:48:55.190648+00:00",
+        "responseReceived": "2026-11-10T22:48:55.295837+00:00",
+        "scanTime": "2026-11-10T22:48:55.274767131Z",
+        "appDigest": "sha256:b8c05edf1e0d531fe0d65b9ce95e69001e16510c5d58f506c1690da6fb212e46",
+        "appConfigDigest": "sha256:eb2bdd2673f2b84e4e755f32fa2159903421bddf4222e2f714abb86faf91d15e",
+        "baseMatches": [
+          {
+            "baseImageId": "e664fe00-f8a5-555b-9242-018c12a48220",
+            "baseImageFullName": "registry.hub.docker.com/library/python:3.11.0-slim",
+            "baseImageDigest": "sha256:ff09e30b44097b761742f1c460f385046d3627c1cfdc5511e191b4274b416257",
+            "created": "2022-12-06T13:36:06.005301113Z",
+            "maxLayerIndex": 13
+          }
+        ],
+        "scanNotes": [],
+        "metadataLayerCount": 6
+      }
+    ],
+    "acsMetadata": {
+      "version": "4.11.6",
+      "buildFlavor": "release",
+      "releaseBuild": true,
+      "licenseStatus": "VALID"
+    },
+    "assertions": [
+      "Both app images unrecognized before registration",
+      "Negative control: 3.10 unrecognized while only 3.11 is registered",
+      "App 3.10 built before secure base registration",
+      "App 3.10 manifest unchanged",
+      "App 3.10 config unchanged",
+      "App 3.10 matches exact historical base digest",
+      "App 3.10 matches correct historical tag",
+      "Native inventory agrees for 3.10",
+      "App 3.11 built before secure base registration",
+      "App 3.11 manifest unchanged",
+      "App 3.11 config unchanged",
+      "App 3.11 matches exact historical base digest",
+      "App 3.11 matches correct historical tag",
+      "Native inventory agrees for 3.11",
+      "Stored results still unrecognized before first explicit rescan",
+      "Stored 3.10 result still unrecognized before second explicit rescan",
+      "All original deployment UIDs, generations and images unchanged"
+    ],
+    "allAssertionsPassedAt": "2026-11-10T22:49:26.993111+00:00",
+    "cleanup": {
+      "at": "2026-11-10T22:50:10.247665+00:00",
+      "testNamespaceRemoved": true,
+      "testReferencesRemoved": [
+        "e4386535-539d-4726-85e2-ae3b2cf3eec0",
+        "1c60e588-05bd-4716-b21f-5daf126d7b42"
+      ],
+      "testIntegrationRemoved": "3dd574e9-5858-4898-a146-8bf449fa0821",
+      "originalReferencesUnchanged": true,
+      "originalDeploymentsUnchanged": true,
+      "retained": "Evidence files and test image blobs in existing registry/node/host caches; no registry garbage collection performed."
+    }
+  },
+  "nativeBefore": {
+    "at": "2026-11-10T22:44:05.015655+00:00",
+    "label": "native-baseline",
+    "images": [
+      {
+        "id": "sha256:b8c05edf1e0d531fe0d65b9ce95e69001e16510c5d58f506c1690da6fb212e46",
+        "idV2": null,
+        "name": {
+          "registry": "origin-registry.cvebridge-origin-test.svc:5000",
+          "remote": "late-base-20261110-4f8db88a/app-python-311",
+          "tag": "",
+          "fullName": "origin-registry.cvebridge-origin-test.svc:5000/late-base-20261110-4f8db88a/app-python-311@sha256:b8c05edf1e0d531fe0d65b9ce95e69001e16510c5d58f506c1690da6fb212e46"
+        },
+        "baseMatches": [],
+        "scanTime": "2026-11-10T22:41:14.003010808Z",
+        "metadataLayers": [
+          "sha256:025c56f98b679f70b7a54241917e56da7b59ab9d2defecc6ebdb0bf2750484bb",
+          "sha256:778656c04542093db6d3b6e07bffbcf6ec4b24709276be7cdf177fcb3666663a",
+          "sha256:3275e90747232f394d7b8fc9a2b481e07a4454f13e17c356b1db22a9d3aa234a",
+          "sha256:9c14766361e2de1409b3695c1e1e5ca7eb92b0fb36995167de7f65a22ee1805c",
+          "sha256:5882f66f020b95daabdb82684a5a0d9c98cf961cf52870c6a8ce74d49eee2b23",
+          "sha256:d1c15af32b37e3ef8122b85983fc30dd6f19512ec83127b6e6614875f6817911"
+        ]
+      },
+      {
+        "id": "sha256:258e63485a21805bdbc2f35af1669bbdfbfbdb24d862b20aaac0a3c392c8811e",
+        "idV2": null,
+        "name": {
+          "registry": "origin-registry.cvebridge-origin-test.svc:5000",
+          "remote": "late-base-20261110-4f8db88a/app-python-310",
+          "tag": "",
+          "fullName": "origin-registry.cvebridge-origin-test.svc:5000/late-base-20261110-4f8db88a/app-python-310@sha256:258e63485a21805bdbc2f35af1669bbdfbfbdb24d862b20aaac0a3c392c8811e"
+        },
+        "baseMatches": [],
+        "scanTime": "2026-11-10T22:41:15.629698457Z",
+        "metadataLayers": [
+          "sha256:e5ae68f740265288a4888db98d2999a638fdcb6d725f427678814538d253aa4d",
+          "sha256:d4a99467e40c5f7df417e80af41be8672d48682d2d6c444365f6f0ef806ab09b",
+          "sha256:4c7920f0f9da78cf7fe18bed2fba29fd7412f1f2deed67564697ba709c9dc262",
+          "sha256:abfdb30fad1610e7cdf523a50e6fe99858c49bc03a0df7ac47868967dcb4c7bc",
+          "sha256:636dd546cfa0f59aed204e13308d8daf05bd36358eb7e2a5513bd6e2c1423741",
+          "sha256:bf893e6e2cf308a41838b93b9b292818fc6b0d8c34e449ab288251132113ebc9"
+        ]
+      }
+    ]
+  },
+  "nativeAfterFirstRegistrationBeforeRescan": {
+    "at": "2026-11-10T22:47:58.798869+00:00",
+    "label": "after-https-311-before-rescan",
+    "images": [
+      {
+        "id": "sha256:b8c05edf1e0d531fe0d65b9ce95e69001e16510c5d58f506c1690da6fb212e46",
+        "idV2": null,
+        "name": {
+          "registry": "origin-registry.cvebridge-origin-test.svc:5000",
+          "remote": "late-base-20261110-4f8db88a/app-python-311",
+          "tag": "",
+          "fullName": "origin-registry.cvebridge-origin-test.svc:5000/late-base-20261110-4f8db88a/app-python-311@sha256:b8c05edf1e0d531fe0d65b9ce95e69001e16510c5d58f506c1690da6fb212e46"
+        },
+        "baseMatches": [],
+        "scanTime": "2026-11-10T22:41:14.003010808Z",
+        "metadataLayers": [
+          "sha256:025c56f98b679f70b7a54241917e56da7b59ab9d2defecc6ebdb0bf2750484bb",
+          "sha256:778656c04542093db6d3b6e07bffbcf6ec4b24709276be7cdf177fcb3666663a",
+          "sha256:3275e90747232f394d7b8fc9a2b481e07a4454f13e17c356b1db22a9d3aa234a",
+          "sha256:9c14766361e2de1409b3695c1e1e5ca7eb92b0fb36995167de7f65a22ee1805c",
+          "sha256:5882f66f020b95daabdb82684a5a0d9c98cf961cf52870c6a8ce74d49eee2b23",
+          "sha256:d1c15af32b37e3ef8122b85983fc30dd6f19512ec83127b6e6614875f6817911"
+        ]
+      },
+      {
+        "id": "sha256:258e63485a21805bdbc2f35af1669bbdfbfbdb24d862b20aaac0a3c392c8811e",
+        "idV2": null,
+        "name": {
+          "registry": "origin-registry.cvebridge-origin-test.svc:5000",
+          "remote": "late-base-20261110-4f8db88a/app-python-310",
+          "tag": "",
+          "fullName": "origin-registry.cvebridge-origin-test.svc:5000/late-base-20261110-4f8db88a/app-python-310@sha256:258e63485a21805bdbc2f35af1669bbdfbfbdb24d862b20aaac0a3c392c8811e"
+        },
+        "baseMatches": [],
+        "scanTime": "2026-11-10T22:41:15.629698457Z",
+        "metadataLayers": [
+          "sha256:e5ae68f740265288a4888db98d2999a638fdcb6d725f427678814538d253aa4d",
+          "sha256:d4a99467e40c5f7df417e80af41be8672d48682d2d6c444365f6f0ef806ab09b",
+          "sha256:4c7920f0f9da78cf7fe18bed2fba29fd7412f1f2deed67564697ba709c9dc262",
+          "sha256:abfdb30fad1610e7cdf523a50e6fe99858c49bc03a0df7ac47868967dcb4c7bc",
+          "sha256:636dd546cfa0f59aed204e13308d8daf05bd36358eb7e2a5513bd6e2c1423741",
+          "sha256:bf893e6e2cf308a41838b93b9b292818fc6b0d8c34e449ab288251132113ebc9"
+        ]
+      }
+    ]
+  },
+  "nativeAfterFirstRescan": {
+    "at": "2026-11-10T22:48:07.690875+00:00",
+    "label": "after-https-311-rescan",
+    "images": [
+      {
+        "id": "sha256:258e63485a21805bdbc2f35af1669bbdfbfbdb24d862b20aaac0a3c392c8811e",
+        "idV2": null,
+        "name": {
+          "registry": "origin-registry.cvebridge-origin-test.svc:5000",
+          "remote": "late-base-20261110-4f8db88a/app-python-310",
+          "tag": "",
+          "fullName": "origin-registry.cvebridge-origin-test.svc:5000/late-base-20261110-4f8db88a/app-python-310@sha256:258e63485a21805bdbc2f35af1669bbdfbfbdb24d862b20aaac0a3c392c8811e"
+        },
+        "baseMatches": [],
+        "scanTime": "2026-11-10T22:48:00.845822024Z",
+        "metadataLayers": [
+          "sha256:e5ae68f740265288a4888db98d2999a638fdcb6d725f427678814538d253aa4d",
+          "sha256:d4a99467e40c5f7df417e80af41be8672d48682d2d6c444365f6f0ef806ab09b",
+          "sha256:4c7920f0f9da78cf7fe18bed2fba29fd7412f1f2deed67564697ba709c9dc262",
+          "sha256:abfdb30fad1610e7cdf523a50e6fe99858c49bc03a0df7ac47868967dcb4c7bc",
+          "sha256:636dd546cfa0f59aed204e13308d8daf05bd36358eb7e2a5513bd6e2c1423741",
+          "sha256:bf893e6e2cf308a41838b93b9b292818fc6b0d8c34e449ab288251132113ebc9"
+        ]
+      },
+      {
+        "id": "sha256:b8c05edf1e0d531fe0d65b9ce95e69001e16510c5d58f506c1690da6fb212e46",
+        "idV2": null,
+        "name": {
+          "registry": "origin-registry.cvebridge-origin-test.svc:5000",
+          "remote": "late-base-20261110-4f8db88a/app-python-311",
+          "tag": "",
+          "fullName": "origin-registry.cvebridge-origin-test.svc:5000/late-base-20261110-4f8db88a/app-python-311@sha256:b8c05edf1e0d531fe0d65b9ce95e69001e16510c5d58f506c1690da6fb212e46"
+        },
+        "baseMatches": [
+          {
+            "baseImageId": "e664fe00-f8a5-555b-9242-018c12a48220",
+            "baseImageFullName": "registry.hub.docker.com/library/python:3.11.0-slim",
+            "baseImageDigest": "sha256:ff09e30b44097b761742f1c460f385046d3627c1cfdc5511e191b4274b416257",
+            "created": "2022-12-06T13:36:06.005301113Z",
+            "maxLayerIndex": 13
+          }
+        ],
+        "scanTime": "2026-11-10T22:48:00.880547583Z",
+        "metadataLayers": [
+          "sha256:025c56f98b679f70b7a54241917e56da7b59ab9d2defecc6ebdb0bf2750484bb",
+          "sha256:778656c04542093db6d3b6e07bffbcf6ec4b24709276be7cdf177fcb3666663a",
+          "sha256:3275e90747232f394d7b8fc9a2b481e07a4454f13e17c356b1db22a9d3aa234a",
+          "sha256:9c14766361e2de1409b3695c1e1e5ca7eb92b0fb36995167de7f65a22ee1805c",
+          "sha256:5882f66f020b95daabdb82684a5a0d9c98cf961cf52870c6a8ce74d49eee2b23",
+          "sha256:d1c15af32b37e3ef8122b85983fc30dd6f19512ec83127b6e6614875f6817911"
+        ]
+      }
+    ]
+  },
+  "nativeAfterSecondRegistrationBeforeRescan": {
+    "at": "2026-11-10T22:48:51.898534+00:00",
+    "label": "after-https-both-before-rescan",
+    "images": [
+      {
+        "id": "sha256:258e63485a21805bdbc2f35af1669bbdfbfbdb24d862b20aaac0a3c392c8811e",
+        "idV2": null,
+        "name": {
+          "registry": "origin-registry.cvebridge-origin-test.svc:5000",
+          "remote": "late-base-20261110-4f8db88a/app-python-310",
+          "tag": "",
+          "fullName": "origin-registry.cvebridge-origin-test.svc:5000/late-base-20261110-4f8db88a/app-python-310@sha256:258e63485a21805bdbc2f35af1669bbdfbfbdb24d862b20aaac0a3c392c8811e"
+        },
+        "baseMatches": [],
+        "scanTime": "2026-11-10T22:48:00.845822024Z",
+        "metadataLayers": [
+          "sha256:e5ae68f740265288a4888db98d2999a638fdcb6d725f427678814538d253aa4d",
+          "sha256:d4a99467e40c5f7df417e80af41be8672d48682d2d6c444365f6f0ef806ab09b",
+          "sha256:4c7920f0f9da78cf7fe18bed2fba29fd7412f1f2deed67564697ba709c9dc262",
+          "sha256:abfdb30fad1610e7cdf523a50e6fe99858c49bc03a0df7ac47868967dcb4c7bc",
+          "sha256:636dd546cfa0f59aed204e13308d8daf05bd36358eb7e2a5513bd6e2c1423741",
+          "sha256:bf893e6e2cf308a41838b93b9b292818fc6b0d8c34e449ab288251132113ebc9"
+        ]
+      },
+      {
+        "id": "sha256:b8c05edf1e0d531fe0d65b9ce95e69001e16510c5d58f506c1690da6fb212e46",
+        "idV2": null,
+        "name": {
+          "registry": "origin-registry.cvebridge-origin-test.svc:5000",
+          "remote": "late-base-20261110-4f8db88a/app-python-311",
+          "tag": "",
+          "fullName": "origin-registry.cvebridge-origin-test.svc:5000/late-base-20261110-4f8db88a/app-python-311@sha256:b8c05edf1e0d531fe0d65b9ce95e69001e16510c5d58f506c1690da6fb212e46"
+        },
+        "baseMatches": [
+          {
+            "baseImageId": "e664fe00-f8a5-555b-9242-018c12a48220",
+            "baseImageFullName": "registry.hub.docker.com/library/python:3.11.0-slim",
+            "baseImageDigest": "sha256:ff09e30b44097b761742f1c460f385046d3627c1cfdc5511e191b4274b416257",
+            "created": "2022-12-06T13:36:06.005301113Z",
+            "maxLayerIndex": 13
+          }
+        ],
+        "scanTime": "2026-11-10T22:48:00.880547583Z",
+        "metadataLayers": [
+          "sha256:025c56f98b679f70b7a54241917e56da7b59ab9d2defecc6ebdb0bf2750484bb",
+          "sha256:778656c04542093db6d3b6e07bffbcf6ec4b24709276be7cdf177fcb3666663a",
+          "sha256:3275e90747232f394d7b8fc9a2b481e07a4454f13e17c356b1db22a9d3aa234a",
+          "sha256:9c14766361e2de1409b3695c1e1e5ca7eb92b0fb36995167de7f65a22ee1805c",
+          "sha256:5882f66f020b95daabdb82684a5a0d9c98cf961cf52870c6a8ce74d49eee2b23",
+          "sha256:d1c15af32b37e3ef8122b85983fc30dd6f19512ec83127b6e6614875f6817911"
+        ]
+      }
+    ]
+  },
+  "nativeFinal": {
+    "at": "2026-11-10T22:48:55.703168+00:00",
+    "label": "after-https-both-rescan",
+    "images": [
+      {
+        "id": "sha256:258e63485a21805bdbc2f35af1669bbdfbfbdb24d862b20aaac0a3c392c8811e",
+        "idV2": null,
+        "name": {
+          "registry": "origin-registry.cvebridge-origin-test.svc:5000",
+          "remote": "late-base-20261110-4f8db88a/app-python-310",
+          "tag": "",
+          "fullName": "origin-registry.cvebridge-origin-test.svc:5000/late-base-20261110-4f8db88a/app-python-310@sha256:258e63485a21805bdbc2f35af1669bbdfbfbdb24d862b20aaac0a3c392c8811e"
+        },
+        "baseMatches": [
+          {
+            "baseImageId": "7dce7b78-6b6c-52fa-bfa5-ef76ab141593",
+            "baseImageFullName": "registry.hub.docker.com/library/python:3.10.0-slim",
+            "baseImageDigest": "sha256:95bebb8af5996a5c2ad12526170fc599ff281bb823434b9f946335c35ebc5f2b",
+            "created": "2021-12-03T00:38:14.593690512Z",
+            "maxLayerIndex": 13
+          }
+        ],
+        "scanTime": "2026-11-10T22:48:55.232789585Z",
+        "metadataLayers": [
+          "sha256:e5ae68f740265288a4888db98d2999a638fdcb6d725f427678814538d253aa4d",
+          "sha256:d4a99467e40c5f7df417e80af41be8672d48682d2d6c444365f6f0ef806ab09b",
+          "sha256:4c7920f0f9da78cf7fe18bed2fba29fd7412f1f2deed67564697ba709c9dc262",
+          "sha256:abfdb30fad1610e7cdf523a50e6fe99858c49bc03a0df7ac47868967dcb4c7bc",
+          "sha256:636dd546cfa0f59aed204e13308d8daf05bd36358eb7e2a5513bd6e2c1423741",
+          "sha256:bf893e6e2cf308a41838b93b9b292818fc6b0d8c34e449ab288251132113ebc9"
+        ]
+      },
+      {
+        "id": "sha256:b8c05edf1e0d531fe0d65b9ce95e69001e16510c5d58f506c1690da6fb212e46",
+        "idV2": null,
+        "name": {
+          "registry": "origin-registry.cvebridge-origin-test.svc:5000",
+          "remote": "late-base-20261110-4f8db88a/app-python-311",
+          "tag": "",
+          "fullName": "origin-registry.cvebridge-origin-test.svc:5000/late-base-20261110-4f8db88a/app-python-311@sha256:b8c05edf1e0d531fe0d65b9ce95e69001e16510c5d58f506c1690da6fb212e46"
+        },
+        "baseMatches": [
+          {
+            "baseImageId": "e664fe00-f8a5-555b-9242-018c12a48220",
+            "baseImageFullName": "registry.hub.docker.com/library/python:3.11.0-slim",
+            "baseImageDigest": "sha256:ff09e30b44097b761742f1c460f385046d3627c1cfdc5511e191b4274b416257",
+            "created": "2022-12-06T13:36:06.005301113Z",
+            "maxLayerIndex": 13
+          }
+        ],
+        "scanTime": "2026-11-10T22:48:55.274767131Z",
+        "metadataLayers": [
+          "sha256:025c56f98b679f70b7a54241917e56da7b59ab9d2defecc6ebdb0bf2750484bb",
+          "sha256:778656c04542093db6d3b6e07bffbcf6ec4b24709276be7cdf177fcb3666663a",
+          "sha256:3275e90747232f394d7b8fc9a2b481e07a4454f13e17c356b1db22a9d3aa234a",
+          "sha256:9c14766361e2de1409b3695c1e1e5ca7eb92b0fb36995167de7f65a22ee1805c",
+          "sha256:5882f66f020b95daabdb82684a5a0d9c98cf961cf52870c6a8ce74d49eee2b23",
+          "sha256:d1c15af32b37e3ef8122b85983fc30dd6f19512ec83127b6e6614875f6817911"
+        ]
+      }
+    ]
+  },
+  "watcherLog": "baseimage/watcher: 2026/11/10 22:44:45.611070 watcher_impl.go:148: Info: Base image watcher scheduler pass completed: duration=3.321221ms claimed=1\nbaseimage/watcher: 2026/11/10 22:44:45.624494 watcher_impl.go:391: Error: Error during repository scan: repository=\"origin-registry.cvebridge-origin-test.svc:5000/late-base-20261110-4f8db88a/base-python-311\": listing tags for repository origin-registry.cvebridge-origin-test.svc:5000/late-base-20261110-4f8db88a/base-python-311: list tags failed: failed to list tags for repository \"late-base-20261110-4f8db88a/base-python-311\": Get \"https://origin-registry.cvebridge-origin-test.svc:5000/v2/\": http: server gave HTTP response to HTTPS client\nbaseimage/watcher: 2026/11/10 22:44:45.629820 watcher_impl.go:474: Info: Repository scan completed: repository=\"origin-registry.cvebridge-origin-test.svc:5000/late-base-20261110-4f8db88a/base-python-311\" pattern=\"3.11.0-slim\" processed=0 metadata=0 errors=0 deletes=0\nimageintegration/service: 2026/11/10 22:47:25.861636 service_impl.go:486: Info: Broadcasting updated image integration \"late-base-20261110-4f8db88a Docker Hub HTTPS test\" (3dd574e9-5858-4898-a146-8bf449fa0821)\nbaseimage/watcher: 2026/11/10 22:47:45.610146 watcher_impl.go:148: Info: Base image watcher scheduler pass completed: duration=2.775845ms claimed=1\nbaseimage/watcher: 2026/11/10 22:47:50.204227 watcher_impl.go:474: Info: Repository scan completed: repository=\"registry.hub.docker.com/library/python\" pattern=\"3.11.0-slim\" processed=1 metadata=1 errors=0 deletes=0\npkg/images/enricher: 2026/11/10 22:48:00.812914 enricher_v2_impl.go:465: Info: Getting metadata for image \"origin-registry.cvebridge-origin-test.svc:5000/late-base-20261110-4f8db88a/app-python-310@sha256:258e63485a21805bdbc2f35af1669bbdfbfbdb24d862b20aaac0a3c392c8811e\" (ID \"4a121e17-88a2-55d8-9b57-c76ae2ba9d54\")\npkg/images/enricher: 2026/11/10 22:48:00.816573 enricher_v2_impl.go:465: Info: Getting metadata for image \"origin-registry.cvebridge-origin-test.svc:5000/late-base-20261110-4f8db88a/app-python-311@sha256:b8c05edf1e0d531fe0d65b9ce95e69001e16510c5d58f506c1690da6fb212e46\" (ID \"9bf79b49-256c-557d-af05-5b94c97942aa\")\nbaseimage/watcher: 2026/11/10 22:48:45.611486 watcher_impl.go:148: Info: Base image watcher scheduler pass completed: duration=3.592102ms claimed=1\nbaseimage/watcher: 2026/11/10 22:48:49.725627 watcher_impl.go:474: Info: Repository scan completed: repository=\"registry.hub.docker.com/library/python\" pattern=\"3.1[01].0-slim\" processed=1 metadata=1 errors=0 deletes=0"
+}

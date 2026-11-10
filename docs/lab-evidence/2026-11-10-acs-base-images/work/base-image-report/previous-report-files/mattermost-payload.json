@@ -1,0 +1,13 @@
+{
+  "channel_id": "8epabmugctg7mjxotox4mxmkqo",
+  "message": "$\\large\\textcolor{#182C51}{\\textsf{\\textbf{Basimages · Drift}}}$\n\n**Labbtest** · **1 unik basimage** · **2 namespaces** · **56 paketfynd**\n\n| $\\footnotesize \\colorbox{#EDF2FF}{\\textcolor{#182C51}{\\textsf{\\textbf{Namespace}}}}$ | $\\footnotesize \\textcolor{#182C51}{\\textsf{\\textbf{Basimage}}}$ | $\\footnotesize \\textcolor{#2B56B8}{\\textsf{\\textbf{Version}}}$ | $\\footnotesize \\colorbox{#FDEFF2}{\\textcolor{#BC2546}{\\textsf{\\textbf{Kritiska}}}}$ | $\\footnotesize \\colorbox{#FFF4E8}{\\textcolor{#AD610D}{\\textsf{\\textbf{Höga}}}}$ | $\\footnotesize \\textcolor{#67768F}{\\textsf{\\textbf{Övriga}}}$ |\n| :--- | :--- | :--- | ---: | ---: | ---: |\n| `demo-team-a` | `docker.io/library/python` | `3.13.9-slim` | 🔴 **4** | 🟠 **15** | 37 |\n| `demo-team-b` | `docker.io/library/python` | `3.13.9-slim` | 🔴 **4** | 🟠 **15** | 37 |\n\n*ACS · 2026-11-10 21:57 · Delvis underlag · Samma basimage på båda raderna.*",
+  "props": {
+    "cvebridge_report_format": "base-images-only-preview-v1",
+    "cvebridge_preview_source": "real-local-acs-base-scan",
+    "cvebridge_base_digest": "sha256:3f1ce1c415054488586812b63270daf89d97b4f23416e1288003816790eb08de",
+    "cvebridge_scan_time": "2026-11-10T20:57:04.853046543Z",
+    "cvebridge_partial": true,
+    "cvebridge_finding_count_unit": "package-version-cve",
+    "cvebridge_origin_evidence": "ACS baseImageInfo and matching layer prefix; current pod config digest matches saved ACS app metadata"
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "baseImageReferences": [
+    {
+      "id": "105e1a8c-800a-48b9-830c-4e11bfb5c569",
+      "baseImageRepoPath": "docker.io/library/python",
+      "baseImageTagPattern": "3.13.*-slim*",
+      "user": {
+        "id": "admin",
+        "name": "admin"
+      }
+    }
+  ]
+}

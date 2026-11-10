@@ -1,0 +1,100 @@
+{
+  "current": {
+    "digest": "sha256:3f1ce1c415054488586812b63270daf89d97b4f23416e1288003816790eb08de",
+    "scanTime": "2026-11-10T21:32:28.639122761Z",
+    "counts": {
+      "moderate": 14,
+      "low": 23,
+      "high": 15,
+      "critical": 4
+    },
+    "total": 56,
+    "notes": [
+      "OS_CVES_UNAVAILABLE",
+      "PARTIAL_SCAN_DATA"
+    ],
+    "os": "debian:13"
+  },
+  "candidate": {
+    "digest": "sha256:48d884813cf44e927cf64c5529dd630dd3b18338c6dc727991eef9b71e934a20",
+    "scanTime": "2026-11-10T21:32:29.944071396Z",
+    "counts": {
+      "high": 4,
+      "low": 22,
+      "moderate": 7
+    },
+    "total": 33,
+    "notes": [
+      "OS_CVES_UNAVAILABLE",
+      "PARTIAL_SCAN_DATA"
+    ],
+    "os": "debian:13"
+  },
+  "comparison": {
+    "removed": 23,
+    "added": 0,
+    "retained": 33
+  },
+  "namespaces": {
+    "demo-team-a": [
+      {
+        "pod": "java-sample-559f9fb64c-h8z2d",
+        "phase": "Running",
+        "images": [
+          "ghcr.io/christophetd/log4shell-vulnerable-app@sha256:6f88430688108e512f7405ac3c73d47f5c370780b94182854ea2cddc6bd59929"
+        ],
+        "imageIDs": [
+          "ghcr.io/christophetd/log4shell-vulnerable-app@sha256:6f88430688108e512f7405ac3c73d47f5c370780b94182854ea2cddc6bd59929"
+        ]
+      },
+      {
+        "pod": "preview-api-8689bd6d59-dhsx6",
+        "phase": "Running",
+        "images": [
+          "origin-registry.cvebridge-origin-test.svc:5000/cvebridge-origin/app-python:v1"
+        ],
+        "imageIDs": [
+          "sha256:05390c01d6f8d875e0c3cda5ef8b85d4d617c19822761115052977e0cb1ac21d"
+        ]
+      },
+      {
+        "pod": "sample-app-7c445f5b5b-pvpn6",
+        "phase": "Running",
+        "images": [
+          "python:3.11.0-slim"
+        ],
+        "imageIDs": [
+          "docker.io/library/python@sha256:b5ee5360b357dcd0ab2e1cc5e22fa589b6734bbd55776df6b1700994febf1527"
+        ]
+      }
+    ],
+    "demo-team-b": [
+      {
+        "pod": "preview-worker-68bdc74475-pfj5p",
+        "phase": "Running",
+        "images": [
+          "origin-registry.cvebridge-origin-test.svc:5000/cvebridge-origin/app-python:v1"
+        ],
+        "imageIDs": [
+          "sha256:05390c01d6f8d875e0c3cda5ef8b85d4d617c19822761115052977e0cb1ac21d"
+        ]
+      },
+      {
+        "pod": "sample-app-7c445f5b5b-5xbfr",
+        "phase": "Running",
+        "images": [
+          "python:3.11.0-slim"
+        ],
+        "imageIDs": [
+          "docker.io/library/python@sha256:b5ee5360b357dcd0ab2e1cc5e22fa589b6734bbd55776df6b1700994febf1527"
+        ]
+      }
+    ]
+  },
+  "runtimeBaseVerification": {
+    "runtimeConfigDigest": "sha256:05390c01d6f8d875e0c3cda5ef8b85d4d617c19822761115052977e0cb1ac21d",
+    "cachedAppScanMatchesLiveRuntime": true,
+    "currentBaseLayersMatchAppLayerPrefix": true,
+    "method": "Live pod image IDs match the immutable app config digest; ACS base layer digests match that app image layer prefix."
+  }
+}

@@ -1,6 +1,9 @@
 # Överlämning till en annan AI: CVEBridge och Mattermost-felet
 
-Uppdaterad 2026-11-10. Kopiera texten nedan till den AI som ska hjälpa till.
+Uppdaterad 2026-11-11. Senaste kontrollpunkten för basimages och fortsättning
+i molnet finns i [CLOUD_HANDOFF.md](CLOUD_HANDOFF.md), med verkliga ACS-testresultat
+och allt sparat underlag. Läs den först. Den här filen beskriver kod och
+tidigare företagsfelsökning. Kopiera texten nedan till den AI som ska hjälpa till.
 Uppgifter om företagsmiljön är användarens observationer; den har inte kunnat
 inspekteras direkt härifrån. Värdnamn, tokens och företagskonfiguration ingår inte.
 

@@ -1,0 +1,87 @@
+ACS: äldre basimage registrerad efter att appimagen byggts
+Testdatum: 2026-11-10. Tider nedan i UTC.
+Resultat: GODKÄNT, 17 verifieringar.
+Miljö: verklig lokal Red Hat ACS 4.11.6 (release), Kubernetes-kluster k3d-cvebridge.
+Test-ID: late-base-20261110-4f8db88a
+
+Slutsats
+ACS kunde efter registrering av historiska baser och uttrycklig omskanning identifiera rätt bas för två appimages som byggts, skannats och startats före registreringen. Ingen app byggdes om och apparnas manifest, konfiguration och lager var oförändrade.
+Detta verifierar igenkänning i efterhand när ACS faktiskt kan hämta och indexera den gamla basens metadata. Det bevisar inte att enbart registrering av ett reponamn automatiskt täcker alla historiska digests, eller att en gammal digest hittas när dess tagg har flyttats och ACS saknar dess metadata.
+
+Observerat resultat
+Bas                       Före registrering  Bara 3.11 registrerad + omskanning  Båda registrerade + omskanning
+Python 3.10.0-slim (2021)  Ingen träff        Ingen träff (negativ kontroll)      Rätt bas och exakt digest
+Python 3.11.0-slim (2022)  Ingen träff        Rätt bas och exakt digest           Rätt bas och exakt digest
+
+Metod och tidsordning
+1. Hämtade de officiella historiska Python-baserna för linux/amd64 och byggde två appimages med ett extra COPY-lager. Testade start utan nätverk, som icke-root och med skrivskyddat filsystem.
+2. Speglade appimages till befintligt lokalt testregister och skannade dem med POST /v1/images/scan, force=true. Båda saknade baseImageInfo.
+3. Startade exakt samma appdigests i ett separat namespace så att Sensor inventerade dem. GET /v1/images/{digest} bekräftade att båda saknade baseImageInfo även i den vanliga inventeringen.
+4. Registrerade en separat basreferens registry.hub.docker.com/library/python med taggmönster 3.11.0-slim EFTER appbyggen, skanningar och klusterstart.
+5. Väntade på att Central-loggen bekräftade lyckad metadatahämtning. Före omskanning var den lagrade appskanningen fortfarande utan basträff. Efter force=true fick endast 3.11-appen en träff.
+6. Utökade enbart testreferensens taggmönster till 3.1[01].0-slim, vilket i testet inkluderade båda exakta gamla taggarna. Efter lyckad metadatahämtning och omskanning fick också 3.10-appen rätt träff.
+7. Jämförde manifestdigest, konfigurationsdigest och hela listan lager före/efter, basdigest mot de ursprungliga manifesten, och API-skanningen mot den vanliga klusterinventeringen.
+
+Registrering 3.11 begärd: 2026-11-10T22:47:25.867302+00:00
+3.11 metadata inläst: 2026-11-10T22:47:50.204227Z (Central-logg).
+Utökning till båda baserna begärd: 2026-11-10T22:48:07.893249+00:00
+3.10 metadata inläst: 2026-11-10T22:48:49.725627Z (Central-logg).
+
+Viktiga avgränsningar
+Appimagesen byggdes under testet, före registreringen. Själva baserna skapades 2021 respektive 2022; detta test simulerar alltså registrering i efterhand med verkliga gamla baslager.
+Vi provade uttrycklig omskanning. Den korta kontrollen efter indexering uppdaterade inte den redan lagrade appskanningen; testet avgör inte när en eventuell schemalagd omskanning annars hade uppdaterat den.
+Testet avser igenkänning av basen. Ingen sårbarhet åtgärdades, inga paket uppdaterades och ingen CVE-rapport eller policyfunktion verifierades här.
+
+Anslutningsproblem som upptäcktes
+Första försöket registrerade en separat kopia av 3.11-basen i labbets befintliga HTTP-register. On-demand-skanning av apparna fungerade, men baswatcherns tagglistning försökte HTTPS och misslyckades med "http: server gave HTTP response to HTTPS client". Detta räknades inte som ett lyckat detektionstest.
+För huvudtestet användes därför Docker Hubs HTTPS-endpoint registry.hub.docker.com med certifikatverifiering. Vi verifierade att de historiska basmanifesten, konfigurationsdigestarna och samtliga baslager där var identiska med dem i de redan byggda appimagesen. Ingen TLS-verifiering stängdes av.
+K3s-noden kunde inte DNS-resolvera det befintliga testregistrets .svc-namn vid bildhämtning. Samma oförändrade appdigests förladdades via registrets ClusterIP. Ingen DNS- eller registerkonfiguration ändrades.
+
+Digestbevis
+Python 3.10
+  Bas skapad: 2021-12-03T00:38:14.593690512Z
+  Bas tagg: 3.10.0-slim
+  Exakt basmanifest: sha256:95bebb8af5996a5c2ad12526170fc599ff281bb823434b9f946335c35ebc5f2b
+  App byggd färdigt: 2026-11-10T22:40:42.624647+00:00
+  Oförändrat appmanifest: sha256:258e63485a21805bdbc2f35af1669bbdfbfbdb24d862b20aaac0a3c392c8811e
+  Oförändrad appkonfiguration: sha256:ec66eec23c157d0a7dcb3a5d04a94a44898db4c6fd39683f70aaf62a34ca7bde
+  Slutlig skanning: 2026-11-10T22:48:55.232789585Z
+  ACS baseImageInfo: [{"baseImageId": "7dce7b78-6b6c-52fa-bfa5-ef76ab141593", "baseImageFullName": "registry.hub.docker.com/library/python:3.10.0-slim", "baseImageDigest": "sha256:95bebb8af5996a5c2ad12526170fc599ff281bb823434b9f946335c35ebc5f2b", "created": "2021-12-03T00:38:14.593690512Z", "maxLayerIndex": 13}]
+
+Python 3.11
+  Bas skapad: 2022-12-06T13:36:06.005301113Z
+  Bas tagg: 3.11.0-slim
+  Exakt basmanifest: sha256:ff09e30b44097b761742f1c460f385046d3627c1cfdc5511e191b4274b416257
+  App byggd färdigt: 2026-11-10T22:40:53.660512+00:00
+  Oförändrat appmanifest: sha256:b8c05edf1e0d531fe0d65b9ce95e69001e16510c5d58f506c1690da6fb212e46
+  Oförändrad appkonfiguration: sha256:eb2bdd2673f2b84e4e755f32fa2159903421bddf4222e2f714abb86faf91d15e
+  Slutlig skanning: 2026-11-10T22:48:55.274767131Z
+  ACS baseImageInfo: [{"baseImageId": "e664fe00-f8a5-555b-9242-018c12a48220", "baseImageFullName": "registry.hub.docker.com/library/python:3.11.0-slim", "baseImageDigest": "sha256:ff09e30b44097b761742f1c460f385046d3627c1cfdc5511e191b4274b416257", "created": "2022-12-06T13:36:06.005301113Z", "maxLayerIndex": 13}]
+
+Verifieringar
+GODKÄNT: Both app images unrecognized before registration
+GODKÄNT: Negative control: 3.10 unrecognized while only 3.11 is registered
+GODKÄNT: App 3.10 built before secure base registration
+GODKÄNT: App 3.10 manifest unchanged
+GODKÄNT: App 3.10 config unchanged
+GODKÄNT: App 3.10 matches exact historical base digest
+GODKÄNT: App 3.10 matches correct historical tag
+GODKÄNT: Native inventory agrees for 3.10
+GODKÄNT: App 3.11 built before secure base registration
+GODKÄNT: App 3.11 manifest unchanged
+GODKÄNT: App 3.11 config unchanged
+GODKÄNT: App 3.11 matches exact historical base digest
+GODKÄNT: App 3.11 matches correct historical tag
+GODKÄNT: Native inventory agrees for 3.11
+GODKÄNT: Stored results still unrecognized before first explicit rescan
+GODKÄNT: Stored 3.10 result still unrecognized before second explicit rescan
+GODKÄNT: All original deployment UIDs, generations and images unchanged
+
+Städning och påverkan
+Tillfälligt namespace med två testdeployments, båda tillfälliga basreferenserna och den tillfälliga HTTPS-registerintegrationen togs bort. Den port-forward som öppnades för registret stoppades.
+Den befintliga Python-basreferensen återstår exakt som före testet. Alla ursprungliga deployments behöll UID, generation och imagekonfiguration.
+Testbildernas blobbar finns kvar i det befintliga testregistret och i lokala bildcacher. Ingen garbage collection gjordes på det delade registret.
+Städning klar: 2026-11-10T22:50:10.247665+00:00
+
+Maskinläsbart bevis: acs-aldre-basimages-bevis.json
+SHA256 för bevisfilen: 2e6a22779c106373c5aedbb198bbf7d7ac178dd3a275fca94841479136daadea
