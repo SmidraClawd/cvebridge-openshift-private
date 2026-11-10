@@ -60,9 +60,21 @@ direkt åtkomst till företagsmiljön.
   Schemaformulärets val "Alla namespaces i valt ACS-kluster" lagrar `*`.
   En explicit namespace-lista ger fortsatt bara tillgång till den listan och
   tillåter inte att ett kommando vidgar den med `*`. Avancerade scopes behåller
-  företräde. Befintliga gränser på 100 images/2 000 aktiva pods gäller även
-  klusteromfattande körningar; för stort urval ger fel, inte en tyst delrapport.
+  företräde. Gränserna är höjda för större kluster: standard 1 000 images,
+  20 000 aktiva pods och 100 000 lästa podposter. Valfria ConfigMap-fält
+  `SCAN_MAX_IMAGES`, `SCAN_MAX_PODS` och `SCAN_MAX_POD_RECORDS` kan justera dem
+  inom validerade intervall. Inga nya installationsfrågor behövs. För stort
+  urval ger fel före någon imageskanning, inte en tyst delrapport.
   Företagsklustret är inte uppdaterat härifrån; ny image och ConfigMap krävs där.
+- **Inventeringens gräns och framsteg loggas även på INFO-nivå.**
+  `inventory_start`, `inventory_progress`, `inventory_complete` och vid stopp
+  `inventory_limit` visar antal och aktiva gränser utan tokens eller råa svar.
+  Det generiska tidigare "Urvalet är för stort" ersätts av nyckel, antal och
+  konkret åtgärd. Den tidigare hårdkodade offsetgränsen är borttagen; totalt
+  lästa poster begränsas i stället uttryckligt. Rapportens per-image-sammanfattning
+  behåller bara tabellvärden och summeringar, så att alla råa CVE-objekt inte
+  hålls kvar i minnet genom hela en klusterkörning. Den befintliga 30-minuters-
+  gränsen för körningen och radgränsen för CVE-/larmunderlag finns kvar.
 - **Paketursprung loggas per image även på INFO-nivå.** `image_origin`
   innehåller `reason`, svensk `hint` och antal basmatchningar, historiklager,
   bas-/app-/okända komponenter och saknade/ogiltiga lagerindex. Det förklarar

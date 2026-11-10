@@ -68,6 +68,34 @@ func TestACSImageSummaryKeepsNativeSeverityAndVerifiedLayerOrigin(t *testing.T) 
 	}
 }
 
+func TestImageSummaryDoesNotRetainRawVulnerabilitiesAcrossCluster(t *testing.T) {
+	for _, matched := range []bool{false, true} {
+		image := originImage(t)
+		if !matched {
+			delete(image, "baseImageInfo")
+		}
+		for _, raw := range arr(obj(image["scan"])["components"]) {
+			for _, vuln := range arr(obj(raw)["vulns"]) {
+				obj(vuln)["summary"] = "raw-advisory-marker"
+			}
+		}
+		summary := M{}
+		addImageSummary(summary, image, true)
+		if strings.Contains(encode(summary), "raw-advisory-marker") || strings.Contains(encode(summary), `"vulns"`) || num(obj(summary["findings"])["total"]) != 59 {
+			t.Fatal("image table summary retained raw advisory objects or changed counts")
+		}
+		if !matched && num(obj(summary["unknownFindings"])["total"]) != 59 {
+			t.Fatal("unknown-origin findings must remain counted without retaining every vulnerability")
+		}
+		if matched {
+			cells := strings.Join(applicationCells(summary), "; ")
+			if !strings.Contains(cells, "setuptools") || !strings.Contains(cells, "65.5.0") || !strings.Contains(cells, "83.0.0") {
+				t.Fatal("compaction lost affected package or fix information", cells)
+			}
+		}
+	}
+}
+
 func TestUnknownOrAmbiguousBaseDoesNotAttributePackagesToApp(t *testing.T) {
 	for _, variant := range []string{"absent", "ambiguous", "missing-index", "outside-history"} {
 		t.Run(variant, func(t *testing.T) {

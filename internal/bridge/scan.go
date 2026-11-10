@@ -20,8 +20,8 @@ type InventoryImage struct {
 	Targets      []Target
 }
 type Inventory struct {
-	Images        []InventoryImage
-	Pods, Missing int
+	Images                 []InventoryImage
+	Pods, Missing, Records int
 }
 
 func (s *Services) query(kind, ns string, offset int) string {
@@ -41,6 +41,12 @@ func (s *Services) Inventory(ctx context.Context, namespaces []string, scheduled
 	if !validNamespaceScope(namespaces, s.C.OperationsOnly()) {
 		return inv, problem(403, "Välj godkända namespaces eller * för hela det konfigurerade klustret i driftläget.")
 	}
+	limits, err := s.C.inventoryLimits()
+	if err != nil {
+		return inv, problem(503, "Botens inventeringsgränser är ogiltiga. Kontrollera SCAN_MAX-fälten i ConfigMap.")
+	}
+	s.acsInfo("inventory_start", M{"cluster_id": s.C.Get("STACKROX_CLUSTER_ID", ""), "namespaces": namespaces,
+		"max_images": limits.Images, "max_active_pods": limits.Pods, "max_pod_records": limits.PodRecords})
 	images := map[string]*InventoryImage{}
 	deps := map[string]M{}
 	podsSeen := map[string]bool{}
@@ -52,6 +58,10 @@ func (s *Services) Inventory(ctx context.Context, namespaces []string, scheduled
 				return inv, e
 			}
 			pods := arr(page["pods"])
+			inv.Records += len(pods)
+			if inv.Records > limits.PodRecords {
+				return inv, s.inventoryLimit("SCAN_MAX_POD_RECORDS", inv.Records, limits.PodRecords, len(images), len(podsSeen), inv.Records)
+			}
 			for _, p := range pods {
 				pod := obj(p)
 				if !s.scoped(pod, selector) {
@@ -77,6 +87,9 @@ func (s *Services) Inventory(ctx context.Context, namespaces []string, scheduled
 				}
 				pid := str(pod["id"])
 				podsSeen[pid] = true
+				if len(podsSeen) > limits.Pods {
+					return inv, s.inventoryLimit("SCAN_MAX_PODS", len(podsSeen), limits.Pods, len(images), len(podsSeen), inv.Records)
+				}
 				depID := str(pod["deploymentId"])
 				if depID == "" {
 					missing[ns+pid+"pending"] = true
@@ -122,6 +135,9 @@ func (s *Services) Inventory(ctx context.Context, namespaces []string, scheduled
 					if entry == nil {
 						entry = &InventoryImage{Digest: digest, Name: repo + "@" + digest}
 						images[digest] = entry
+						if len(images) > limits.Images {
+							return inv, s.inventoryLimit("SCAN_MAX_IMAGES", len(images), limits.Images, len(images), len(podsSeen), inv.Records)
+						}
 					}
 					// Keep the deployed tag for display, while scanning the immutable
 					// runtime digest. A rolling deployment may reference a newer image.
@@ -141,8 +157,8 @@ func (s *Services) Inventory(ctx context.Context, namespaces []string, scheduled
 					}
 				}
 			}
-			if len(podsSeen) > 2000 || len(images) > 100 || offset > 10000 {
-				return inv, problem(413, "Urvalet är för stort. Välj ett namespace.")
+			if offset == 0 || offset%1000 == 0 || len(pods) < 100 {
+				s.acsInfo("inventory_progress", M{"images": len(images), "active_pods": len(podsSeen), "pod_records": inv.Records})
 			}
 			if len(pods) < 100 {
 				break
@@ -211,10 +227,10 @@ func (s *Services) Scan(ctx context.Context, namespaces []string, authorize func
 	}
 	inv, e := s.Inventory(ctx, namespaces, scheduled)
 	if e != nil {
-		s.acsDebug("scan_failed", M{"stage": "inventory"})
+		s.acsDebug("scan_failed", M{"stage": "inventory", "reason": message(e)})
 		return nil, e
 	}
-	s.acsDebug("inventory_complete", M{"pods": inv.Pods, "images": len(inv.Images), "missing_images": inv.Missing})
+	s.acsInfo("inventory_complete", M{"pods": inv.Pods, "images": len(inv.Images), "missing_images": inv.Missing, "pod_records": inv.Records})
 	rows := []any{}
 	images := []any{}
 	errors := []any{}

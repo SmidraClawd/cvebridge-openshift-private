@@ -150,6 +150,9 @@ func NewConfig(m map[string]string) (Config, error) {
 	if mode := c.Get("ACCESS_MODE", ""); mode != "operations" && mode != "per-user" {
 		return c, fmt.Errorf("ACCESS_MODE must be operations or per-user")
 	}
+	if _, err := c.inventoryLimits(); err != nil {
+		return c, err
+	}
 	for _, k := range []string{"CVE_ALERTS_ENABLED", "CVE_ALERT_FIRST_REPORT", "STACKROX_DELEGATE_SCAN", "SENSOR_MONITOR_ENABLED"} {
 		if v, ok := m[k]; ok && v != "true" && v != "false" {
 			return c, fmt.Errorf("%s must be true or false", k)

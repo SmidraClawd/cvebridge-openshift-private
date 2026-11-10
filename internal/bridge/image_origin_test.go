@@ -48,10 +48,16 @@ func TestImageOriginDiagnosticsExplainUnverifiedDataAtInfo(t *testing.T) {
 				t.Fatal("origin diagnostics must not reject a usable scan", result, err)
 			}
 			entries := debugEntries(t, &output)
-			if len(entries) != 1 || str(entries[0]["event"]) != "image_origin" || str(entries[0]["reason"]) != test.reason || str(entries[0]["hint"]) == "" {
+			var origins []M
+			for _, entry := range entries {
+				if str(entry["event"]) == "image_origin" {
+					origins = append(origins, entry)
+				}
+			}
+			if len(origins) != 1 || str(origins[0]["reason"]) != test.reason || str(origins[0]["hint"]) == "" {
 				t.Fatal("missing actionable per-image origin reason", output.String())
 			}
-			entry := entries[0]
+			entry := origins[0]
 			if test.reason == "verified" && (num(entry["base_components"]) != 61 || num(entry["application_components"]) != 1 || num(entry["unknown_components"]) != 0) {
 				t.Fatal("verified counts must match real ACS fixture", entry)
 			}

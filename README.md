@@ -180,10 +180,33 @@ både kommandon och scheman automatiskt.
 
 ACS-tokenens access scope behöver omfatta hela det valda klustret. Boten kan
 bara visa aktiva images som ACS känner till och tokenen får läsa; tomma
-namespaces ger inga imagerader. Andra kluster tas inte med. Befintliga
-körgränser gäller även här: över 100 unika images eller 2 000 aktiva pods
-avbryts körningen med ett fel som ber dig välja ett namespace, utan att en
-ofullständig inventering presenteras som komplett.
+namespaces ger inga imagerader. Andra kluster tas inte med.
+
+**Får du "Urvalet är för stort" från en äldre version?** Hämta den nya koden,
+bygg/pusha imagen och starta om boten. Den gamla gränsen på 100 images är höjd.
+Du behöver inte lägga till några nya inställningar; följande gäller automatiskt:
+
+| Valfri nyckel i ConfigMap | Standard | Högsta tillåtna värde |
+| --- | --- | --- |
+| `SCAN_MAX_IMAGES` | 1 000 unika images | 10 000 |
+| `SCAN_MAX_PODS` | 20 000 aktiva pods | 100 000 |
+| `SCAN_MAX_POD_RECORDS` | 100 000 lästa podposter, även avslutade | 1 000 000 |
+
+Delade images skannas en gång per digest, även när de körs i flera namespaces.
+Vid en överskriden gräns avbryts inventeringen före imageskanningen. Feltexten
+och loggraden `inventory_limit` visar **vilken nyckel, uppmätt antal och gräns**.
+Höj bara den aktuella nyckeln i din befintliga ConfigMap om det behövs, applicera
+och starta om boten. Det kräver ingen ny image efter denna uppdatering.
+
+```sh
+oc logs deployment/cvebridge -n image-security -c bot --since=15m | grep inventory
+```
+
+`inventory_start` visar de aktiva gränserna, `inventory_progress` visar hur långt
+läsningen kommit och `inventory_complete` visar det färdiga urvalet. Dessa rader
+syns även med `LOG_LEVEL: "info"`. Inga gränser kapas i tysthet. Images behandlas
+fortsatt en i taget; körningens tidsgräns på 30 minuter finns kvar och återstående
+images markeras som saknat underlag om tiden inte räcker.
 
 `DATABASE_MONITOR_CHANNEL_ID` i den genererade ConfigMap är Mattermost-kanalen
 för CVE-databasens status. Skriptet använder samma ID som driftkanalen, så du
@@ -490,7 +513,8 @@ fynd. Långa paketlistor fortsätter på fler rader utan ett godtyckligt toppurv
 Nya kritiska CVE:er kan fortfarande ge en engångsping; övriga rapporter består
 bara av tabellen. Även CVE-sökningar skickas som tabeller utan JSON-bilaga.
 
-Byt `team-a` mot ett projekt i din `SCAN_NAMESPACES`. Vänta på resultatet innan
+Byt `team-a` mot ett projekt i din `SCAN_NAMESPACES`, eller ett namespace i det
+valda klustret när listan är `*`. Vänta på resultatet innan
 du startar nästa skanning. Alla driftkanalens medlemmar kan använda de godkända
 projekten. Första kompletta CVE-rapporten skapar normalt ett utgångsläge utan
 akut ping; senare nya kritiska fynd kan ge en engångsping.

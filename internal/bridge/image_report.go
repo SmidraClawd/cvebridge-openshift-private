@@ -104,6 +104,20 @@ func findingCounts(parts []any) M {
 	return counts
 }
 
+// Keep only the values rendered in the table. In particular, do not retain
+// every vulnerability object for every unknown-origin component across a
+// cluster-wide run. The full current image is still used for CVE rows/alerts.
+func reportComponent(part M) M {
+	fixes := []string{}
+	for _, raw := range arr(part["vulns"]) {
+		if fix := str(obj(raw)["fixedBy"]); strings.TrimSpace(fix) != "" {
+			fixes = append(fixes, fix)
+		}
+	}
+	return M{"name": str(part["name"]), "version": str(part["version"]), "fixedBy": str(part["fixedBy"]),
+		"findings": findingCounts([]any{part}), "fixVersions": unique(fixes)}
+}
+
 func addImageSummary(summary, image M, partial bool) {
 	parts := arr(obj(image["scan"])["components"])
 	base, reason := matchedBaseWithReason(image)
@@ -126,8 +140,18 @@ func addImageSummary(summary, image M, partial bool) {
 	summary["baseReason"] = reason
 	summary["findings"] = findingCounts(parts)
 	summary["baseFindings"] = findingCounts(baseParts)
-	summary["applicationComponents"] = apps
-	summary["unknownComponents"] = unknown
+	summary["unknownFindings"] = findingCounts(unknown)
+	compactApps := []any{}
+	for _, raw := range apps {
+		compactApps = append(compactApps, reportComponent(obj(raw)))
+	}
+	compactUnknown := []any{}
+	for _, raw := range unknown {
+		part := obj(raw)
+		compactUnknown = append(compactUnknown, M{"name": str(part["name"]), "version": str(part["version"])})
+	}
+	summary["applicationComponents"] = compactApps
+	summary["unknownComponents"] = compactUnknown
 }
 
 // Explain a conservative origin decision even when LOG_LEVEL is info. Only
@@ -225,7 +249,11 @@ func applicationCells(summary M) []string {
 	packages := map[string]M{}
 	for _, raw := range arr(summary["applicationComponents"]) {
 		part := obj(raw)
-		if num(findingCounts([]any{raw})["total"]) > 0 {
+		counts := obj(part["findings"])
+		if len(counts) == 0 {
+			counts = findingCounts([]any{raw})
+		}
+		if num(counts["total"]) > 0 {
 			packages[str(part["name"])+"\x00"+str(part["version"])] = part
 		}
 	}
@@ -243,7 +271,7 @@ func applicationCells(summary M) []string {
 		} else {
 			// Versions from different advisories have no universal ordering
 			// (Debian, RPM, Python, etc.). Do not guess a package-wide target.
-			fixes := []string{}
+			fixes := append([]string{}, stringsOf(part["fixVersions"])...)
 			for _, v := range arr(part["vulns"]) {
 				if fix := str(obj(v)["fixedBy"]); strings.TrimSpace(fix) != "" {
 					fixes = append(fixes, fix)
@@ -263,7 +291,11 @@ func applicationCells(summary M) []string {
 	if len(items) == 0 {
 		items = append(items, "0 kända tilläggsfynd")
 	}
-	if n := num(findingCounts(arr(summary["unknownComponents"]))["total"]); n > 0 {
+	unknownCounts := obj(summary["unknownFindings"])
+	if len(unknownCounts) == 0 {
+		unknownCounts = findingCounts(arr(summary["unknownComponents"]))
+	}
+	if n := num(unknownCounts["total"]); n > 0 {
 		items = append(items, fmt.Sprintf("%d fynd med okänt ursprung", int(n)))
 	}
 	// Include every affected addition; long lists continue on further table
