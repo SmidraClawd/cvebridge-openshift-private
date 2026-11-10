@@ -43,7 +43,7 @@ func parseSlashCommand(text string, allowedNamespaces ...string) (string, []stri
 		if len(args) == 1 {
 			return command, nil, nil
 		}
-		if len(args) != 2 || !NS.MatchString(args[1]) {
+		if len(args) != 2 || !validNamespaceScope(args[1:], true) {
 			return "", nil, problem(400, "Använd /cve scan [namespace] eller /cve report [namespace].")
 		}
 		return command, []string{args[1]}, nil
@@ -54,7 +54,7 @@ func parseSlashCommand(text string, allowedNamespaces ...string) (string, []stri
 	namespaces := []string{}
 	if len(terms) > 0 {
 		last := terms[len(terms)-1]
-		if NS.MatchString(last) && !CVE.MatchString(strings.ToUpper(last)) && (!strings.HasPrefix(strings.ToUpper(last), "CVE-") || has(allowedNamespaces, last)) {
+		if last == allNamespaces || NS.MatchString(last) && !CVE.MatchString(strings.ToUpper(last)) && (!strings.HasPrefix(strings.ToUpper(last), "CVE-") || has(allowedNamespaces, allNamespaces) || has(allowedNamespaces, last)) {
 			namespaces = append(namespaces, last)
 			terms = terms[:len(terms)-1]
 		}

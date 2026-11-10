@@ -55,6 +55,33 @@ func answers() []string {
 		"bot-literal-\"-$()-`test`", "command-literal-$()-`test`", "cvebridge.apps.lab.example.test"}
 }
 
+func TestSetupAcceptsClusterWildcardAndRejectsMixedScopes(t *testing.T) {
+	dir := project(t)
+	input := answers()
+	input[2] = "*"
+	if output, err := run(t, dir, input); err != nil {
+		t.Fatal(err, output)
+	}
+	cm := mapping(object(t, dir, "configmap.yaml")["data"])
+	if cm["SCAN_NAMESPACES"] != "*" || cm["STACKROX_CLUSTER_ID"] != input[4] {
+		t.Fatal("wildcard must preserve the explicitly chosen cluster", cm)
+	}
+	if output, err := run(t, dir, nil, "--check"); err != nil {
+		t.Fatal(err, output)
+	}
+	for _, scope := range []string{"*,team-a", "team-*", "*,*"} {
+		badDir := project(t)
+		badInput := answers()
+		badInput[2] = scope
+		// The following answer supplies a valid replacement after the error.
+		badInput = append(badInput[:3], append([]string{"*"}, badInput[3:]...)...)
+		output, err := run(t, badDir, badInput)
+		if err != nil || !strings.Contains(output, "endast *") {
+			t.Fatal("invalid glob or mixed scope was not rejected", scope, err, output)
+		}
+	}
+}
+
 func object(t *testing.T, dir, filename string) map[string]any {
 	t.Helper()
 	path := filepath.Join(dir, "deploy", filename)

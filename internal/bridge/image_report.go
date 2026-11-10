@@ -33,7 +33,18 @@ func historyIndex(value any) (int, bool) {
 }
 
 func matchedBase(image M) M {
+	base, _ := matchedBaseWithReason(image)
+	return base
+}
+
+func matchedBaseWithReason(image M) (M, string) {
 	layers := arr(obj(obj(image["metadata"])["v1"])["layers"])
+	if len(layers) == 0 {
+		return M{}, "missing_layer_history"
+	}
+	if len(arr(image["baseImageInfo"])) == 0 {
+		return M{}, "no_base_image_match"
+	}
 	best := M{}
 	boundary := -1
 	ambiguous := false
@@ -55,9 +66,12 @@ func matchedBase(image M) M {
 		}
 	}
 	if ambiguous {
-		return M{}
+		return M{}, "ambiguous_base_image_match"
 	}
-	return best
+	if len(best) == 0 {
+		return best, "invalid_base_image_match"
+	}
+	return best, "verified"
 }
 
 // Use the severity assigned by ACS rather than recomputing it from CVSS.
@@ -92,7 +106,7 @@ func findingCounts(parts []any) M {
 
 func addImageSummary(summary, image M, partial bool) {
 	parts := arr(obj(image["scan"])["components"])
-	base := matchedBase(image)
+	base, reason := matchedBaseWithReason(image)
 	apps := []any{}
 	unknown := []any{}
 	baseParts := []any{}
@@ -109,10 +123,57 @@ func addImageSummary(summary, image M, partial bool) {
 	summary["status"] = "scanned"
 	summary["partial"] = partial
 	summary["base"] = base
+	summary["baseReason"] = reason
 	summary["findings"] = findingCounts(parts)
 	summary["baseFindings"] = findingCounts(baseParts)
 	summary["applicationComponents"] = apps
 	summary["unknownComponents"] = unknown
+}
+
+// Explain a conservative origin decision even when LOG_LEVEL is info. Only
+// counts and validated image references are logged, never raw ACS responses.
+func (s *Services) logImageOrigin(summary, image M) {
+	unknown := arr(summary["unknownComponents"])
+	apps := arr(summary["applicationComponents"])
+	parts := arr(obj(image["scan"])["components"])
+	layers := arr(obj(obj(image["metadata"])["v1"])["layers"])
+	reason, state := str(summary["baseReason"]), "unknown"
+	hint := "ACS saknar tillräckligt underlag för att skilja basimage från appens tillägg."
+	if reason == "verified" {
+		state, hint = "verified", "Basimage och paketursprung kunde verifieras mot ACS lagerhistorik."
+		if len(unknown) > 0 {
+			state, reason = "partial", "component_layer_index_unavailable"
+			hint = "Basimagen är verifierad, men vissa paket saknar giltigt layerIndex. Dessa får okänt ursprung."
+		}
+	} else {
+		switch reason {
+		case "no_base_image_match":
+			hint = "ACS returnerade ingen basimagematchning (baseImageInfo). Kontrollera basimagereferenser och matchning i ACS."
+		case "missing_layer_history":
+			hint = "ACS returnerade ingen lagerhistorik (metadata.v1.layers). Basimage och paketursprung kan inte verifieras."
+		case "invalid_base_image_match":
+			hint = "ACS basimagematchningar saknar giltigt namn, digest eller maxLayerIndex inom lagerhistoriken."
+		case "ambiguous_base_image_match":
+			hint = "ACS returnerade olika basimagedigests med samma lagergräns. Boten väljer inte en på gissning."
+		}
+	}
+	missing, invalid, outside := 0, 0, 0
+	for _, raw := range parts {
+		part := obj(raw)
+		if part["layerIndex"] == nil {
+			missing++
+		} else if index, ok := historyIndex(part["layerIndex"]); !ok {
+			invalid++
+		} else if index >= len(layers) {
+			outside++
+		}
+	}
+	s.acsInfo("image_origin", M{
+		"image": str(summary["image"]), "state": state, "reason": reason, "hint": hint,
+		"history_layers": len(layers), "base_matches": len(arr(image["baseImageInfo"])),
+		"base_components": len(parts) - len(apps) - len(unknown), "application_components": len(apps), "unknown_components": len(unknown),
+		"missing_component_layer_index": missing, "invalid_component_layer_index": invalid, "out_of_range_component_layer_index": outside,
+	})
 }
 
 func componentOrigin(part, image, base M) string {
@@ -261,6 +322,9 @@ func imageReportMessages(result M) []M {
 	}
 	if len(rows) == 0 || num(result["unscannedImages"]) > 0 {
 		for _, ns := range stringsOf(result["namespaces"]) {
+			if ns == allNamespaces {
+				ns = scope([]string{allNamespaces})
+			}
 			status := "Inga körande images hittades"
 			if incomplete(result) {
 				status = "Underlag saknas · " + fmt.Sprint(int(num(result["unscannedImages"]))) + " ej identifierade images i urvalet"

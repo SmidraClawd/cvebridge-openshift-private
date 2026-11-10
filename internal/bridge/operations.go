@@ -15,13 +15,13 @@ func (s *Services) operationsAudience(ctx context.Context, owner, ch string, ns 
 	}
 	a.Namespaces = unique(s.C.Scopes[ch])
 	if scheduled {
-		a.Namespaces = intersect(a.Namespaces, s.C.ScheduleScopes[ch])
+		a.Namespaces = namespaceIntersection(a.Namespaces, s.C.ScheduleScopes[ch])
 	}
 	if len(a.Namespaces) == 0 {
 		return a, problem(403, "Inga namespaces är konfigurerade för driftkanalen.")
 	}
 	if len(ns) > 0 {
-		if len(intersect(ns, a.Namespaces)) != len(unique(ns)) {
+		if !namespaceSubset(ns, a.Namespaces) {
 			return a, problem(403, "Välj ett namespace från SCAN_NAMESPACES.")
 		}
 		a.Namespaces = unique(ns)

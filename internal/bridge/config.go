@@ -182,20 +182,15 @@ func NewConfig(m map[string]string) (Config, error) {
 		}
 	}
 	for ch, ns := range c.Scopes {
-		if !ID.MatchString(ch) || len(ns) == 0 || len(ns) > 100 {
+		if !ID.MatchString(ch) || !validNamespaceScope(ns, c.OperationsOnly()) {
 			return c, fmt.Errorf("invalid channel scope")
-		}
-		for _, n := range ns {
-			if !NS.MatchString(n) {
-				return c, fmt.Errorf("invalid namespace")
-			}
 		}
 		if p := c.Policies[ch]; p != "" && p != "common" && p != "requester" {
 			return c, fmt.Errorf("invalid sharing policy")
 		}
 	}
 	for ch, ns := range c.ScheduleScopes {
-		if len(ns) == 0 || len(ns) > 100 || len(intersect(ns, c.Scopes[ch])) != len(unique(ns)) {
+		if !validNamespaceScope(ns, c.OperationsOnly()) || !namespaceSubset(ns, c.Scopes[ch]) {
 			return c, fmt.Errorf("schedule scope must be within channel scope")
 		}
 	}
@@ -292,13 +287,10 @@ func configurationDefaults(input map[string]string) (map[string]string, error) {
 			names := []string{}
 			for _, value := range strings.Split(m["SCAN_NAMESPACES"], ",") {
 				n := strings.TrimSpace(value)
-				if !NS.MatchString(n) {
-					return nil, fmt.Errorf("SCAN_NAMESPACES must list approved namespace names, separated by commas")
-				}
 				names = append(names, n)
 			}
-			if len(names) > 100 {
-				return nil, fmt.Errorf("too many SCAN_NAMESPACES")
+			if !validNamespaceScope(names, m["ACCESS_MODE"] == "operations") {
+				return nil, fmt.Errorf("SCAN_NAMESPACES must list approved namespace names, or be * alone in operations mode")
 			}
 			m["MATTERMOST_CHANNEL_SCOPES"] = encode(map[string][]string{ch: unique(names)})
 		}

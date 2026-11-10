@@ -67,10 +67,8 @@ func ValidateSchedule(days []string, times, zone, mode string, ns []string) (Sch
 	if len(c.Days) == 0 || len(c.Times) < 1 || len(c.Times) > 4 || len(ns) == 0 || len(ns) > 100 || (mode != "scan" && mode != "report") {
 		return bad()
 	}
-	for _, n := range ns {
-		if !NS.MatchString(n) {
-			return bad()
-		}
+	if !validNamespaceScope(ns, true) {
+		return bad()
 	}
 	for i, n := range mins {
 		if len(mins) > 1 && (mins[(i+1)%len(mins)]-n+1440)%1440 < 60 {

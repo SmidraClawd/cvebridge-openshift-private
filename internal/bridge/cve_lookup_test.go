@@ -22,6 +22,9 @@ func TestCVECommandsAcceptSingleMultipleAndScopedQueries(t *testing.T) {
 		{"SEARCH CVE-2025-47273,cve-2025-47273", "CVE-2025-47273", ""},
 		{"report team-a", "report", "team-a"},
 		{"scan", "scan", ""},
+		{"scan *", "scan", "*"},
+		{"report *", "report", "*"},
+		{"CVE-2025-47273 *", "CVE-2025-47273", "*"},
 		{"HELP", "help", ""},
 	} {
 		t.Run(tt.text, func(t *testing.T) {
@@ -35,7 +38,7 @@ func TestCVECommandsAcceptSingleMultipleAndScopedQueries(t *testing.T) {
 	for i := 0; i <= maxLookupCVEs; i++ {
 		tooMany = append(tooMany, fmt.Sprintf("CVE-2026-%05d", i))
 	}
-	for _, text := range []string{"search", "search team-a", "CVE-2025-bad", "CVE-2025-47273 cve-2025-bad", "CVE-2025-47273 team-a team-b", "CVE-2025-47273 *", "CVE-2025-47273 CVE-2022-40897;", "status team-a", "scan team-a extra", strings.Join(tooMany, ",")} {
+	for _, text := range []string{"search", "search team-a", "CVE-2025-bad", "CVE-2025-47273 cve-2025-bad", "CVE-2025-47273 team-a team-b", "scan team-*", "scan * team-a", "CVE-2025-47273 CVE-2022-40897;", "status team-a", "scan team-a extra", strings.Join(tooMany, ",")} {
 		if _, _, err := parseSlashCommand(text); err == nil {
 			t.Error("invalid query accepted:", text)
 		}

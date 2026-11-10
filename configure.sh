@@ -27,7 +27,7 @@ FILES = ('configmap.yaml', 'secret.yaml', 'deployment.yaml', 'z-deployment.yaml'
 FIELDS = (
     ('namespace', 'Namespace för boten', 'image-security', False),
     ('pvc', 'Namnet på din befintliga PVC', '', False),
-    ('namespaces', 'Projekt att skanna, separerade med komma', '', False),
+    ('namespaces', 'Projekt att skanna, separerade med komma, eller * för hela ACS-klustret', '', False),
     ('acs_url', 'ACS Central-adress, https://...', '', False),
     ('cluster_id', 'Kluster-ID i ACS, från labbklustrets detaljsida', '', False),
     ('acs_token', 'ACS API-token', '', True),
@@ -57,8 +57,8 @@ def normalize(key, value):
             raise ValueError('Ange PVC-namnet från oc get pvc, inte en nätverkssökväg.')
     elif key == 'namespaces':
         names = sorted(set(part.strip() for part in value.split(',')))
-        if len(names) > 100 or not all(valid_name(part) for part in names):
-            raise ValueError('Ange projektnamn med komma mellan, exempelvis team-a,team-b.')
+        if value != '*' and (len(names) > 100 or not all(valid_name(part) for part in names)):
+            raise ValueError('Ange projektnamn med komma mellan, exempelvis team-a,team-b, eller endast * för hela ACS-klustret.')
         value = ','.join(names)
     elif key in ('acs_url', 'mm_url'):
         u = urlsplit(value)

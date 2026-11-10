@@ -61,7 +61,13 @@ func (a *App) DialogContext(ctx context.Context, owner, ch string) (*Schedule, S
 		existing = current.Config.Namespaces
 		rev = current.Revision
 	}
-	snap = Snapshot{Account: user, Candidates: intersect(append(actor.Namespaces, existing...), audience.Namespaces), Members: audience.Members, Policy: audience.Policy, Revision: rev}
+	candidates := namespaceIntersection(actor.Namespaces, audience.Namespaces)
+	for _, name := range existing {
+		if namespaceSubset([]string{name}, candidates) {
+			candidates = append(candidates, name)
+		}
+	}
+	snap = Snapshot{Account: user, Candidates: unique(candidates), Members: audience.Members, Policy: audience.Policy, Revision: rev}
 	if len(snap.Candidates) == 0 {
 		return nil, snap, problem(403, "Inga namespaces är godkända för teamet och rapporttjänsten.")
 	}
@@ -124,11 +130,17 @@ func (a *App) OpenDialog(ctx context.Context, owner, ch, trigger string) error {
 	if a.S.C.OperationsOnly() {
 		title = "Driftens schema"
 	}
+	namespaceLabels := append([]string{}, snap.Candidates...)
+	for i, name := range snap.Candidates {
+		if name == allNamespaces {
+			namespaceLabels[i] = "Alla namespaces i valt ACS-kluster"
+		}
+	}
 	dialog := M{"callback_id": callbackID, "title": title, "state": key, "introduction_text": "Välj dagar, tider och namespaces. Spara för att börja köra automatiskt.", "submit_label": "Utför", "notify_on_cancel": true, "elements": []any{
 		selectElement("days", "Veckodagar", []string{"0", "1", "2", "3", "4", "5", "6"}, Days, strings.Join(days, ","), true),
 		M{"name": "times", "display_name": "Tider", "type": "text", "default": strings.Join(c.Times, ", "), "help_text": "HH:MM, högst fyra tider, minst en timme mellan."},
 		M{"name": "timezone", "display_name": "Tidszon", "type": "text", "default": c.Timezone},
-		selectElement("namespaces", "Namespaces", snap.Candidates, snap.Candidates, strings.Join(c.Namespaces, ","), true),
+		selectElement("namespaces", "Namespaces", snap.Candidates, namespaceLabels, strings.Join(c.Namespaces, ","), true),
 		selectElement("mode", "Vad ska göras?", []string{"scan", "report"}, []string{"Ny skanning och rapport", "Rapport från befintliga fynd"}, c.Mode, false),
 		selectElement("enabled", "Efter sparning", []string{"yes", "no"}, []string{"Aktiverat", "Pausat"}, enabled, false), selectElement("action", "Åtgärd", actions, labels, "save", false)}}
 	_, e = a.S.MMRequest(ctx, "/api/v4/actions/dialogs/open", M{"trigger_id": trigger, "url": strings.TrimRight(a.S.C.Get("MATTERMOST_DIALOG_URL", ""), "/") + "/" + key, "dialog": dialog})
@@ -236,7 +248,7 @@ func (a *App) SubmitDialog(ctx context.Context, key string, p M) (err error) {
 		if e != nil {
 			return e
 		}
-		if len(intersect(c.Namespaces, intersect(saved.Candidates, fresh.Candidates))) != len(c.Namespaces) {
+		if !namespaceSubset(c.Namespaces, saved.Candidates) || !namespaceSubset(c.Namespaces, fresh.Candidates) {
 			return problem(403, "Valda namespaces är inte godkända.")
 		}
 		c.Policy = fresh.Policy

@@ -119,7 +119,7 @@ nåbar även från klustret eftersom Deployment använder samma adress.
 | --- | --- |
 | Namespace | OpenShift-projektet där boten och PVC:n finns. Enter väljer `image-security`. |
 | PVC | `oc get pvc -n image-security` → kopiera **NAME** för er befintliga lagring. |
-| Projekt att skanna | OpenShift-projektnamn, exempelvis `team-a,team-b`. Boten skannar aktiva images som ACS känner till där. |
+| Projekt att skanna | `team-a,team-b` för en lista, eller `*` för alla namespaces i det valda ACS-klustret. Boten skannar aktiva images som ACS känner till. |
 | ACS-adress | Adressen till Central där du loggar in, exempelvis `https://central.foretaget.se`. |
 | Kluster-ID i ACS | **Platform Configuration → Clusters → labbklustret**. Kopiera ID:t efter `/main/clusters/` i adressfältet. |
 | ACS API-token | **Platform Configuration → Integrations → API Token**. ACS-ansvarig väljer roll och access scope. |
@@ -131,6 +131,59 @@ nåbar även från klustret eftersom Deployment använder samma adress.
 
 ACS-tokenen behöver **Read** på Deployment, Image, Cluster, Namespace och
 Administration samt **Write** på Image. ACS-ansvarig godkänner rättigheterna.
+
+### Alla namespaces i labbklustret
+
+I din befintliga `deploy/configmap.yaml`, under `data`:
+
+```yaml
+SCAN_NAMESPACES: "*"
+STACKROX_CLUSTER_ID: "<labbklustrets-id-i-acs>"
+```
+
+Behåll ert riktiga kluster-ID. `*` omfattar **alla namespaces i just det
+klustret**, även nya namespaces. Du behöver inte underhålla en projektlista.
+Kluster-ID:t styr urvalet; det väljs inte automatiskt av var botens pod körs
+eller vilket projekt du har öppet med `oc`.
+
+Efter att du byggt och rullat ut versionen med stöd för `*`, applicera din
+ConfigMap och starta om boten. Byt `image-security` om boten kör någon annanstans:
+
+```sh
+oc apply -f deploy/configmap.yaml
+oc rollout restart deployment/cvebridge -n image-security
+oc rollout status deployment/cvebridge -n image-security
+```
+
+I Mattermost:
+
+```text
+/cve scan
+/cve scan *
+/cve scan team-a
+/cve report
+/cve CVE-2025-47273
+```
+
+De två första skannar samma klusteromfattande urval. Ett angivet namespace
+begränsar körningen. `report` och CVE-sökningen använder samma omfattning men
+läser befintliga resultat. I schemaformuläret finns valet **Alla namespaces i
+valt ACS-kluster**. Välj det ensamt för att även framtida namespaces ska ingå.
+Ett redan sparat schema behåller sitt tidigare urval tills du ändrar det.
+
+`*` är ett aktivt val för den privata driftkanalen (`ACCESS_MODE: "operations"`).
+Standardvalet är fortfarande din uttryckliga namespace-lista. Blanda inte `*`
+med namn; delmönster som `team-*` stöds inte. Finns avancerade
+`MATTERMOST_CHANNEL_SCOPES` eller `MATTERMOST_SCHEDULE_SCOPES` styr de fortfarande
+sina respektive urval. Ta bort dessa två nycklar om `SCAN_NAMESPACES` ska styra
+både kommandon och scheman automatiskt.
+
+ACS-tokenens access scope behöver omfatta hela det valda klustret. Boten kan
+bara visa aktiva images som ACS känner till och tokenen får läsa; tomma
+namespaces ger inga imagerader. Andra kluster tas inte med. Befintliga
+körgränser gäller även här: över 100 unika images eller 2 000 aktiva pods
+avbryts körningen med ett fel som ber dig välja ett namespace, utan att en
+ofullständig inventering presenteras som komplett.
 
 `DATABASE_MONITOR_CHANNEL_ID` i den genererade ConfigMap är Mattermost-kanalen
 för CVE-databasens status. Skriptet använder samma ID som driftkanalen, så du
@@ -362,6 +415,7 @@ Bjud in boten och kör kommandona ett i taget:
 | `/cve status` | CVE-databasens uppdateringstid och ålder. |
 | `/cve sensor` | Senaste sensorkontakt för det konfigurerade klustret. |
 | `/cve scan` | Ny imageskanning av driftkanalens godkända namespaces, sedan imagetabellen. |
+| `/cve scan *` | Alla namespaces i valt ACS-kluster, när `SCAN_NAMESPACES` är `*`. |
 | `/cve scan team-a` | Samma tabell för ett godkänt namespace. |
 | `/cve report` | Imagetabell från befintliga ACS-resultat för kanalens namespaces. |
 | `/cve report team-a` | Befintligt underlag för ett godkänt namespace, utan ny skanning. |
@@ -387,6 +441,33 @@ har [inbyggd inline-LaTeX](https://docs.mattermost.com/end-user-guide/collaborat
 aktiverad, annars används vanliga rubriker automatiskt. Ingen plugin behövs.
 Du kan markera och kopiera en rad. Samma format används för manuella och
 schemalagda `scan`/`report`; större urval fortsätter i fler tabeller.
+
+**Står det "Basimage: Ej verifierad" och "Ursprung ej verifierat"?**
+Det betyder att paketfynden kan läsas, men ACS-underlaget inte räcker för att
+avgöra vad som kommer från basimagen. Det innebär inte att imagen saknar
+basimage eller att alla paketen är appens tillägg. Boten gissar inte ursprunget.
+
+Efter en `scan`, `report` eller CVE-sökning kan du läsa orsaken per image:
+
+```sh
+oc logs deployment/cvebridge -n image-security -c bot --since=15m | grep image_origin
+```
+
+Byt botens namespace om det behövs. Dessa rader loggas även med `LOG_LEVEL: "info"`.
+Läs `reason` och den svenska `hint`:
+
+| `reason` | Betydelse |
+| --- | --- |
+| `no_base_image_match` | ACS returnerade ingen matchad basimage i `baseImageInfo`. Kontrollera basimagereferenser och matchning i ACS. |
+| `missing_layer_history` | ACS-svaret saknar imagehistorik i `metadata.v1.layers`. |
+| `invalid_base_image_match` | Matchningen har ogiltigt namn, digest eller lagergräns. |
+| `ambiguous_base_image_match` | Flera olika basimages har samma lagergräns; boten kan inte välja säkert. |
+| `component_layer_index_unavailable` | Basimagen är matchad, men vissa paket saknar giltigt lagerindex. |
+| `verified` | Basimage och alla returnerade pakets ursprung kunde verifieras. Det betyder inte att imagen är sårbarhetsfri. |
+
+Loggen visar även antal basimagematchningar, historiklager och paket med känt
+respektive okänt ursprung. Inga extra API-anrop eller tokens behövs. Saknas
+dessa rader trots en avslutad körning kan den gamla imagen fortfarande köras.
 
 | Kolumn | Innehåll |
 | --- | --- |

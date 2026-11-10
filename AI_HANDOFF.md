@@ -1,6 +1,6 @@
 # Överlämning till en annan AI: CVEBridge och Mattermost-felet
 
-Uppdaterad 2026-11-09. Kopiera texten nedan till den AI som ska hjälpa till.
+Uppdaterad 2026-11-10. Kopiera texten nedan till den AI som ska hjälpa till.
 Uppgifter om företagsmiljön är användarens observationer; den har inte kunnat
 inspekteras direkt härifrån. Värdnamn, tokens och företagskonfiguration ingår inte.
 
@@ -50,11 +50,25 @@ direkt åtkomst till företagsmiljön.
   `STACKROX_TOKEN` och `GET /v1/clusters/{id}`. Vid nekad åtkomst kontrolleras
   `Cluster: Read` och access scope. Ett lyckat sensorresultat har inte
   uttryckligen dokumenterats efter den senaste behörighetsfrågan.
-- **Kompakta färgtabeller är ett designförslag.** Användaren har Mattermost
-  11.10.1 och har fått exempelbilder med tabeller för images och paket.
-  Mattermost Blocks-tabellerna och automatisk upptäckt av alla namespaces är
-  ännu inte implementerade. `/cve scan` utan argument använder fortfarande
-  botens konfigurerade namespace-lista och kanalens befintliga behörighetsmodell.
+- **Alla namespaces kan väljas med `SCAN_NAMESPACES: "*"`.** Endast driftläget
+  tillåter detta. Inventeringen söker aktiva pods över hela det uttryckligt
+  konfigurerade `STACKROX_CLUSTER_ID`, med exakt klustermatchning och kontroll
+  av varje pods och deployments verkliga namespace. Nya namespaces ingår vid
+  nästa körning; ingen Kubernetes-API-behörighet behövs. `/cve scan` och
+  `/cve scan *` använder samma wildcard-urval, medan ett angivet namespace
+  begränsar det. Report, CVE-sökningar och scheman stöder samma urval.
+  Schemaformulärets val "Alla namespaces i valt ACS-kluster" lagrar `*`.
+  En explicit namespace-lista ger fortsatt bara tillgång till den listan och
+  tillåter inte att ett kommando vidgar den med `*`. Avancerade scopes behåller
+  företräde. Befintliga gränser på 100 images/2 000 aktiva pods gäller även
+  klusteromfattande körningar; för stort urval ger fel, inte en tyst delrapport.
+  Företagsklustret är inte uppdaterat härifrån; ny image och ConfigMap krävs där.
+- **Paketursprung loggas per image även på INFO-nivå.** `image_origin`
+  innehåller `reason`, svensk `hint` och antal basmatchningar, historiklager,
+  bas-/app-/okända komponenter och saknade/ogiltiga lagerindex. Det förklarar
+  "Ej verifierad" utan att kalla det en misslyckad skanning. Orsakerna skiljer
+  på saknad basmatchning, saknad lagerhistorik, ogiltig/tvetydig basmatchning
+  och paket med okänt lagerindex. Inga råa API-svar eller extra anrop loggas.
 
 Boten körs i ett annat namespace än dokumentationens standardexempel
 `image-security`. Använd aktuellt botnamespace i alla `oc`-kommandon. Befintliga
@@ -163,8 +177,10 @@ Kommandon:
 /cve schedule
 ```
 
-`SCAN_NAMESPACES` är en lista över tillåtna namespaces. `/cve scan` utan
-namespace väljer hela den konfigurerade listan. `*` stöds inte.
+`SCAN_NAMESPACES` är en lista över tillåtna namespaces eller enbart `*` för
+alla namespaces i `STACKROX_CLUSTER_ID` i driftläget. `/cve scan` utan namespace
+väljer hela detta urval. `*` gäller inte andra ACS-kluster och kräver att
+tokenens access scope också omfattar de namespaces som ska hittas.
 
 I driftläget behövs ingen `MATTERMOST_KUBE_USER_MAP` eller personlig
 OpenShift-inloggning för varje kanalmedlem. Boten kontrollerar den godkända

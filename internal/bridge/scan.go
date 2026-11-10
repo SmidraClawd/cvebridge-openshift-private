@@ -26,36 +26,46 @@ type Inventory struct {
 
 func (s *Services) query(kind, ns string, offset int) string {
 	// Unquoted ACS terms also match prefixes, which the scope check rejects.
-	query := fmt.Sprintf("Cluster ID:%q+Namespace:%q", s.C.Get("STACKROX_CLUSTER_ID", ""), ns)
+	query := fmt.Sprintf("Cluster ID:%q", s.C.Get("STACKROX_CLUSTER_ID", ""))
+	if ns != allNamespaces {
+		query += fmt.Sprintf("+Namespace:%q", ns)
+	}
 	return "/v1/" + kind + "?" + url.Values{"query": {query}, "pagination.limit": {"100"}, "pagination.offset": {strconv.Itoa(offset)}}.Encode()
 }
 func (s *Services) scoped(r M, ns string) bool {
-	return str(r["namespace"]) == ns && str(r["clusterId"]) == s.C.Get("STACKROX_CLUSTER_ID", "")
+	actual := str(r["namespace"])
+	return NS.MatchString(actual) && (ns == allNamespaces || actual == ns) && str(r["clusterId"]) == s.C.Get("STACKROX_CLUSTER_ID", "")
 }
 func (s *Services) Inventory(ctx context.Context, namespaces []string, scheduled bool) (Inventory, error) {
 	inv := Inventory{}
+	if !validNamespaceScope(namespaces, s.C.OperationsOnly()) {
+		return inv, problem(403, "Välj godkända namespaces eller * för hela det konfigurerade klustret i driftläget.")
+	}
 	images := map[string]*InventoryImage{}
 	deps := map[string]M{}
 	podsSeen := map[string]bool{}
 	missing := map[string]bool{}
-	for _, ns := range namespaces {
+	for _, selector := range unique(namespaces) {
 		for offset := 0; ; offset += 100 {
-			page, e := s.RoxRequest(ctx, s.query("pods", ns, offset), "read", nil, scheduled)
+			page, e := s.RoxRequest(ctx, s.query("pods", selector, offset), "read", nil, scheduled)
 			if e != nil {
 				return inv, e
 			}
 			pods := arr(page["pods"])
 			for _, p := range pods {
 				pod := obj(p)
-				if !s.scoped(pod, ns) {
+				if !s.scoped(pod, selector) {
 					s.acsDebug("inventory_scope_mismatch", M{
-						"expected_namespace":  ns,
+						"expected_namespace":  selector,
 						"actual_namespace":    str(pod["namespace"]),
 						"expected_cluster_id": s.C.Get("STACKROX_CLUSTER_ID", ""),
 						"actual_cluster_id":   str(pod["clusterId"]),
 					})
 					return inv, problem(502, "Inventeringen matchar inte godkänd omfattning.")
 				}
+				// Resolve the selector from each pod, then require its deployment
+				// to match that exact namespace as well as the selected cluster.
+				ns := str(pod["namespace"])
 				live := []M{}
 				for _, i := range arr(pod["liveInstances"]) {
 					if !boolean(obj(i)["finished"]) {
@@ -286,6 +296,7 @@ func (s *Services) Scan(ctx context.Context, namespaces []string, authorize func
 			warnings = append(warnings, M{"image": entry.Name, "scanNotes": sn})
 		}
 		addImageSummary(summary, image, len(sn) > 0 || has(notes, "MISSING_METADATA") || len(parts) == 0)
+		s.logImageOrigin(summary, image)
 		for _, p := range parts {
 			part := obj(p)
 			origin := componentOrigin(part, image, obj(summary["base"]))
@@ -342,6 +353,9 @@ func incomplete(r M) bool {
 	return num(r["failedImages"])+num(r["unscannedImages"])+num(r["partialImages"]) > 0 || boolean(r["truncated"])
 }
 func scope(ns []string) string {
+	if allNamespaceScope(ns) {
+		return "Alla namespaces i valt kluster"
+	}
 	if len(ns) > 3 {
 		return strings.Join(ns[:3], " · ") + fmt.Sprintf(" · +%d fler", len(ns)-3)
 	}
