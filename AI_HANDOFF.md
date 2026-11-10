@@ -39,6 +39,13 @@ direkt åtkomst till företagsmiljön.
   Paketens ursprung kräver ACS `baseImageInfo` och giltiga historiklagerindex;
   saknad eller tvetydig basmatchning visas som okänd. Boten hittar inte på en
   uppdaterad basimage-tagg eller resultatet av en framtida ombyggnad.
+- **En eller flera CVE:er kan sökas i samma körning.** `/cve CVE-ID CVE-ID`
+  och `/cve search CVE-ID,CVE-ID [namespace]` läser befintliga ACS-resultat en
+  gång. Högst 20 olika CVE:er; kanalens scope kontrolleras även vid varje
+  publicerad tabelldel. CVE-tabellen visar namespace, image, CVE, ACS-risk,
+  paketets ursprung och installerad/fixversion. Inga JSON-bilagor eller nya
+  skanningar skickas. Saknad täckning skiljs från inga kända träffar, och
+  sökningen förbrukar inga engångslarm. `/cve help` och README har exempel.
 - **Sensor-kommandot behöver läsåtkomst till klustret.** Det använder
   `STACKROX_TOKEN` och `GET /v1/clusters/{id}`. Vid nekad åtkomst kontrolleras
   `Cluster: Read` och access scope. Ett lyckat sensorresultat har inte
@@ -85,6 +92,7 @@ Läs främst dessa filer i det aktuella OpenShift-repot:
 | --- | --- |
 | `cmd/cvebridge/main.go` | Processens start, HELLO-logg, HTTP-server och lyssningsadress. |
 | `internal/bridge/app.go` | HTTP-endpoints, kommandotoken, `/cve help` och kommandodispatch. |
+| `internal/bridge/commands.go` | Validering av kommandon, CVE-listor och valfritt namespace. |
 | `internal/bridge/config.go` | Konfigurationsvalidering och standardvärden. |
 | `internal/bridge/operations.go` | Privat driftkanal, kanalmedlemmar och tillåtna namespaces. |
 | `internal/bridge/services.go` | HTTP-klienter, CA-förtroende, Mattermost och ACS. |
@@ -95,6 +103,7 @@ Läs främst dessa filer i det aktuella OpenShift-repot:
 | `internal/bridge/state.go` | SQLite, scheman, körhistorik och larmstatus. |
 | `internal/bridge/report.go` | Mattermost-kort, Åtgärd och rapportformat. |
 | `internal/bridge/image_report.go` | Native imagetabeller, ACS baslager, riskantal och tilläggspaket. |
+| `internal/bridge/cve_report.go` | CVE-tabeller med versioner, paketursprung och tydliga rader utan träff. |
 | `internal/bridge/debug.go` | Sanerade ACS-loggar. |
 | `configure.sh` | Lokal Bash/Python-konfigurator och generering av manifest. |
 | `route.yaml` | Manuell OpenShift Route-mall. |
@@ -133,8 +142,8 @@ Aktuella funktioner i OpenShift-koden:
 - Sensorstatus: när aktiverad kontrolleras senaste kontakttid i Central var
   femte minut. Äldre än tio minuter ger saknad kontakt inom tidsgränsen.
   API-fel ger okänd status, inte ett bevis på att sensorn är nere.
-- Manuell imageskanning och befintliga fynd visas som svenska imagetabeller
-  utan bilagor. Separat CVE-sökning behåller ett detaljerat kort och JSON-bilaga.
+- Manuell imageskanning, befintliga fynd och sökning på en/flera CVE:er visas
+  som svenska tabeller utan bilagor.
 - Schemaformulär i Mattermost för dagar, tider, namespaces, körning/rapport,
   aktivering, paus och körhistorik. Formulärens multiselect kräver Mattermost 11+.
 - SQLite på `/data/requests.sqlite3` via PVC. Den rensas inte dagligen.
@@ -149,6 +158,8 @@ Kommandon:
 /cve scan team-a
 /cve report team-a
 /cve CVE-2021-44228 team-a
+/cve CVE-2025-47273 CVE-2022-40897
+/cve search CVE-2025-47273,CVE-2022-40897 team-a
 /cve schedule
 ```
 

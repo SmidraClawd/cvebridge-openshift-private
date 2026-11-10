@@ -35,19 +35,21 @@ func testEnv() map[string]string {
 }
 
 type fixture struct {
-	App         *App
-	Server      *httptest.Server
-	mu          sync.Mutex
-	Dialog      M
-	Posts       []M
-	FailPost    bool
-	WrongScope  bool
-	Stale       bool
-	Denied      bool
-	ScanCalls   int
-	FileUploads int
-	SeenTokens  []string
-	BotResponse M
+	App           *App
+	Server        *httptest.Server
+	mu            sync.Mutex
+	Dialog        M
+	Posts         []M
+	FailPost      bool
+	WrongScope    bool
+	Stale         bool
+	Denied        bool
+	ScanCalls     int
+	FileUploads   int
+	ImageReads    int
+	ImageResponse M
+	SeenTokens    []string
+	BotResponse   M
 }
 
 func newFixture(t *testing.T) *fixture {
@@ -112,6 +114,12 @@ func newFixture(t *testing.T) *fixture {
 			f.SeenTokens = append(f.SeenTokens, r.Header.Get("Authorization"))
 			if path == "/v1/images/scan" {
 				f.ScanCalls++
+			} else {
+				f.ImageReads++
+			}
+			if f.ImageResponse != nil {
+				write(f.ImageResponse)
+				return
 			}
 			stamp := time.Now()
 			if f.Stale {

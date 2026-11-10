@@ -389,13 +389,18 @@ func (s *Services) Upload(ctx context.Context, ch string, result M) ([]string, e
 }
 func (s *Services) Post(ctx context.Context, ch string, result M, checks ...func() error) (string, error) {
 	var messages []M
-	isTable := str(result["kind"]) == "scan"
+	isLookup := str(result["kind"]) == "lookup"
+	isTable := str(result["kind"]) == "scan" || isLookup
 	if isTable {
 		// Inline LaTeX is optional in Mattermost. Plain Markdown headers keep
 		// the table readable without a server setting or a plugin.
 		client, _ := s.MMRequest(ctx, "/api/v4/config/client?format=old", nil)
 		result["inlineLatex"] = str(client["EnableInlineLatex"]) == "true" || boolean(client["EnableInlineLatex"])
-		messages = imageReportMessages(result)
+		if isLookup {
+			messages = cveLookupMessages(result)
+		} else {
+			messages = imageReportMessages(result)
+		}
 	} else {
 		messages = []M{ResultMessage(result)}
 	}
@@ -413,6 +418,9 @@ func (s *Services) Post(ctx context.Context, ch string, result M, checks ...func
 		}
 		if isTable {
 			props["cvebridge_report_format"] = "images-v1"
+			if isLookup {
+				props["cvebridge_report_format"] = "cve-lookup-v1"
+			}
 		}
 		if _, ok := result["newCves"]; ok && i == 0 {
 			props["cvebridge_new_cves"] = result["newCves"]

@@ -192,7 +192,7 @@ func (s *Services) databaseStatusAt(ctx context.Context, now time.Time) M {
 	}
 	return r
 }
-func (s *Services) Scan(ctx context.Context, namespaces []string, authorize func() error, force, scheduled bool) (M, error) {
+func (s *Services) Scan(ctx context.Context, namespaces []string, authorize func() error, force, scheduled bool, cves ...string) (M, error) {
 	start := time.Now()
 	s.acsDebug("scan_start", M{"namespaces": namespaces, "cluster_id": s.C.Get("STACKROX_CLUSTER_ID", ""), "force": force, "scheduled": scheduled})
 	if e := authorize(); e != nil {
@@ -212,6 +212,10 @@ func (s *Services) Scan(ctx context.Context, namespaces []string, authorize func
 	scanTimes := []any{}
 	failed, scanned, components, partial := 0, 0, 0, 0
 	truncated := false
+	wanted := map[string]bool{}
+	for _, cve := range cves {
+		wanted[cve] = true
+	}
 	for number, entry := range inv.Images {
 		summary := M{"imageId": entry.Digest, "image": entry.Name, "targets": reportTargets(entry), "status": "failed"}
 		images = append(images, summary)
@@ -284,10 +288,14 @@ func (s *Services) Scan(ctx context.Context, namespaces []string, authorize func
 		addImageSummary(summary, image, len(sn) > 0 || has(notes, "MISSING_METADATA") || len(parts) == 0)
 		for _, p := range parts {
 			part := obj(p)
+			origin := componentOrigin(part, image, obj(summary["base"]))
 			for _, v := range arr(part["vulns"]) {
 				vuln := obj(v)
 				cve := strings.ToUpper(str(vuln["cve"]))
 				if !CVE.MatchString(cve) {
+					continue
+				}
+				if len(wanted) > 0 && !wanted[cve] {
 					continue
 				}
 				if len(rows)+len(entry.Targets) > 20000 {
@@ -295,7 +303,7 @@ func (s *Services) Scan(ctx context.Context, namespaces []string, authorize func
 					continue
 				}
 				for _, t := range entry.Targets {
-					rows = append(rows, M{"namespace": t.Namespace, "deployment": t.Deployment, "image": entry.Name, "imageId": entry.Digest, "component": str(part["name"]), "version": str(part["version"]), "source": str(part["source"]), "location": str(part["location"]), "cve": cve, "fixedBy": str(vuln["fixedBy"]), "cvss": num(vuln["cvss"]), "severity": str(vuln["severity"])})
+					rows = append(rows, M{"namespace": t.Namespace, "deployment": t.Deployment, "image": entry.Name, "displayImage": t.Image, "imageId": entry.Digest, "component": str(part["name"]), "version": str(part["version"]), "source": str(part["source"]), "location": str(part["location"]), "origin": origin, "baseImage": str(obj(summary["base"])["baseImageFullName"]), "cve": cve, "fixedBy": str(vuln["fixedBy"]), "cvss": num(vuln["cvss"]), "severity": str(vuln["severity"])})
 				}
 			}
 		}
@@ -310,22 +318,24 @@ func (s *Services) Scan(ctx context.Context, namespaces []string, authorize func
 	s.acsDebug("scan_complete", M{"mode": mode, "scanned_images": scanned, "failed_images": failed, "partial_images": partial, "duration_ms": time.Since(start).Milliseconds()})
 	return M{"kind": "scan", "mode": mode, "namespaces": namespaces, "rows": rows, "images": images, "scannedImages": scanned, "totalImages": len(inv.Images), "failedImages": failed, "unscannedImages": inv.Missing, "partialImages": partial, "pods": inv.Pods, "components": components, "errors": errors, "warnings": warnings, "truncated": truncated, "scanTimes": scanTimes, "database": s.DatabaseStatus(ctx), "finishedAt": time.Now().UTC().Format(time.RFC3339), "durationSeconds": int(time.Since(start).Seconds())}, nil
 }
-func (s *Services) Lookup(ctx context.Context, cve string, ns []string, authorize func() error) (M, error) {
+func (s *Services) Lookup(ctx context.Context, query string, ns []string, authorize func() error) (M, error) {
 	// Use the same live pod inventory and immutable digests as a scan. No new scan
 	// is requested for a CVE lookup; coverage and partial data remain explicit.
-	r, e := s.Scan(ctx, ns, authorize, false, false)
+	cves, e := normalizeCVEs(cveTerms(query))
 	if e != nil {
 		return nil, e
 	}
-	rows := []any{}
-	for _, v := range arr(r["rows"]) {
-		if str(obj(v)["cve"]) == cve {
-			rows = append(rows, v)
-		}
+	// Filter before Scan's row limit so unrelated findings cannot consume
+	// the search budget. All requested CVEs share one scoped inventory pass.
+	r, e := s.Scan(ctx, ns, authorize, false, false, cves...)
+	if e != nil {
+		return nil, e
 	}
 	r["kind"] = "lookup"
-	r["cve"] = cve
-	r["rows"] = rows
+	r["cves"] = cves
+	if len(cves) == 1 {
+		r["cve"] = cves[0]
+	}
 	return r, nil
 }
 func incomplete(r M) bool {

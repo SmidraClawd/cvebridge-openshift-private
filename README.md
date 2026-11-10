@@ -315,8 +315,8 @@ Gå till samma Mattermost-team som driftkanalen och öppna
 | Response Username | Lämna tomt. |
 | Response Icon | Lämna tomt. |
 | Autocomplete | Kryssa i. |
-| Autocomplete Hint | `help, status, sensor, scan [namespace], report [namespace], schedule` |
-| Autocomplete Description | `Kontrollera ACS-status, skanna images och skapa scheman.` |
+| Autocomplete Hint | `help, status, sensor, scan [namespace], report [namespace], search CVE-ID [namespace], schedule` |
+| Autocomplete Description | `Kontrollera ACS, skanna images, sök CVE:er och skapa scheman.` |
 
 De två sista fälten visas efter att Autocomplete har kryssats i. Lämna en eventuell
 valfri OAuth-koppling utan koppling. Klicka **Save** och kopiera **Token** på
@@ -365,6 +365,22 @@ Bjud in boten och kör kommandona ett i taget:
 | `/cve scan team-a` | Samma tabell för ett godkänt namespace. |
 | `/cve report` | Imagetabell från befintliga ACS-resultat för kanalens namespaces. |
 | `/cve report team-a` | Befintligt underlag för ett godkänt namespace, utan ny skanning. |
+| `/cve CVE-2025-47273` | Tabell med de namespaces, images och paket där denna CVE hittats. |
+| `/cve CVE-2025-47273 CVE-2022-40897` | Sök flera CVE:er i en enda körning. |
+| `/cve search CVE-2025-47273,CVE-2022-40897 team-a` | Samma sökning med kommatecken och ett valt namespace. |
+
+**CVE-sökning:** ange högst 20 olika CVE-ID:n med mellanslag eller kommatecken.
+Stora/små bokstäver spelar ingen roll och dubbletter tas bort. Utan ett namespace
+sist används alla projekt som driftkanalen får se. Sökningen läser befintliga
+ACS-skanningar; den begär ingen ny skanning och ändrar inte larmens historik.
+
+Resultatet är en kopierbar tabell med **namespace, image, CVE, ACS-risk,
+paket/ursprung, installerad version och fixversion**. Ursprung visas som basimage,
+appens tillägg eller ej verifierat. Fixversionen gäller den sökta CVE:n och är
+inte ett löfte att paketet saknar andra sårbarheter. Varje CVE utan kända träffar
+får också en rad. Saknat eller delvis underlag visas uttryckligen och räknas
+inte som ett bevis på att CVE:n saknas. Långa resultat fortsätter i fler tabeller,
+utan JSON-bilaga eller dropdown. `/cve help` visar kommandona i Mattermost.
 
 Tabellen använder vanlig Mattermost-text. Färgade rubriker används när servern
 har [inbyggd inline-LaTeX](https://docs.mattermost.com/end-user-guide/collaborate/format-messages#math-formulas)
@@ -391,7 +407,7 @@ Fynd räknas per paketversion/CVE inom imagen. Om samma image körs i flera
 namespaces visas den på varje berörd rad; summera inte dessa rader som unika
 fynd. Långa paketlistor fortsätter på fler rader utan ett godtyckligt toppurval.
 Nya kritiska CVE:er kan fortfarande ge en engångsping; övriga rapporter består
-bara av tabellen. En separat CVE-sökning behåller sin detaljerade JSON-bilaga.
+bara av tabellen. Även CVE-sökningar skickas som tabeller utan JSON-bilaga.
 
 Byt `team-a` mot ett projekt i din `SCAN_NAMESPACES`. Vänta på resultatet innan
 du startar nästa skanning. Alla driftkanalens medlemmar kan använda de godkända

@@ -93,20 +93,17 @@ func findingCounts(parts []any) M {
 func addImageSummary(summary, image M, partial bool) {
 	parts := arr(obj(image["scan"])["components"])
 	base := matchedBase(image)
-	boundary, matched := historyIndex(base["maxLayerIndex"])
 	apps := []any{}
 	unknown := []any{}
 	baseParts := []any{}
 	for _, raw := range parts {
-		part := obj(raw)
-		index, known := historyIndex(part["layerIndex"])
-		switch {
-		case !matched || !known || index >= len(arr(obj(obj(image["metadata"])["v1"])["layers"])):
-			unknown = append(unknown, raw)
-		case index <= boundary:
+		switch componentOrigin(obj(raw), image, base) {
+		case "base":
 			baseParts = append(baseParts, raw)
-		default:
+		case "application":
 			apps = append(apps, raw)
+		default:
+			unknown = append(unknown, raw)
 		}
 	}
 	summary["status"] = "scanned"
@@ -118,12 +115,31 @@ func addImageSummary(summary, image M, partial bool) {
 	summary["unknownComponents"] = unknown
 }
 
+func componentOrigin(part, image, base M) string {
+	boundary, matched := historyIndex(base["maxLayerIndex"])
+	index, known := historyIndex(part["layerIndex"])
+	if !matched || !known || index >= len(arr(obj(obj(image["metadata"])["v1"])["layers"])) {
+		return "unknown"
+	}
+	if index <= boundary {
+		return "base"
+	}
+	return "application"
+}
+
 func reportHeading(text, color, background string) string {
 	value := `\textcolor{` + color + `}{\textsf{\textbf{` + text + `}}}`
 	if background != "" {
 		value = `\colorbox{` + background + `}{` + value + `}`
 	}
 	return `$\footnotesize ` + value + `$`
+}
+
+func tableHeading(result M, text, color, background string) string {
+	if boolean(result["inlineLatex"]) {
+		return reportHeading(text, color, background)
+	}
+	return "**" + text + "**"
 }
 
 func countsCell(counts M) string {
@@ -261,31 +277,33 @@ func imageReportMessages(result M) []M {
 		}
 		return rows[i].image < rows[j].image
 	})
-	heading := func(text, color, background string) string {
-		if boolean(result["inlineLatex"]) {
-			return reportHeading(text, color, background)
-		}
-		return "**" + text + "**"
-	}
 	header := "| " + strings.Join([]string{
-		heading("Namespace", "#182C51", "#EDF2FF"),
-		heading("Image i drift", "#BC2546", "#FDEFF2"),
-		heading("Basimage (ACS)", "#182C51", ""),
-		heading("Fynd i imagen", "#AD610D", ""),
-		heading("Appens tillägg (fynd)", "#2B56B8", ""),
+		tableHeading(result, "Namespace", "#182C51", "#EDF2FF"),
+		tableHeading(result, "Image i drift", "#BC2546", "#FDEFF2"),
+		tableHeading(result, "Basimage (ACS)", "#182C51", ""),
+		tableHeading(result, "Fynd i imagen", "#AD610D", ""),
+		tableHeading(result, "Appens tillägg (fynd)", "#2B56B8", ""),
 	}, " | ") + " |\n| :--- | :--- | :--- | :--- | :--- |"
-	first := header
+	prefix := ""
 	if len(stringsOf(result["alertCves"])) > 0 {
-		first = "@channel **Nya kritiska CVE:er**\n\n" + first
+		prefix = "@channel **Nya kritiska CVE:er**\n\n"
 	}
-	messages := []M{}
-	current, count := first, 0
+	lines := []string{}
 	for _, row := range rows {
-		if count > 0 && (count >= 6 || utf8.RuneCountInString(current)+utf8.RuneCountInString(row.text) > 4500) {
+		lines = append(lines, row.text)
+	}
+	return nativeTableMessages(header, lines, prefix)
+}
+
+func nativeTableMessages(header string, rows []string, prefix string) []M {
+	messages := []M{}
+	current, count := prefix+header, 0
+	for _, row := range rows {
+		if count > 0 && (count >= 6 || utf8.RuneCountInString(current)+utf8.RuneCountInString(row) > 4500) {
 			messages = append(messages, M{"text": current})
 			current, count = header, 0
 		}
-		current += "\n" + row.text
+		current += "\n" + row
 		count++
 	}
 	return append(messages, M{"text": current})

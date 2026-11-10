@@ -128,20 +128,12 @@ func (a *App) execute(ch, owner, command string, ns []string, run *Run) {
 		}
 		err = authorize()
 	}
-	if err == nil && str(result["kind"]) == "lookup" {
-		var files []string
-		files, err = a.S.Upload(ctx, ch, result)
-		result["reportFileIds"] = files
-		if err == nil {
-			err = authorize()
-		}
-	}
 	var post string
 	if err == nil {
 		if str(result["kind"]) == "scan" {
 			post, err = a.Store.Publish(ctx, a.S, ch, result, authorize)
 		} else {
-			post, err = a.S.Post(ctx, ch, result)
+			post, err = a.S.Post(ctx, ch, result, authorize)
 		}
 	}
 	if err != nil {
@@ -259,30 +251,14 @@ func (a *App) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		reply(w, ErrorMessage(problem(400, "Använd /cve eller /acs.")))
 		return
 	}
-	args := strings.Fields(f.Get("text"))
-	if len(args) == 0 || (len(args) == 1 && (args[0] == "help" || args[0] == "hjälp")) {
+	command, ns, parseErr := parseSlashCommand(f.Get("text"))
+	if parseErr != nil {
+		reply(w, ErrorMessage(parseErr))
+		return
+	}
+	if command == "help" {
 		reply(w, HelpMessage())
 		return
-	}
-	command := strings.ToLower(args[0])
-	if command != "scan" && command != "report" && command != "status" && command != "sensor" && command != "schedule" {
-		command = strings.ToUpper(args[0])
-		if !CVE.MatchString(command) {
-			reply(w, ErrorMessage(problem(400, "Använd /cve help för giltiga kommandon.")))
-			return
-		}
-	}
-	if len(args) > 2 || ((command == "status" || command == "sensor" || command == "schedule") && len(args) != 1) {
-		reply(w, ErrorMessage(problem(400, "Kontrollera argumenten med /cve help.")))
-		return
-	}
-	ns := []string{}
-	if len(args) == 2 {
-		if !NS.MatchString(args[1]) {
-			reply(w, ErrorMessage(problem(400, "Ogiltigt namespace.")))
-			return
-		}
-		ns = append(ns, args[1])
 	}
 	owner, ch := f.Get("user_id"), f.Get("channel_id")
 	if !ID.MatchString(owner) || len(a.S.C.Scopes[ch]) == 0 {
