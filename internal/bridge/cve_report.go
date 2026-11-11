@@ -133,14 +133,7 @@ func cveLookupMessages(result M) []M {
 	if len(rows) == 0 {
 		rows = append(rows, "| — | — | — | Ej verifierat | Ingen giltig CVE angiven | — | — |")
 	}
-	header := "| " + strings.Join([]string{
-		tableHeading(result, "Namespace", "#182C51", "#EDF2FF"),
-		tableHeading(result, "Image i drift", "#182C51", ""),
-		tableHeading(result, "CVE", "#BC2546", "#FDEFF2"),
-		tableHeading(result, "Risk (ACS)", "#AD610D", ""),
-		tableHeading(result, "Paket / ursprung", "#2B56B8", ""),
-		tableHeading(result, "Ni har", "#AD610D", "#FFF4E8"),
-		tableHeading(result, "Fix (ACS)", "#23755F", "#EAF6F1"),
-	}, " | ") + " |\n| :--- | :--- | :--- | :--- | :--- | :--- | :--- |"
+	const header = `| **Namespace** | **Image i drift** | **CVE** | **Risk (ACS)** | **Paket / ursprung** | **Installerad version** | **Fixversion (ACS)** |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |`
 	return nativeTableMessages(header, rows, "")
 }

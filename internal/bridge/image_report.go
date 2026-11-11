@@ -212,21 +212,6 @@ func componentOrigin(part, image, base M) string {
 	return "application"
 }
 
-func reportHeading(text, color, background string) string {
-	value := `\textcolor{` + color + `}{\textsf{\textbf{` + text + `}}}`
-	if background != "" {
-		value = `\colorbox{` + background + `}{` + value + `}`
-	}
-	return `$\footnotesize ` + value + `$`
-}
-
-func tableHeading(result M, text, color, background string) string {
-	if boolean(result["inlineLatex"]) {
-		return reportHeading(text, color, background)
-	}
-	return "**" + text + "**"
-}
-
 func countsCell(counts M) string {
 	if num(counts["total"]) == 0 {
 		return "0 kända fynd"
@@ -373,13 +358,8 @@ func imageReportMessages(result M) []M {
 		}
 		return rows[i].image < rows[j].image
 	})
-	header := "| " + strings.Join([]string{
-		tableHeading(result, "Namespace", "#182C51", "#EDF2FF"),
-		tableHeading(result, "Image i drift", "#BC2546", "#FDEFF2"),
-		tableHeading(result, "Basimage (ACS)", "#182C51", ""),
-		tableHeading(result, "Fynd i imagen", "#AD610D", ""),
-		tableHeading(result, "Appens tillägg (fynd)", "#2B56B8", ""),
-	}, " | ") + " |\n| :--- | :--- | :--- | :--- | :--- |"
+	const header = `| **Namespace** | **Image i drift** | **Basimage (ACS)** | **Fynd i imagen** | **Appens tillägg (fynd)** |
+| :--- | :--- | :--- | :--- | :--- |`
 	prefix := ""
 	if len(stringsOf(result["alertCves"])) > 0 {
 		prefix = "@channel **Nya kritiska CVE:er**\n\n"

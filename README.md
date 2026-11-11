@@ -459,11 +459,10 @@ får också en rad. Saknat eller delvis underlag visas uttryckligen och räknas
 inte som ett bevis på att CVE:n saknas. Långa resultat fortsätter i fler tabeller,
 utan JSON-bilaga eller dropdown. `/cve help` visar kommandona i Mattermost.
 
-Tabellen använder vanlig Mattermost-text. Färgade rubriker används när servern
-har [inbyggd inline-LaTeX](https://docs.mattermost.com/end-user-guide/collaborate/format-messages#math-formulas)
-aktiverad, annars används vanliga rubriker automatiskt. Ingen plugin behövs.
-Du kan markera och kopiera en rad. Samma format används för manuella och
-schemalagda `scan`/`report`; större urval fortsätter i fler tabeller.
+Tabellerna använder Mattermosts Markdown med feta rubriker i temats färger.
+Risknivåer visas med både symboler och ord. Du kan markera och kopiera en rad.
+Samma format används för manuella och schemalagda `scan`/`report`; större
+urval fortsätter i fler tabeller.
 
 **Står det "Basimage: Ej verifierad" och "Ursprung ej verifierat"?**
 Det betyder att paketfynden kan läsas, men ACS-underlaget inte räcker för att

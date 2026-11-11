@@ -392,10 +392,6 @@ func (s *Services) Post(ctx context.Context, ch string, result M, checks ...func
 	isLookup := str(result["kind"]) == "lookup"
 	isTable := str(result["kind"]) == "scan" || isLookup
 	if isTable {
-		// Inline LaTeX is optional in Mattermost. Plain Markdown headers keep
-		// the table readable without a server setting or a plugin.
-		client, _ := s.MMRequest(ctx, "/api/v4/config/client?format=old", nil)
-		result["inlineLatex"] = str(client["EnableInlineLatex"]) == "true" || boolean(client["EnableInlineLatex"])
 		if isLookup {
 			messages = cveLookupMessages(result)
 		} else {

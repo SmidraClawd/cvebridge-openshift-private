@@ -239,7 +239,7 @@ func TestTablePagesRecheckAuthorization(t *testing.T) {
 	}
 }
 
-func TestImageTableFallsBackWhenInlineLatexIsDisabled(t *testing.T) {
+func TestReportTablesUseMarkdownWithOrWithoutInlineLatex(t *testing.T) {
 	for _, enabled := range []bool{false, true} {
 		t.Run(fmt.Sprint(enabled), func(t *testing.T) {
 			f := newFixture(t)
@@ -251,12 +251,27 @@ func TestImageTableFallsBackWhenInlineLatexIsDisabled(t *testing.T) {
 				}
 				original.ServeHTTP(w, r)
 			})
-			_, err := f.App.S.Post(context.Background(), channelID, M{"kind": "scan", "images": []any{testImageSummary(t)}})
-			if err != nil || len(f.Posts) != 1 {
-				t.Fatal(err)
-			}
-			if strings.Contains(str(f.Posts[0]["message"]), `\textcolor`) != enabled {
-				t.Fatal("header style does not match server capabilities")
+			postCount := 0
+			for _, table := range []struct {
+				result M
+				column string
+			}{
+				{M{"kind": "scan", "images": []any{testImageSummary(t)}}, "**Basimage (ACS)**"},
+				{M{"kind": "lookup", "cve": "CVE-2025-47273"}, "**Fixversion (ACS)**"},
+			} {
+				if _, err := f.App.S.Post(context.Background(), channelID, table.result); err != nil {
+					t.Fatal(err)
+				}
+				postCount++
+				if len(f.Posts) != postCount {
+					t.Fatal("expected one post per table")
+				}
+				message := str(f.Posts[len(f.Posts)-1]["message"])
+				header, _, _ := strings.Cut(message, "\n")
+				if !strings.HasPrefix(header, "| **Namespace** | **Image i drift** |") ||
+					!strings.Contains(header, table.column) || strings.ContainsAny(header, `$\`) {
+					t.Errorf("%s table must use Markdown headers without LaTeX: %s", table.result["kind"], header)
+				}
 			}
 		})
 	}
